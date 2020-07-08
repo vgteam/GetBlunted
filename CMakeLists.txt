@@ -204,9 +204,6 @@ message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-# stupid "experimental" filesystem library for gcc <8.0
-link_libraries(stdc++fs)
-
 
 # -------- TESTS --------
 
@@ -216,7 +213,6 @@ set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
 target_link_libraries(${FILENAME_PREFIX}
         Bluntifier
         Threads::Threads
-        stdc++fs
         gfak
         bdsg
         divsufsort
@@ -230,7 +226,6 @@ set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
 target_link_libraries(${FILENAME_PREFIX}
         Bluntifier
         Threads::Threads
-        stdc++fs
         gfak
         bdsg
         divsufsort
@@ -244,7 +239,6 @@ set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
 target_link_libraries(${FILENAME_PREFIX}
         Bluntifier
         Threads::Threads
-        stdc++fs
         gfak
         bdsg
         divsufsort
@@ -257,7 +251,7 @@ target_link_libraries(${FILENAME_PREFIX}
 #set(FILENAME_PREFIX a)
 #add_executable(${FILENAME_PREFIX} src/executables/${FILENAME_PREFIX}.cpp)
 #set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
-#target_link_libraries(${FILENAME_PREFIX} Bluntifier Threads::Threads ${Boost_LIBRARIES} stdc++fs)
+#target_link_libraries(${FILENAME_PREFIX} Bluntifier Threads::Threads ${Boost_LIBRARIES})
 
 # -------- final steps --------
 
