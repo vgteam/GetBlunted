@@ -115,8 +115,8 @@ ExternalProject_Add(project_gfak
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
         CONFIGURE_COMMAND ""
         BUILD_IN_SOURCE True
-        INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/gfak/
-        INSTALL_COMMAND make PREFIX=${CMAKE_CURRENT_BINARY_DIR}/gfak/ install
+        INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/gfak/
+        INSTALL_COMMAND make PREFIX=${CMAKE_SOURCE_DIR}/external/gfak/ install
         )
 
 # Define INSTALL_DIR as the install directory for external library
@@ -134,7 +134,7 @@ add_dependencies(gfak project_gfak)
 add_dependencies(Bluntifier gfak)
 
 # Ensure that main library has access to primary dependencies' and secondary dependencies' headers
-include_directories(${INSTALL_DIR}/include/)
+include_directories(external/gfak/include/)
 
 # Add runtime path for main library so it can access external library
 #set_property(TARGET Bluntifier PROPERTY INSTALL_RPATH "$ORIGIN" "${INSTALL_DIR}/bin/gfak")
@@ -159,8 +159,8 @@ ExternalProject_Add(project_bdsg
         CONFIGURE_COMMAND ""
 #        UPDATE_COMMAND ""
         BUILD_IN_SOURCE True
-        INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/bdsg/
-        INSTALL_COMMAND make INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/bdsg/ install
+        INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/bdsg/
+        INSTALL_COMMAND make INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/bdsg/ install
         )
 
 # Define INSTALL_DIR as the install directory for external library
@@ -190,7 +190,7 @@ add_dependencies(bdsg project_bdsg)
 add_dependencies(Bluntifier bdsg)
 
 # Ensure that main library has access to primary dependencies' and secondary dependencies' headers
-include_directories(${INSTALL_DIR}/include/)
+include_directories(external/bdsg/include/)
 
 # Add runtime path for main library so it can access external library
 #set_property(TARGET Bluntifier PROPERTY INSTALL_RPATH "$ORIGIN" "${INSTALL_DIR}/bin/bdsg")
