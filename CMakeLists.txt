@@ -213,8 +213,6 @@ link_libraries(stdc++fs)
 find_package( Boost 1.60 COMPONENTS program_options REQUIRED )
 include_directories( ${Boost_INCLUDE_DIR} )
 
-find_package(VGio REQUIRED)
-
 
 # -------- TESTS --------
 
