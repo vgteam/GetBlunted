@@ -18,11 +18,6 @@ set(CMAKE_CXX_FLAGS "-fexceptions -fno-new-ttp-matching")
 #add_definitions(-ggdb3 -O0 -Wall)       # Debugging + No optimization
 add_definitions(-O3 -Wall)              # Much optimization
 
-# Definitions needed to eliminate runtime dependency
-# on the boost system library.
-add_definitions(-DBOOST_SYSTEM_NO_DEPRECATED)
-add_definitions(-DBOOST_ERROR_CODE_HEADER_ONLY)
-
 #########################################
 # ------------------------------------- #
 # -------- SOURCES AND HEADERS -------- #
@@ -37,13 +32,14 @@ include_directories(
 # Define our shared library sources. NOT test/executables.
 set(SOURCES
         src/a.cpp
+#        src/gfa_to_handle.cpp
         )
 
 
 project(Bluntifier)
 add_library(Bluntifier SHARED ${SOURCES})
 
-# To make sure the library is named runlength_analysis.so,
+# To make sure the library is named Name.so,
 # get rid of the "lib" prefix.
 set_target_properties(Bluntifier PROPERTIES PREFIX "")
 
@@ -51,12 +47,12 @@ set_target_properties(Bluntifier PROPERTIES PREFIX "")
 set_target_properties(Bluntifier PROPERTIES DEFINE_SYMBOL "")
 
 
-###############################################
-## ------------------------------------------ #
-## --------- LINKING NATIVE LIBRARY --------- #
-## ------------------ OMP ------------------- #
-## ------------------------------------------ #
-###############################################
+##############################################
+# ------------------------------------------ #
+# --------- LINKING NATIVE LIBRARY --------- #
+# ------------------ OMP ------------------- #
+# ------------------------------------------ #
+##############################################
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
@@ -99,12 +95,12 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 endif()
 
 
-###############################################
-## ------------------------------------------ #
-## -------- LINKING EXTERNAL LIBRARY -------- #
-## ---------------- gfakluge ---------------- #
-## ------------------------------------------ #
-###############################################
+##############################################
+# ------------------------------------------ #
+# -------- LINKING EXTERNAL LIBRARY -------- #
+# ---------------- gfakluge ---------------- #
+# ------------------------------------------ #
+##############################################
 
 # Need to explicitly enable ExternalProject functionality
 include(ExternalProject)
@@ -142,12 +138,12 @@ include_directories(external/gfak/include/)
 message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 
 
-###############################################
-## ------------------------------------------ #
-## -------- LINKING EXTERNAL LIBRARY -------- #
-## ------------------ bdsg ------------------ #
-## ------------------------------------------ #
-###############################################
+##############################################
+# ------------------------------------------ #
+# -------- LINKING EXTERNAL LIBRARY -------- #
+# ------------------ bdsg ------------------ #
+# ------------------------------------------ #
+##############################################
 
 # Need to explicitly enable ExternalProject functionality
 include(ExternalProject)
@@ -210,9 +206,6 @@ find_package(Threads REQUIRED)
 # stupid "experimental" filesystem library for gcc <8.0
 link_libraries(stdc++fs)
 
-find_package( Boost 1.60 COMPONENTS program_options REQUIRED )
-include_directories( ${Boost_INCLUDE_DIR} )
-
 
 # -------- TESTS --------
 
@@ -222,7 +215,6 @@ set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
 target_link_libraries(${FILENAME_PREFIX}
         Bluntifier
         Threads::Threads
-        ${Boost_LIBRARIES}
         stdc++fs
         gfak
         bdsg
@@ -237,7 +229,6 @@ set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
 target_link_libraries(${FILENAME_PREFIX}
         Bluntifier
         Threads::Threads
-        ${Boost_LIBRARIES}
         stdc++fs
         gfak
         bdsg
@@ -252,7 +243,6 @@ set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
 target_link_libraries(${FILENAME_PREFIX}
         Bluntifier
         Threads::Threads
-        ${Boost_LIBRARIES}
         stdc++fs
         gfak
         bdsg
