@@ -1,4 +1,3 @@
-#include <experimental/filesystem>
 #include <fstream>
 
 #include "gfakluge.hpp"
@@ -17,7 +16,7 @@ int main(){
     string script_path = __FILE__;
     string project_directory = parent_path(script_path, 3);
 
-    // Get test VCF path
+    // Get test GFA path
     string relative_gfa_path = "/data/test_gfa1.gfa";
     string absolute_gfa_path = join_paths(project_directory, relative_gfa_path);
 
