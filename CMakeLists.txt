@@ -189,7 +189,7 @@ add_dependencies(bdsg
         divsufsort)
 
 # Define main library as dependent on the downloaded project (transitively)
-add_dependencies(Bluntifier bdsg libhandlegraph)
+add_dependencies(Bluntifier bdsg)
 
 # Ensure that main library has access to primary dependencies' and secondary dependencies' headers
 include_directories(external/bdsg/include/)
