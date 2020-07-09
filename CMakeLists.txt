@@ -33,6 +33,7 @@ include_directories(
 # Define our shared library sources. NOT test/executables.
 set(SOURCES
         src/a.cpp
+        src/utility.cpp
 #        src/gfa_to_handle.cpp
         )
 
@@ -234,6 +235,19 @@ target_link_libraries(${FILENAME_PREFIX}
         OpenMP::OpenMP_CXX)
 
 set(FILENAME_PREFIX test_handlegraph)
+add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
+set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
+target_link_libraries(${FILENAME_PREFIX}
+        Bluntifier
+        Threads::Threads
+        gfak
+        bdsg
+        divsufsort
+        libhandlegraph
+        libsdsl
+        OpenMP::OpenMP_CXX)
+
+set(FILENAME_PREFIX test_utility)
 add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
 set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
 target_link_libraries(${FILENAME_PREFIX}

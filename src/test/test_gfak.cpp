@@ -2,23 +2,24 @@
 #include <fstream>
 
 #include "gfakluge.hpp"
-#include "../../build/gfak/include/gfakluge.hpp"
+#include "utility.hpp"
 
-using std::experimental::filesystem::path;
 using std::ifstream;
 using std::cout;
 
+using bluntifier::parent_path;
+using bluntifier::join_paths;
 using gfak::GFAKluge;
 
 
 int main(){
 
-    path script_path = __FILE__;
-    path project_directory = script_path.parent_path().parent_path().parent_path();
+    string script_path = __FILE__;
+    string project_directory = parent_path(script_path, 3);
 
     // Get test VCF path
-    path relative_gfa_path = "/data/test_gfa1.gfa";
-    path absolute_gfa_path = project_directory / relative_gfa_path;
+    string relative_gfa_path = "/data/test_gfa1.gfa";
+    string absolute_gfa_path = join_paths(project_directory, relative_gfa_path);
 
     ifstream file(absolute_gfa_path);
 
