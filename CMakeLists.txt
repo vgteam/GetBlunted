@@ -182,10 +182,14 @@ set_property(TARGET libsdsl
         PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/libsdsl.a)
 
 # Define library as dependent on the downloaded project
-add_dependencies(bdsg project_bdsg)
+add_dependencies(bdsg
+        project_bdsg
+        libsdsl
+        libhandlegraph
+        divsufsort)
 
 # Define main library as dependent on the downloaded project (transitively)
-add_dependencies(Bluntifier bdsg)
+add_dependencies(Bluntifier bdsg libhandlegraph)
 
 # Ensure that main library has access to primary dependencies' and secondary dependencies' headers
 include_directories(external/bdsg/include/)
