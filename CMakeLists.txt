@@ -32,7 +32,6 @@ include_directories(
 
 # Define our shared library sources. NOT test/executables.
 set(SOURCES
-        src/a.cpp
         src/utility.cpp
 #        src/gfa_to_handle.cpp
         )
