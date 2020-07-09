@@ -222,8 +222,12 @@ target_link_libraries(${FILENAME_PREFIX}
         bdsg
         divsufsort
         libhandlegraph
-        libsdsl
+        libsdsl)
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    target_link_libraries(${FILENAME_PREFIX}
         OpenMP::OpenMP_CXX)
+endif()
 
 set(FILENAME_PREFIX test_bdsg)
 add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
@@ -235,8 +239,13 @@ target_link_libraries(${FILENAME_PREFIX}
         bdsg
         divsufsort
         libhandlegraph
-        libsdsl
+        libsdsl)
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    target_link_libraries(${FILENAME_PREFIX}
         OpenMP::OpenMP_CXX)
+endif()
+
 
 set(FILENAME_PREFIX test_handlegraph)
 add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
@@ -248,8 +257,12 @@ target_link_libraries(${FILENAME_PREFIX}
         bdsg
         divsufsort
         libhandlegraph
-        libsdsl
-        OpenMP::OpenMP_CXX)
+        libsdsl)
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    target_link_libraries(${FILENAME_PREFIX}
+            OpenMP::OpenMP_CXX)
+endif()
 
 set(FILENAME_PREFIX test_utility)
 add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
@@ -261,8 +274,12 @@ target_link_libraries(${FILENAME_PREFIX}
         bdsg
         divsufsort
         libhandlegraph
-        libsdsl
-        OpenMP::OpenMP_CXX)
+        libsdsl)
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    target_link_libraries(${FILENAME_PREFIX}
+            OpenMP::OpenMP_CXX)
+endif()
 
 # -------- EXECUTABLES --------
 
