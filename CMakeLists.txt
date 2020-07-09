@@ -56,6 +56,7 @@ set_target_properties(Bluntifier PROPERTIES DEFINE_SYMBOL "")
 # ------------------------------------------ #
 ##############################################
 
+
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
     # assumes clang build
@@ -64,11 +65,17 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
     # adapted from https://stackoverflow.com/questions/46414660/macos-cmake-and-openmp
     # find_package(OpenMP) does not work reliably on macOS, so we do its work ourselves
+    if(EXISTS /usr/local/Cellar/libomp/)
+        set(OMPDIR /usr/local/Cellar/libomp/)
+    elseif(EXISTS /opt/local/include/libomp)
+        set(OMPDIR /opt/local/include/libomp)
+    endif()
+
     set (OpenMP_C "${CMAKE_C_COMPILER}")
-    set (OpenMP_C_FLAGS " -Xpreprocessor -fopenmp -I/opt/local/include/libomp -I/usr/local/include -L/opt/local/lib/libomp -L/usr/local/lib")
+    set (OpenMP_C_FLAGS " -Xpreprocessor -fopenmp -I${OMPDIR} -I/usr/local/include -L${OMPDIR} -L/usr/local/lib")
     set (OpenMP_C_LIB_NAMES "libomp" "libgomp" "libiomp5")
     set (OpenMP_CXX "${CMAKE_CXX_COMPILER}")
-    set (OpenMP_CXX_FLAGS " -Xpreprocessor -fopenmp -I/opt/local/include/libomp -I/usr/local/include -L/opt/local/lib/libomp -L/usr/local/lib")
+    set (OpenMP_CXX_FLAGS " -Xpreprocessor -fopenmp -I${OMPDIR} -I/usr/local/include -L${OMPDIR} -L/usr/local/lib")
     set (OpenMP_CXX_LIB_NAMES "libomp" "libgomp" "libiomp5")
     set (OpenMP_libomp_LIBRARY "omp")
     set (OpenMP_libgomp_LIBRARY "gomp")
@@ -82,17 +89,10 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     # Mac needs libdl and libomp when linking the library
     set(PLATFORM_EXTRA_LIB_FLAGS -ldl -lomp)
 
+
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
     find_package(OpenMP REQUIRED)
-
-#    # add the flags it detects to the compile flags
-#    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS} -fopenmp")
-#    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} -fopenmp")
-#    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-#
-#    # Linux only needs libdl when linking the library
-#    set(PLATFORM_EXTRA_LIB_FLAGS -ldl)
 
 endif()
 
@@ -120,16 +120,21 @@ ExternalProject_Add(project_gfak
 # Define INSTALL_DIR as the install directory for external library
 ExternalProject_Get_Property(project_gfak INSTALL_DIR)
 
-# Create new library for external project (so it can be linked with main library)
-add_library(gfak STATIC IMPORTED)
-set_property(TARGET gfak
-        PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/bin/gfak)
 
-# Define library as dependent on the downloaded project
-add_dependencies(gfak project_gfak)
+# THIS SECTION QUARANTINED FOR MAC compatibility :'(
+# ---
+# Create new library for external project (so it can be linked with main library)
+#add_library(gfak STATIC IMPORTED)
+#set_property(TARGET gfak
+#        PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/bin/gfak)
+#
+## Define library as dependent on the downloaded project
+#add_dependencies(gfak project_gfak)
+# ---
+
 
 # Define main library as dependent on the downloaded project (transitively)
-add_dependencies(Bluntifier gfak)
+add_dependencies(Bluntifier project_gfak)
 
 # Ensure that main library has access to primary dependencies' and secondary dependencies' headers
 include_directories(external/gfak/include/)
@@ -218,7 +223,6 @@ set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
 target_link_libraries(${FILENAME_PREFIX}
         Bluntifier
         Threads::Threads
-        gfak
         bdsg
         divsufsort
         libhandlegraph
@@ -235,7 +239,6 @@ set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
 target_link_libraries(${FILENAME_PREFIX}
         Bluntifier
         Threads::Threads
-        gfak
         bdsg
         divsufsort
         libhandlegraph
@@ -253,7 +256,6 @@ set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
 target_link_libraries(${FILENAME_PREFIX}
         Bluntifier
         Threads::Threads
-        gfak
         bdsg
         divsufsort
         libhandlegraph
@@ -264,13 +266,13 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
             OpenMP::OpenMP_CXX)
 endif()
 
+
 set(FILENAME_PREFIX test_utility)
 add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
 set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
 target_link_libraries(${FILENAME_PREFIX}
         Bluntifier
         Threads::Threads
-        gfak
         bdsg
         divsufsort
         libhandlegraph
