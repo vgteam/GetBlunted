@@ -1,4 +1,5 @@
 #include "gfa_to_handle.hpp"
+#include "IncrementalIdMap.hpp"
 
 using handlegraph::handle_t;
 using handlegraph::path_handle_t;
@@ -7,17 +8,17 @@ using bdsg::MutablePathHandleGraph;
 namespace bluntifier {
 
 
-nid_t parse_gfa_sequence_id(const string& str) {
-    if (any_of(str.begin(), str.end(), [](char c) { return not isdigit(c); })) {
-        throw GFAFormatError("Error:[gfa_to_handle_graph] Could not parse sequence ID '" + str +
-                             "'. GFA sequence IDs must be integers >= 1.");
+nid_t parse_gfa_sequence_id(const string& s, IncrementalIdMap& id_map) {
+    nid_t id;
+
+    if (id_map.exists(s)){
+        id = id_map.get_id(s);
     }
-    nid_t node_id = stoll(str);
-    if (node_id <= 0) {
-        throw GFAFormatError("Error:[gfa_to_handle_graph] Could not parse sequence ID '" + str +
-                             "'. GFA sequence IDs must be integers >= 1.");
+    else{
+        id = id_map.insert(s);
     }
-    return node_id;
+
+    return id;
 }
 
 
@@ -41,7 +42,7 @@ string process_raw_gfa_path_name(const string& path_name_raw) {
 
 
 void gfa_to_handle_graph_in_memory(istream& in, MutableHandleGraph& graph,
-                                   gfak::GFAKluge& gg) {
+                                   gfak::GFAKluge& gg, IncrementalIdMap& id_map) {
     if (!in) {
         throw std::ios_base::failure("Error:[gfa_to_handle_graph] Couldn't open input stream");
     }
@@ -49,7 +50,7 @@ void gfa_to_handle_graph_in_memory(istream& in, MutableHandleGraph& graph,
 
     // create nodes
     for (const auto& seq_record : gg.get_name_to_seq()) {
-        graph.create_handle(seq_record.second.sequence, parse_gfa_sequence_id(seq_record.first));
+        graph.create_handle(seq_record.second.sequence, parse_gfa_sequence_id(seq_record.first, id_map));
     }
 
     // create edges
@@ -57,9 +58,9 @@ void gfa_to_handle_graph_in_memory(istream& in, MutableHandleGraph& graph,
         for (const auto& edge : links_record.second) {
             validate_gfa_edge(edge);
             // note: we're counting on implementations de-duplicating edges
-            handle_t a = graph.get_handle(parse_gfa_sequence_id(edge.source_name),
+            handle_t a = graph.get_handle(parse_gfa_sequence_id(edge.source_name, id_map),
                                            not edge.source_orientation_forward);
-            handle_t b = graph.get_handle(parse_gfa_sequence_id(edge.sink_name), not edge.sink_orientation_forward);
+            handle_t b = graph.get_handle(parse_gfa_sequence_id(edge.sink_name, id_map), not edge.sink_orientation_forward);
             graph.create_edge(a, b);
         }
     }
@@ -67,7 +68,7 @@ void gfa_to_handle_graph_in_memory(istream& in, MutableHandleGraph& graph,
 
 
 void gfa_to_handle_graph_on_disk(const string& filename, MutableHandleGraph& graph,
-                                 bool try_id_increment_hint, gfak::GFAKluge& gg) {
+                                 bool try_id_increment_hint, gfak::GFAKluge& gg, IncrementalIdMap& id_map) {
 
     // adapted from
     // https://github.com/vgteam/odgi/blob/master/src/gfa_to_handle.cpp
@@ -77,7 +78,7 @@ void gfa_to_handle_graph_on_disk(const string& filename, MutableHandleGraph& gra
         // find the minimum ID
         nid_t min_id = numeric_limits<nid_t>::max();
         gg.for_each_sequence_line_in_file(filename.c_str(), [&](gfak::sequence_elem s) {
-            min_id = std::min(min_id, parse_gfa_sequence_id(s.name));
+            min_id = std::min(min_id, parse_gfa_sequence_id(s.name, id_map));
         });
 
         if (min_id != numeric_limits<nid_t>::max()) {
@@ -89,15 +90,15 @@ void gfa_to_handle_graph_on_disk(const string& filename, MutableHandleGraph& gra
     // add in all nodes
     gg.for_each_sequence_line_in_file(filename.c_str(), [&](gfak::sequence_elem s) {
 
-        graph.create_handle(s.sequence, parse_gfa_sequence_id(s.name));
+        graph.create_handle(s.sequence, parse_gfa_sequence_id(s.name, id_map));
 
     });
 
     // add in all edges
     gg.for_each_edge_line_in_file(const_cast<char*>(filename.c_str()), [&](gfak::edge_elem e) {
         validate_gfa_edge(e);
-        handle_t a = graph.get_handle(parse_gfa_sequence_id(e.source_name), not e.source_orientation_forward);
-        handle_t b = graph.get_handle(parse_gfa_sequence_id(e.sink_name), not e.sink_orientation_forward);
+        handle_t a = graph.get_handle(parse_gfa_sequence_id(e.source_name, id_map), not e.source_orientation_forward);
+        handle_t b = graph.get_handle(parse_gfa_sequence_id(e.sink_name, id_map), not e.sink_orientation_forward);
         graph.create_edge(a, b);
     });
 }
@@ -107,7 +108,7 @@ void gfa_to_handle_graph_on_disk(const string& filename, MutableHandleGraph& gra
 /// If the input is a seekable file, filename will be filled in and unseekable will be nullptr.
 /// If the input is not a seekable file, filename may be filled in, and unseekable will be set to a stream to read from.
 void gfa_to_handle_graph_load_graph(const string& filename, istream* unseekable, MutableHandleGraph& graph,
-                                    bool try_id_increment_hint, gfak::GFAKluge& gg) {
+                                    bool try_id_increment_hint, gfak::GFAKluge& gg, IncrementalIdMap& id_map) {
 
     if (graph.get_node_count() > 0) {
         throw invalid_argument("Error:[gfa_to_handle_graph] Must parse GFA into an empty graph");
@@ -115,7 +116,7 @@ void gfa_to_handle_graph_load_graph(const string& filename, istream* unseekable,
 
     if (!unseekable) {
         // Do the from-disk path
-        gfa_to_handle_graph_on_disk(filename, graph, try_id_increment_hint, gg);
+        gfa_to_handle_graph_on_disk(filename, graph, try_id_increment_hint, gg, id_map);
     } else {
         // Do the path for streams
 
@@ -127,7 +128,7 @@ void gfa_to_handle_graph_load_graph(const string& filename, istream* unseekable,
                     << endl;
         }
 
-        gfa_to_handle_graph_in_memory(*unseekable, graph, gg);
+        gfa_to_handle_graph_in_memory(*unseekable, graph, gg, id_map);
     }
 }
 
@@ -136,7 +137,7 @@ void gfa_to_handle_graph_load_graph(const string& filename, istream* unseekable,
 /// If the input is a seekable file, filename will be filled in and unseekable will be nullptr.
 /// If the input is not a seekable file, filename may be filled in, and unseekable will be set to a stream to read from.
 void gfa_to_handle_graph_add_paths(const string& filename, istream* unseekable, MutablePathHandleGraph& graph,
-                                   gfak::GFAKluge& gg) {
+                                   gfak::GFAKluge& gg, IncrementalIdMap& id_map) {
 
 
     if (!unseekable) {
@@ -162,7 +163,7 @@ void gfa_to_handle_graph_add_paths(const string& filename, istream* unseekable, 
             }
 
             // add the step
-            handle_t step = graph.get_handle(parse_gfa_sequence_id(node_id), is_rev);
+            handle_t step = graph.get_handle(parse_gfa_sequence_id(node_id, id_map), is_rev);
             graph.append_step(path, step);
         });
     } else {
@@ -179,7 +180,7 @@ void gfa_to_handle_graph_add_paths(const string& filename, istream* unseekable, 
             path_handle_t path = graph.create_path_handle(path_name);
 
             for (size_t i = 0; i < path_record.second.segment_names.size(); ++i) {
-                handle_t step = graph.get_handle(parse_gfa_sequence_id(path_record.second.segment_names.at(i)),
+                handle_t step = graph.get_handle(parse_gfa_sequence_id(path_record.second.segment_names.at(i), id_map),
                                                   not path_record.second.orientations.at(i));
                 graph.append_step(path, step);
             }
@@ -190,7 +191,7 @@ void gfa_to_handle_graph_add_paths(const string& filename, istream* unseekable, 
 }
 
 
-void gfa_to_handle_graph(const string& filename, MutableHandleGraph& graph,
+void gfa_to_handle_graph(const string& filename, MutableHandleGraph& graph, IncrementalIdMap& id_map,
                          bool try_from_disk, bool try_id_increment_hint) {
 
     // What stream should we read from (isntead of opening the file), if any?
@@ -213,11 +214,11 @@ void gfa_to_handle_graph(const string& filename, MutableHandleGraph& graph,
     }
 
     gfak::GFAKluge gg;
-    gfa_to_handle_graph_load_graph(filename, unseekable, graph, try_id_increment_hint, gg);
+    gfa_to_handle_graph_load_graph(filename, unseekable, graph, try_id_increment_hint, gg, id_map);
 }
 
 
-void gfa_to_path_handle_graph(const string& filename, MutablePathMutableHandleGraph& graph,
+void gfa_to_path_handle_graph(const string& filename, MutablePathMutableHandleGraph& graph, IncrementalIdMap& id_map,
                               bool try_from_disk, bool try_id_increment_hint) {
 
 
@@ -241,18 +242,18 @@ void gfa_to_path_handle_graph(const string& filename, MutablePathMutableHandleGr
     }
 
     gfak::GFAKluge gg;
-    gfa_to_handle_graph_load_graph(filename, unseekable, graph, try_id_increment_hint, gg);
+    gfa_to_handle_graph_load_graph(filename, unseekable, graph, try_id_increment_hint, gg, id_map);
 
     // TODO: Deduplicate everything other than this line somehow.
-    gfa_to_handle_graph_add_paths(filename, unseekable, graph, gg);
+    gfa_to_handle_graph_add_paths(filename, unseekable, graph, gg, id_map);
 }
 
 
 void gfa_to_path_handle_graph_in_memory(istream& in,
-                                        MutablePathMutableHandleGraph& graph) {
+                                        MutablePathMutableHandleGraph& graph, IncrementalIdMap& id_map) {
     gfak::GFAKluge gg;
-    gfa_to_handle_graph_load_graph("", &in, graph, false, gg);
-    gfa_to_handle_graph_add_paths("", &in, graph, gg);
+    gfa_to_handle_graph_load_graph("", &in, graph, false, gg, id_map);
+    gfa_to_handle_graph_add_paths("", &in, graph, gg, id_map);
 
 }
 

@@ -14,6 +14,11 @@
 #include "gfakluge.hpp"
 #include "bdsg/packed_graph.hpp"
 #include "handlegraph/handle_graph.hpp"
+#include "IncrementalIdMap.hpp"
+
+
+
+namespace bluntifier {
 
 
 using namespace std;
@@ -21,10 +26,10 @@ using std::runtime_error;
 using handlegraph::nid_t;
 using bdsg::MutableHandleGraph;
 using bdsg::MutablePathMutableHandleGraph;
+using bluntifier::IncrementalIdMap;
 
-namespace bluntifier {
 
-/// This exception will be thrown if the GFA data is not acceptable.
+    /// This exception will be thrown if the GFA data is not acceptable.
 class GFAFormatError : public runtime_error {
 public:
     using runtime_error::runtime_error;
@@ -43,19 +48,22 @@ public:
 /// otherwise misused.
 void gfa_to_handle_graph(const string& filename,
                          MutableHandleGraph& graph,
+                         IncrementalIdMap& id_map,
                          bool try_from_disk = true,
                          bool try_id_increment_hint = false);
 
 /// Same as gfa_to_handle_graph but also adds path elements from the GFA to the graph
 void gfa_to_path_handle_graph(const string& filename,
                               MutablePathMutableHandleGraph& graph,
+                              IncrementalIdMap& id_map,
                               bool try_from_disk = true,
                               bool try_id_increment_hint = false);
 
 /// Same as above but operating on a stream. Assumed to be non-seekable; all conversion happens in memory.
 /// Always streaming. Doesn't support ID increment hints.
 void gfa_to_path_handle_graph_in_memory(istream& in,
-                                        MutablePathMutableHandleGraph& graph);
+                                        MutablePathMutableHandleGraph& graph,
+                                        IncrementalIdMap& id_map);
 
 
 }
