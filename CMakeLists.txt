@@ -12,7 +12,7 @@ project(Bluntifier VERSION 0.0.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-#set(CMAKE_CXX_FLAGS "-fexceptions -fno-new-ttp-matching -fsanitize=address")
+#set(CMAKE_CXX_FLAGS "-fexceptions -fsanitize=address")
 #set(CMAKE_CXX_FLAGS "-fexceptions -fno-new-ttp-matching")
 set(CMAKE_CXX_FLAGS "-fexceptions")
 
@@ -33,7 +33,12 @@ include_directories(
 # Define our shared library sources. NOT test/executables.
 set(SOURCES
         src/utility.cpp
-#        src/gfa_to_handle.cpp
+        src/gfa_to_handle.cpp
+        src/topological_sort.cpp
+        src/is_single_stranded.cpp
+        src/find_tips.cpp
+        src/apply_bulk_modifications.cpp
+        src/IncrementalIdMap.cpp
         )
 
 
@@ -267,6 +272,23 @@ endif()
 
 
 set(FILENAME_PREFIX test_utility)
+add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
+set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
+target_link_libraries(${FILENAME_PREFIX}
+        Bluntifier
+        Threads::Threads
+        bdsg
+        divsufsort
+        libhandlegraph
+        libsdsl)
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    target_link_libraries(${FILENAME_PREFIX}
+            OpenMP::OpenMP_CXX)
+endif()
+
+
+set(FILENAME_PREFIX test_IncrementalIdMap)
 add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
 set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
 target_link_libraries(${FILENAME_PREFIX}
