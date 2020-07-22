@@ -9,7 +9,9 @@
 #include <functional>
 #include <limits>
 #include "handlegraph/handle_graph.hpp"
+#include "handlegraph/types.hpp"
 #include "handlegraph/expanding_overlay_graph.hpp"
+#include "utility.hpp"
 
 namespace bluntifier {
 

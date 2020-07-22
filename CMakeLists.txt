@@ -7,6 +7,9 @@
 cmake_minimum_required(VERSION 3.0)
 project(Bluntifier VERSION 0.0.0)
 
+message(STATUS "CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
+message(STATUS "CMAKE_CXX_COMPILER_VERSION: ${CMAKE_CXX_COMPILER_VERSION}")
+
 # Compiler options.
 #set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -std=c++17")
 set(CMAKE_CXX_STANDARD 17)
@@ -39,11 +42,12 @@ set(SOURCES
         src/find_tips.cpp
         src/apply_bulk_modifications.cpp
         src/IncrementalIdMap.cpp
+        src/adjacency_components.cpp
         )
 
 
 project(Bluntifier)
-add_library(Bluntifier SHARED ${SOURCES})
+add_library(Bluntifier STATIC ${SOURCES}) 
 
 # To make sure the library is named Name.so,
 # get rid of the "lib" prefix.

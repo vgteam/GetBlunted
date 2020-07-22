@@ -13,13 +13,16 @@
 #include <vector>
 #include <unordered_set>
 #include <algorithm>
-#include <pair>
+#include <utility>
 #include <limits>
 #include <cmath>
 
 #include "bdsg/internal/packed_structs.hpp"
 #include "handlegraph/handle_graph.hpp"
 #include "handlegraph/util.hpp"
+#include "handlegraph/types.hpp"
+#include "subtractive_graph.hpp"
+#include "utility.hpp"
 
 namespace bluntifier {
 
@@ -32,12 +35,31 @@ using handlegraph::HandleGraph;
 using handlegraph::handle_t;
 using std::sort;
 
+// forward declaration
+class AdjacencyComponent;
+
+// iterate over the adjacency components of a graph
+void for_each_adjacency_component(const HandleGraph& graph,
+                                  const function<void(AdjacencyComponent&)>& lambda);
+
+// get a list of all of the adjacency components in a graph
+vector<AdjacencyComponent> adjacency_components(const HandleGraph& graph);
+
+/*
+ * Class that represents a collection of node sides that are connected by
+ * edges (without crossing any nodes)
+ */
 class AdjacencyComponent {
 public:
     
+    // a division of the node sides of the adjacency component into two
+    // sets (even if the graph is not necessary bipartite)
     using bipartition = pair<unordered_set<handle_t>, unordered_set<handle_t>>;
+    // iterator over the node sides of the component
     using const_iterator = vector<handle_t>::const_iterator;
     
+    // Initialize using a container of node sides (represented by handle_t's)
+    // Does not check that the sides provided constitute an adjacency component.
     template<typename SideIter>
     AdjacencyComponent(const HandleGraph& graph,
                        SideIter begin, SideIter end);
@@ -57,6 +79,16 @@ public:
     
     bool empty() const;
     
+    // iterate through pairs of subgraphs and bipartitions that have the following properties:
+    // - each edge in this adjacency component occurs in exactly one subgraph
+    // - each subgraphs's edges are a subset of the parent graph's edges
+    // - every subgraph is bipartite with respect to the paired bipartition
+    void decompose_into_bipartite_blocks(const function<void(const HandleGraph&,const bipartition&)>& lambda) const;
+    
+    
+    
+    
+    
     bool is_bipartite() const;
     
     // returns empty sets if the adjacency component is not actually bipartite
@@ -65,7 +97,7 @@ public:
     // return the maximum bipartite partition computed in O(Delta * 2^(n-1)) time
     bipartition exhaustive_maximum_bipartite_partition() const;
     
-    // return a 1/2-approximation of the maximum bipartite partition
+    // return a expected 1/2-approximation of the maximum bipartite partition
     bipartition maximum_bipartite_partition_apx_1_2(uint64_t seed = 8477176661834875934ull) const;
     
     // greedily modify a bipartite partition until it is locally optimal.
@@ -74,27 +106,18 @@ public:
     void refine_apx_partition(bipartition& partition,
                               size_t max_opt_steps = numeric_limits<size_t>::max()) const;
     
-    // iterate through pairs of subgraphs and bipartitions that have the following properties:
-    // - each edge in this adjacency component occurs in exactly one subgraph
-    // - each subgraphs's edges are a subset of the parent graph's edges
-    // - every subgraph is bipartite with respect to the paired bipartition
-    void decompose_into_bipartite_blocks(const function<void(const HandleGraph&,const bipartition&)>& lambda) const;
+    // TODO: include Goemans-Williamson SDP algorithm with .88 approx ratio?
     
 private:
     
-    // use a recursively defined Gray code to iterate over bipartitions
+    // use a recursively defined Gray code to iterate over all bipartitions
     uint64_t recursive_gray_code(bipartition& partition, uint64_t score, size_t index, size_t to_flip,
-                                 uint64_t& best_score, uint64_t& best_index)
+                                 uint64_t& best_score, uint64_t& best_index) const;
     
     vector<handle_t> component;
     
     const HandleGraph* graph;
 };
-    
-vector<AdjacencyComponent> adjacency_components(const HandleGraph& graph);
-
-void for_each_adjacency_component(const HandleGraph& graph,
-                                  const function<void(AdjacencyComponent&)>& lambda);
 
 
 
