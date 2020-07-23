@@ -7,6 +7,9 @@
 cmake_minimum_required(VERSION 3.0)
 project(Bluntifier VERSION 0.0.0)
 
+message(STATUS "CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
+message(STATUS "CMAKE_CXX_COMPILER_VERSION: ${CMAKE_CXX_COMPILER_VERSION}")
+
 # Compiler options.
 #set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -std=c++17")
 set(CMAKE_CXX_STANDARD 17)
@@ -39,11 +42,13 @@ set(SOURCES
         src/find_tips.cpp
         src/apply_bulk_modifications.cpp
         src/IncrementalIdMap.cpp
+        src/adjacency_components.cpp
+        src/subtractive_graph.cpp
         )
 
 
 project(Bluntifier)
-add_library(Bluntifier SHARED ${SOURCES})
+add_library(Bluntifier STATIC ${SOURCES}) 
 
 # To make sure the library is named Name.so,
 # get rid of the "lib" prefix.
@@ -289,6 +294,22 @@ endif()
 
 
 set(FILENAME_PREFIX test_IncrementalIdMap)
+add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
+set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
+target_link_libraries(${FILENAME_PREFIX}
+        Bluntifier
+        Threads::Threads
+        bdsg
+        divsufsort
+        libhandlegraph
+        libsdsl)
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    target_link_libraries(${FILENAME_PREFIX}
+            OpenMP::OpenMP_CXX)
+endif()
+
+set(FILENAME_PREFIX test_adjacency_components)
 add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
 set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
 target_link_libraries(${FILENAME_PREFIX}
