@@ -2,19 +2,65 @@
 #include <vector>
 #include <set>
 #include <algorithm>
+#include <functional>
 
 #include "bdsg/hash_graph.hpp"
 #include "adjacency_components.hpp"
 
 using bluntifier::adjacency_components;
+using bluntifier::AdjacencyComponent;
+using bipartition = bluntifier::AdjacencyComponent::bipartition;
 
 using bdsg::HashGraph;
 using handlegraph::handle_t;
+using handlegraph::HandleGraph;
 using std::vector;
 using std::set;
 using std::sort;
 using std::cerr;
 using std::endl;
+using std::function;
+
+int count_edges_across(const AdjacencyComponent& adj_comp,
+                       const bipartition& partition) {
+    int count = 0;
+    for (auto side : adj_comp) {
+        adj_comp.for_each_adjacent_side(side, [&](handle_t adj_side) {
+            if (partition.first.count(side) == partition.second.count(adj_side)
+                && !(side < adj_side)) {
+                ++count;
+            }
+            return true;
+        });
+    }
+    return count;
+}
+
+bool check_bipartite(const HandleGraph& graph, const bipartition& partition) {
+    for (auto side : partition.first) {
+        graph.follow_edges(side, false, [&](const handle_t& adj_node) {
+            handle_t adj_side = graph.flip(adj_node);
+            if (partition.first.count(adj_side)) {
+                return false;
+            }
+            if (!partition.second.count(adj_side)) {
+                return false;
+            }
+        });
+    }
+    for (auto side : partition.second) {
+        graph.follow_edges(side, false, [&](const handle_t& adj_node) {
+            handle_t adj_side = graph.flip(adj_node);
+            if (partition.second.count(adj_side)) {
+                return false;
+            }
+            if (!partition.first.count(adj_side)) {
+                return false;
+            }
+        });
+    }
+    return true;
+}
 
 int main(){
     
@@ -85,7 +131,7 @@ int main(){
         }
     }
     
-    // tests using graph with a non bipartite adjacency
+    // tests using graph with a non bipartite adjacency component
     {
         
         HashGraph graph;
@@ -100,7 +146,6 @@ int main(){
         
         for (auto& adj_comp : adjacency_components(graph)) {
             if (adj_comp.size() > 1) {
-                cerr << "STARTING NON BIPARTITE COMPONENT" << endl;
                 if (adj_comp.is_bipartite()) {
                     cerr << "erroneously identified a component as bipartite" << endl;
                     return 1;
@@ -115,7 +160,198 @@ int main(){
         }
     }
     
+    // tests using graph with a clear maximum bipartition
+    {
+        
+        HashGraph graph;
+        
+        handle_t h1 = graph.create_handle("GAT");
+        handle_t h2 = graph.create_handle("TA");
+        handle_t h3 = graph.create_handle("CA");
+        handle_t h4 = graph.create_handle("CAT");
+        
+        // a biclique (1, 2) -> (3, 4)
+        graph.create_edge(h1, h3);
+        graph.create_edge(h1, h4);
+        graph.create_edge(h2, h3);
+        graph.create_edge(h2, h4);
+        
+        // a single other edge
+        graph.create_edge(h1, graph.flip(h2));
+        
+        for (auto& adj_comp : adjacency_components(graph)) {
+            if (adj_comp.size() == 1) {
+                // skip over the trivial components
+                continue;
+            }
+            
+            {
+                auto partition = adj_comp.exhaustive_maximum_bipartite_partition();
+                
+                if (count_edges_across(adj_comp, partition) != 4) {
+                    cerr << "did not identify maximum partition in exhaustive search" << endl;
+                    return 1;
+                }
+            }
+            {
+                auto partition = adj_comp.maximum_bipartite_partition_apx_1_2();
+                adj_comp.refine_apx_partition(partition);
+                
+                if (count_edges_across(adj_comp, partition) != 4) {
+                    cerr << "did not identify maximum partition in local search" << endl;
+                    return 1;
+                }
+            }
+        }
+    }
     
+    // tests using a more complicated graph
+    {
+        
+        HashGraph graph;
+        
+        handle_t h1 = graph.create_handle("GAT");
+        handle_t h2 = graph.create_handle("TA");
+        handle_t h3 = graph.create_handle("CA");
+        handle_t h4 = graph.create_handle("CAT");
+        handle_t h5 = graph.create_handle("GAT");
+        handle_t h6 = graph.create_handle("TA");
+        handle_t h7 = graph.create_handle("CA");
+        handle_t h8 = graph.create_handle("CAT");
+        
+        // a dense bipartite graph (1, 2, 3, 4) -> (5, 6, 7, 8)
+        graph.create_edge(h1, h5);
+        graph.create_edge(h1, h6);
+        graph.create_edge(h1, h8);
+        graph.create_edge(h2, h5);
+        graph.create_edge(h2, h6);
+        graph.create_edge(h2, h7);
+        graph.create_edge(h3, h6);
+        graph.create_edge(h3, h7);
+        graph.create_edge(h3, h8);
+        graph.create_edge(h4, h5);
+        graph.create_edge(h4, h7);
+        graph.create_edge(h4, h8);
+        
+        // a few other edges
+        graph.create_edge(h1, graph.flip(h4));
+        graph.create_edge(h2, graph.flip(h3));
+        graph.create_edge(graph.flip(h7), h8);
+        
+        for (auto& adj_comp : adjacency_components(graph)) {
+            if (adj_comp.size() == 1) {
+                // skip over the trivial components
+                continue;
+            }
+            
+            {
+                auto partition = adj_comp.exhaustive_maximum_bipartite_partition();
+                
+                if (count_edges_across(adj_comp, partition) != 12) {
+                    cerr << "did not identify maximum partition in large exhaustive search" << endl;
+                    return 1;
+                }
+            }
+            {
+                auto partition = adj_comp.maximum_bipartite_partition_apx_1_2(3);
+                adj_comp.refine_apx_partition(partition);
+                
+                if (count_edges_across(adj_comp, partition) != 12) {
+                    // TODO: this actually isn't a guarantee, should design a better test
+                    cerr << "did not identify maximum partition in large local search" << endl;
+                    return 1;
+                }
+            }
+        }
+    }
+    
+    // test using a partition that can only be improved locally using an edge swap
+    {
+        HashGraph graph;
+        
+        handle_t h1 = graph.create_handle("GAT");
+        handle_t h2 = graph.create_handle("TA");
+        handle_t h3 = graph.create_handle("CA");
+        handle_t h4 = graph.create_handle("CAT");
+        handle_t h5 = graph.create_handle("GAT");
+        handle_t h6 = graph.create_handle("TA");
+        handle_t h7 = graph.create_handle("CA");
+        handle_t h8 = graph.create_handle("CAT");
+        
+        // the focal edge is 2 -> 7
+        graph.create_edge(h1, graph.flip(h2));
+        graph.create_edge(h2, h5);
+        graph.create_edge(h2, h7);
+        graph.create_edge(h4, h7);
+        graph.create_edge(graph.flip(h6), h7);
+        graph.create_edge(graph.flip(h7), h8);
+        
+        // add all other edges across to keep the partition rigid
+        graph.create_edge(h1, h5);
+        graph.create_edge(h1, h6);
+        graph.create_edge(h1, h8);
+        graph.create_edge(h3, h5);
+        graph.create_edge(h3, h6);
+        graph.create_edge(h3, h8);
+        graph.create_edge(h4, h5);
+        graph.create_edge(h4, h6);
+        graph.create_edge(h4, h8);
+        
+        for (auto& adj_comp : adjacency_components(graph)) {
+            if (adj_comp.size() == 1) {
+                // skip over the trivial components
+                continue;
+            }
+            
+            bipartition partition;
+            partition.first.insert(h1);
+            partition.first.insert(h2);
+            partition.first.insert(h3);
+            partition.first.insert(h4);
+            partition.second.insert(graph.flip(h5));
+            partition.second.insert(graph.flip(h6));
+            partition.second.insert(graph.flip(h7));
+            partition.second.insert(graph.flip(h8));
+            
+            adj_comp.refine_apx_partition(partition);
+            
+            if (count_edges_across(adj_comp, partition) != 13) {
+                cerr << "did not identify maximum partition in edge swap" << endl;
+                return 1;
+            }
+        }
+    }
+    
+    // check for ability to decompose into bipartite blocks
+    {
+        HashGraph graph;
+        handle_t h1 = graph.create_handle("A");
+        handle_t h2 = graph.create_handle("A");
+        handle_t h3 = graph.create_handle("A");
+        
+        // fully connected graph (without reversing self-loops)
+        graph.create_edge(h1, h1);
+        graph.create_edge(h1, h2);
+        graph.create_edge(h1, h3);
+        graph.create_edge(h1, graph.flip(h2));
+        graph.create_edge(h1, graph.flip(h3));
+        graph.create_edge(h2, h2);
+        graph.create_edge(h2, h3);
+        graph.create_edge(h2, graph.flip(h3));
+        graph.create_edge(h3, h3);
+        
+        bool success = true;
+        for (auto& adj_comp : adjacency_components(graph)) {
+            adj_comp.decompose_into_bipartite_blocks([&](const HandleGraph& g,
+                                                         const bipartition& p) {
+                success = success && check_bipartite(g, p);
+            });
+        }
+        if (!success) {
+            cerr << "failed to decompose into bipartite blocks" << endl;
+            return 1;
+        }
+    }
     
     cerr << "adjacency components tests successful" << endl;
     return 0;

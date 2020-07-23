@@ -8,6 +8,7 @@
 #include "adjacency_components.hpp"
 
 //#define debug_is_bipartite
+//#define debug_refinement
 
 namespace bluntifier {
 
@@ -196,6 +197,18 @@ AdjacencyComponent::bipartition AdjacencyComponent::maximum_bipartite_partition_
 
 void AdjacencyComponent::refine_apx_partition(bipartition& partition, size_t max_opt_steps) const {
     
+#ifdef debug_refinement
+    cerr << "doing local search to refine an approximate partition:" << endl;
+    cerr << "left" << endl;
+    for (auto h : partition.first) {
+        cerr << "\t" << graph->get_id(h) << " " << graph->get_is_reverse(h) << endl;
+    }
+    cerr << "right" << endl;
+    for (auto h : partition.second) {
+        cerr << "\t" << graph->get_id(h) << " " << graph->get_is_reverse(h) << endl;
+    }
+#endif
+    
     bool no_optimizations_left = false;
     size_t opt_steps = 0;
     while (!no_optimizations_left && opt_steps < max_opt_steps) {
@@ -243,6 +256,17 @@ void AdjacencyComponent::refine_apx_partition(bipartition& partition, size_t max
                     partition.first.insert(side);
                     partition.second.erase(side);
                 }
+#ifdef debug_refinement
+                cerr << "found a local move by swapping node " << graph->get_id(side) << " " << graph->get_is_reverse(side) << ", partition is now:" << endl;
+                cerr << "left" << endl;
+                for (auto h : partition.first) {
+                    cerr << "\t" << graph->get_id(h) << " " << graph->get_is_reverse(h) << endl;
+                }
+                cerr << "right" << endl;
+                for (auto h : partition.second) {
+                    cerr << "\t" << graph->get_id(h) << " " << graph->get_is_reverse(h) << endl;
+                }
+#endif
             }
         }
         
@@ -287,7 +311,7 @@ void AdjacencyComponent::refine_apx_partition(bipartition& partition, size_t max
                     
                     // move if edge is in  Bylka, Idzik, & Tuza's S_3,
                     // second component
-                    if (edges_within + adj_edges_within - edges_across - adj_edges_across >= 1) {
+                    if (edges_within + adj_edges_within - edges_across - adj_edges_across >= -1) {
                         // swapping the assignments of both ends of this edge will
                         // improve the partition
                         no_optimizations_left = false;
@@ -296,6 +320,18 @@ void AdjacencyComponent::refine_apx_partition(bipartition& partition, size_t max
                         partition.first.insert(adj_side);
                         partition.second.erase(adj_side);
                         ++opt_steps;
+                        
+#ifdef debug_refinement
+                        cerr << "found a local move by swapping edge " << graph->get_id(side) << " " << graph->get_is_reverse(side) << " -- " << graph->get_id(adj_side) << " " << graph->get_is_reverse(adj_side) << ", partition is now:" << endl;
+                        cerr << "left" << endl;
+                        for (auto h : partition.first) {
+                            cerr << "\t" << graph->get_id(h) << " " << graph->get_is_reverse(h) << endl;
+                        }
+                        cerr << "right" << endl;
+                        for (auto h : partition.second) {
+                            cerr << "\t" << graph->get_id(h) << " " << graph->get_is_reverse(h) << endl;
+                        }
+#endif
                         
                         // we can't keep iterating on this node's edges because it's
                         // on the other side of the partition now
