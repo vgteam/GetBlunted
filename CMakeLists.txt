@@ -43,6 +43,7 @@ set(SOURCES
         src/apply_bulk_modifications.cpp
         src/IncrementalIdMap.cpp
         src/adjacency_components.cpp
+        src/subtractive_graph.cpp
         )
 
 
@@ -293,6 +294,22 @@ endif()
 
 
 set(FILENAME_PREFIX test_IncrementalIdMap)
+add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
+set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
+target_link_libraries(${FILENAME_PREFIX}
+        Bluntifier
+        Threads::Threads
+        bdsg
+        divsufsort
+        libhandlegraph
+        libsdsl)
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    target_link_libraries(${FILENAME_PREFIX}
+            OpenMP::OpenMP_CXX)
+endif()
+
+set(FILENAME_PREFIX test_adjacency_components)
 add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
 set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
 target_link_libraries(${FILENAME_PREFIX}

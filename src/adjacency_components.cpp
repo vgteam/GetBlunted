@@ -4,8 +4,10 @@
  * Implements algorithms for identifying and manipulating components
  * of node side adjacencies.
  */
-
+#include <iostream>
 #include "adjacency_components.hpp"
+
+//#define debug_is_bipartite
 
 namespace bluntifier {
 
@@ -17,6 +19,8 @@ using std::make_pair;
 using std::tie;
 using std::linear_congruential_engine;
 using std::uniform_int_distribution;
+using std::cerr;
+using std::endl;
 
 bool AdjacencyComponent::for_each_adjacent_side(const handle_t& side,
                                            const function<bool(handle_t)>& lambda) const {
@@ -59,7 +63,7 @@ void for_each_adjacency_component(const HandleGraph& graph,
     
     graph.for_each_handle([&](const handle_t& handle) {
         for (handle_t side : {handle, graph.flip(handle)}) {
-            if (sides_seen.find(as_integer(side))) {
+            if (!sides_seen.find(as_integer(side))) {
                 // this node side hasn't been visited yet, start
                 // a new adjacency component
                 unordered_set<handle_t> component;
@@ -113,22 +117,33 @@ AdjacencyComponent::bipartition AdjacencyComponent::bipartite_partition() const 
             tie(side_here, going_left) = stack.back();
             stack.pop_back();
             
-            auto& partition_across = going_left ? return_val.second : return_val.first;
-            auto& partition_here = going_left ? return_val.first : return_val.second;
+#ifdef debug_is_bipartite
+            cerr << "traversal at " << graph->get_id(side_here) << " " << graph->get_is_reverse(side_here) << ", going left? " << going_left << endl;
+#endif
+            
+            auto& partition_across = going_left ? return_val.first : return_val.second;
+            auto& partition_here = going_left ? return_val.second : return_val.first;
             
             bool still_bipartite = for_each_adjacent_side(side_here,
                                                           [&](handle_t adjacent_side) {
+#ifdef debug_is_bipartite
+                cerr << "\tcheck adjacent " <<  graph->get_id(adjacent_side) << " " << graph->get_is_reverse(adjacent_side) << endl;
+#endif
                 if (partition_here.count(adjacent_side)) {
                     // this side was seen with both even and odd parities, the
                     // adjacency component is not bipartite
+#ifdef debug_is_bipartite
+                    cerr << "\t\twrong parity, component is not bipartite" << endl;
+#endif
                     return false;
                 }
                 else if (!partition_across.count(adjacent_side)) {
                     // add this side to the partition and prepare a search from it
                     // with the opposite parity
-                    partition_across.count(adjacent_side);
+                    partition_across.insert(adjacent_side);
                     stack.emplace_back(adjacent_side, !going_left);
                 }
+                
                 return true;
             });
             
@@ -363,7 +378,8 @@ AdjacencyComponent::bipartition AdjacencyComponent::exhaustive_maximum_bipartite
                             component.size() - 2, best_score, best_index);
     }
     
-    // reconstruct the partition that gave rise to the best score
+    // reconstruct the partition that gave rise to the best score (conversion algorithm
+    // taken from https://en.wikipedia.org/wiki/Gray_code#Converting_to_and_from_Gray_code)
     uint64_t best_gray_code = best_index ^ (best_index >> 1);
     bipartition best_partition;
     for (size_t i = 0; i < component.size(); ++i) {

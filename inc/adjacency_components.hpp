@@ -87,8 +87,6 @@ public:
     
     
     
-    
-    
     bool is_bipartite() const;
     
     // returns empty sets if the adjacency component is not actually bipartite
