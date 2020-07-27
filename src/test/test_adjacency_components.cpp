@@ -37,29 +37,37 @@ int count_edges_across(const AdjacencyComponent& adj_comp,
 }
 
 bool check_bipartite(const HandleGraph& graph, const bipartition& partition) {
-    for (auto side : partition.first) {
-        graph.follow_edges(side, false, [&](const handle_t& adj_node) {
+    
+    bool looks_bipartite = true;
+    for (auto it = partition.first.begin(); it != partition.first.end() && looks_bipartite; ++it) {
+        graph.follow_edges(*it, false, [&](const handle_t& adj_node) {
             handle_t adj_side = graph.flip(adj_node);
             if (partition.first.count(adj_side)) {
+                looks_bipartite = false;
                 return false;
             }
             if (!partition.second.count(adj_side)) {
+                looks_bipartite = false;
                 return false;
             }
+            return true;
         });
     }
-    for (auto side : partition.second) {
-        graph.follow_edges(side, false, [&](const handle_t& adj_node) {
+    for (auto it = partition.second.begin(); it != partition.second.end() && looks_bipartite; ++it) {
+        graph.follow_edges(*it, false, [&](const handle_t& adj_node) {
             handle_t adj_side = graph.flip(adj_node);
             if (partition.second.count(adj_side)) {
+                looks_bipartite = false;
                 return false;
             }
             if (!partition.first.count(adj_side)) {
+                looks_bipartite = false;
                 return false;
             }
+            return true;
         });
     }
-    return true;
+    return looks_bipartite;
 }
 
 int main(){
