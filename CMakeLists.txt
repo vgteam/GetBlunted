@@ -35,15 +35,17 @@ include_directories(
 
 # Define our shared library sources. NOT test/executables.
 set(SOURCES
-        src/utility.cpp
-        src/gfa_to_handle.cpp
-        src/topological_sort.cpp
-        src/is_single_stranded.cpp
-        src/find_tips.cpp
-        src/apply_bulk_modifications.cpp
-        src/IncrementalIdMap.cpp
         src/adjacency_components.cpp
+        src/apply_bulk_modifications.cpp
+        src/Cigar.cpp
+        src/find_tips.cpp
+        src/gfa_to_handle.cpp
+        src/IncrementalIdMap.cpp
+        src/is_single_stranded.cpp
+        src/OverlapMap.cpp
         src/subtractive_graph.cpp
+        src/topological_sort.cpp
+        src/utility.cpp
         )
 
 
@@ -121,6 +123,7 @@ ExternalProject_Add(project_gfak
         GIT_REPOSITORY https://github.com/edawson/gfakluge.git
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
         CONFIGURE_COMMAND ""
+        UPDATE_COMMAND ""
         BUILD_IN_SOURCE True
         INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/gfak/
         INSTALL_COMMAND make PREFIX=${CMAKE_SOURCE_DIR}/external/gfak/ install
@@ -169,7 +172,7 @@ ExternalProject_Add(project_bdsg
         GIT_REPOSITORY https://github.com/vgteam/libbdsg-easy.git
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
         CONFIGURE_COMMAND ""
-#        UPDATE_COMMAND ""
+        UPDATE_COMMAND ""
         BUILD_IN_SOURCE True
         INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/bdsg/
         INSTALL_COMMAND make INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/bdsg/ install

@@ -15,11 +15,8 @@
 #include "bdsg/packed_graph.hpp"
 #include "handlegraph/handle_graph.hpp"
 #include "IncrementalIdMap.hpp"
-
-
-
-namespace bluntifier {
-
+#include "OverlapMap.hpp"
+#include "Cigar.hpp"
 
 using namespace std;
 using std::runtime_error;
@@ -27,6 +24,10 @@ using handlegraph::nid_t;
 using bdsg::MutableHandleGraph;
 using bdsg::MutablePathMutableHandleGraph;
 using bluntifier::IncrementalIdMap;
+using bluntifier::OverlapMap;
+using bluntifier::Cigar;
+
+namespace bluntifier {
 
 
     /// This exception will be thrown if the GFA data is not acceptable.
@@ -49,6 +50,7 @@ public:
 void gfa_to_handle_graph(const string& filename,
                          MutableHandleGraph& graph,
                          IncrementalIdMap& id_map,
+                         OverlapMap& overlaps,
                          bool try_from_disk = true,
                          bool try_id_increment_hint = false);
 
@@ -63,7 +65,8 @@ void gfa_to_path_handle_graph(const string& filename,
 /// Always streaming. Doesn't support ID increment hints.
 void gfa_to_path_handle_graph_in_memory(istream& in,
                                         MutablePathMutableHandleGraph& graph,
-                                        IncrementalIdMap& id_map);
+                                        IncrementalIdMap& id_map,
+                                        OverlapMap& overlaps);
 
 
 }

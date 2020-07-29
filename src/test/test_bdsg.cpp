@@ -3,9 +3,11 @@
 #include "utility.hpp"
 #include "topological_sort.hpp"
 #include "IncrementalIdMap.hpp"
+#include "OverlapMap.hpp"
 
 
 using std::ifstream;
+using std::unordered_map;
 
 using bluntifier::gfa_to_path_handle_graph_in_memory;
 using bluntifier::gfa_to_path_handle_graph;
@@ -14,6 +16,8 @@ using bluntifier::parent_path;
 using bluntifier::join_paths;
 using bluntifier::orient_nodes_forward;
 using bluntifier::IncrementalIdMap;
+using bluntifier::OverlapMap;
+using bluntifier::Cigar;
 using handlegraph::handle_t;
 using bdsg::PackedGraph;
 using bdsg::MutablePathMutableHandleGraph;
@@ -30,11 +34,12 @@ int main(){
 
     PackedGraph g;
     IncrementalIdMap id_map;
+    OverlapMap overlaps;
 
-    gfa_to_handle_graph(absolute_gfa_path, g, id_map);
+    gfa_to_handle_graph(absolute_gfa_path, g, id_map, overlaps);
     g.clear();
 
-    gfa_to_path_handle_graph_in_memory(file, g, id_map);
+    gfa_to_path_handle_graph_in_memory(file, g, id_map, overlaps);
 
     orient_nodes_forward(g);
 

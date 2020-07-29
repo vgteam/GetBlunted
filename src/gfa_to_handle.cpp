@@ -1,9 +1,9 @@
 #include "gfa_to_handle.hpp"
-#include "IncrementalIdMap.hpp"
 
 using handlegraph::handle_t;
 using handlegraph::path_handle_t;
 using bdsg::MutablePathHandleGraph;
+using bdsg::HandleGraph;
 
 namespace bluntifier {
 
@@ -41,8 +41,13 @@ string process_raw_gfa_path_name(const string& path_name_raw) {
 }
 
 
-void gfa_to_handle_graph_in_memory(istream& in, MutableHandleGraph& graph,
-                                   gfak::GFAKluge& gg, IncrementalIdMap& id_map) {
+void gfa_to_handle_graph_in_memory(
+        istream& in,
+        MutableHandleGraph& graph,
+        gfak::GFAKluge& gg,
+        IncrementalIdMap& id_map,
+        OverlapMap& overlaps) {
+
     if (!in) {
         throw std::ios_base::failure("Error:[gfa_to_handle_graph] Couldn't open input stream");
     }
@@ -57,18 +62,29 @@ void gfa_to_handle_graph_in_memory(istream& in, MutableHandleGraph& graph,
     for (const auto& links_record : gg.get_seq_to_edges()) {
         for (const auto& edge : links_record.second) {
             validate_gfa_edge(edge);
+
+            const nid_t source_id = parse_gfa_sequence_id(edge.source_name, id_map);
+            const nid_t sink_id = parse_gfa_sequence_id(edge.sink_name, id_map);
+
             // note: we're counting on implementations de-duplicating edges
-            handle_t a = graph.get_handle(parse_gfa_sequence_id(edge.source_name, id_map),
-                                           not edge.source_orientation_forward);
-            handle_t b = graph.get_handle(parse_gfa_sequence_id(edge.sink_name, id_map), not edge.sink_orientation_forward);
+            handle_t a = graph.get_handle(source_id, not edge.source_orientation_forward);
+            handle_t b = graph.get_handle(sink_id, not edge.sink_orientation_forward);
             graph.create_edge(a, b);
+
+            // Update the overlap map (assuming the GFA is "canonical")
+            overlaps.insert(edge, a, b);
         }
     }
 }
 
 
-void gfa_to_handle_graph_on_disk(const string& filename, MutableHandleGraph& graph,
-                                 bool try_id_increment_hint, gfak::GFAKluge& gg, IncrementalIdMap& id_map) {
+void gfa_to_handle_graph_on_disk(
+        const string& filename,
+        MutableHandleGraph& graph,
+        bool try_id_increment_hint,
+        gfak::GFAKluge& gg,
+        IncrementalIdMap& id_map,
+        OverlapMap& overlaps) {
 
     // adapted from
     // https://github.com/vgteam/odgi/blob/master/src/gfa_to_handle.cpp
@@ -97,9 +113,16 @@ void gfa_to_handle_graph_on_disk(const string& filename, MutableHandleGraph& gra
     // add in all edges
     gg.for_each_edge_line_in_file(const_cast<char*>(filename.c_str()), [&](gfak::edge_elem e) {
         validate_gfa_edge(e);
-        handle_t a = graph.get_handle(parse_gfa_sequence_id(e.source_name, id_map), not e.source_orientation_forward);
-        handle_t b = graph.get_handle(parse_gfa_sequence_id(e.sink_name, id_map), not e.sink_orientation_forward);
+
+        const nid_t source_id = parse_gfa_sequence_id(e.source_name, id_map);
+        const nid_t sink_id = parse_gfa_sequence_id(e.sink_name, id_map);
+
+        handle_t a = graph.get_handle(source_id, not e.source_orientation_forward);
+        handle_t b = graph.get_handle(sink_id, not e.sink_orientation_forward);
         graph.create_edge(a, b);
+
+        // Update the overlap map (assuming the GFA is "canonical")
+        overlaps.insert(e, a, b);
     });
 }
 
@@ -107,8 +130,14 @@ void gfa_to_handle_graph_on_disk(const string& filename, MutableHandleGraph& gra
 /// Parse nodes and edges and load them into the given GFAKluge.
 /// If the input is a seekable file, filename will be filled in and unseekable will be nullptr.
 /// If the input is not a seekable file, filename may be filled in, and unseekable will be set to a stream to read from.
-void gfa_to_handle_graph_load_graph(const string& filename, istream* unseekable, MutableHandleGraph& graph,
-                                    bool try_id_increment_hint, gfak::GFAKluge& gg, IncrementalIdMap& id_map) {
+void gfa_to_handle_graph_load_graph(
+        const string& filename,
+        istream* unseekable,
+        MutableHandleGraph& graph,
+        bool try_id_increment_hint,
+        gfak::GFAKluge& gg,
+        IncrementalIdMap& id_map,
+        OverlapMap& overlaps) {
 
     if (graph.get_node_count() > 0) {
         throw invalid_argument("Error:[gfa_to_handle_graph] Must parse GFA into an empty graph");
@@ -116,7 +145,7 @@ void gfa_to_handle_graph_load_graph(const string& filename, istream* unseekable,
 
     if (!unseekable) {
         // Do the from-disk path
-        gfa_to_handle_graph_on_disk(filename, graph, try_id_increment_hint, gg, id_map);
+        gfa_to_handle_graph_on_disk(filename, graph, try_id_increment_hint, gg, id_map, overlaps);
     } else {
         // Do the path for streams
 
@@ -128,7 +157,7 @@ void gfa_to_handle_graph_load_graph(const string& filename, istream* unseekable,
                     << endl;
         }
 
-        gfa_to_handle_graph_in_memory(*unseekable, graph, gg, id_map);
+        gfa_to_handle_graph_in_memory(*unseekable, graph, gg, id_map, overlaps);
     }
 }
 
@@ -191,8 +220,13 @@ void gfa_to_handle_graph_add_paths(const string& filename, istream* unseekable, 
 }
 
 
-void gfa_to_handle_graph(const string& filename, MutableHandleGraph& graph, IncrementalIdMap& id_map,
-                         bool try_from_disk, bool try_id_increment_hint) {
+void gfa_to_handle_graph(
+        const string& filename,
+        MutableHandleGraph& graph,
+        IncrementalIdMap& id_map,
+        OverlapMap& overlaps,
+        bool try_from_disk,
+        bool try_id_increment_hint) {
 
     // What stream should we read from (isntead of opening the file), if any?
     istream* unseekable = nullptr;
@@ -214,15 +248,20 @@ void gfa_to_handle_graph(const string& filename, MutableHandleGraph& graph, Incr
     }
 
     gfak::GFAKluge gg;
-    gfa_to_handle_graph_load_graph(filename, unseekable, graph, try_id_increment_hint, gg, id_map);
+    gfa_to_handle_graph_load_graph(filename, unseekable, graph, try_id_increment_hint, gg, id_map, overlaps);
 }
 
 
-void gfa_to_path_handle_graph(const string& filename, MutablePathMutableHandleGraph& graph, IncrementalIdMap& id_map,
-                              bool try_from_disk, bool try_id_increment_hint) {
+void gfa_to_path_handle_graph(
+        const string& filename,
+        MutablePathMutableHandleGraph& graph,
+        IncrementalIdMap& id_map,
+        OverlapMap& overlaps,
+        bool try_from_disk,
+        bool try_id_increment_hint) {
 
 
-    // What stream should we read from (isntead of opening the file), if any?
+    // What stream should we read from (instead of opening the file), if any?
     istream* unseekable = nullptr;
 
     // If we open a file, it will live here.
@@ -242,17 +281,20 @@ void gfa_to_path_handle_graph(const string& filename, MutablePathMutableHandleGr
     }
 
     gfak::GFAKluge gg;
-    gfa_to_handle_graph_load_graph(filename, unseekable, graph, try_id_increment_hint, gg, id_map);
+    gfa_to_handle_graph_load_graph(filename, unseekable, graph, try_id_increment_hint, gg, id_map, overlaps);
 
     // TODO: Deduplicate everything other than this line somehow.
     gfa_to_handle_graph_add_paths(filename, unseekable, graph, gg, id_map);
 }
 
 
-void gfa_to_path_handle_graph_in_memory(istream& in,
-                                        MutablePathMutableHandleGraph& graph, IncrementalIdMap& id_map) {
+void gfa_to_path_handle_graph_in_memory(
+        istream& in,
+        MutablePathMutableHandleGraph& graph,
+        IncrementalIdMap& id_map,
+        OverlapMap& overlaps) {
     gfak::GFAKluge gg;
-    gfa_to_handle_graph_load_graph("", &in, graph, false, gg, id_map);
+    gfa_to_handle_graph_load_graph("", &in, graph, false, gg, id_map, overlaps);
     gfa_to_handle_graph_add_paths("", &in, graph, gg, id_map);
 
 }
