@@ -10,23 +10,24 @@ namespace bluntifier {
 /// 0   1   2   3   4   5   6   7   8
 ///
 
-                                            // 0   1   2   3   4   5   6   7   8   9
-const array<uint8_t, 128> Cigar::cigar_code = {10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  // 0
-                                               10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  // 10
-                                               10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  // 20
-                                               10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  // 30
-                                               10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  // 40
-                                               10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  // 50
-                                               10, 7,  10, 10, 10, 10, 10, 10, 2,  10,  // 60    =61, D68
-                                               10, 10, 5,  1,  10, 10, 10, 0,  3,  10,  // 70    H72, I73, M77, N78
-                                               6,  10, 10, 4,  10, 10, 10, 10, 8,  10,  // 80    P80, S83, X88
-                                               10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  // 90
-                                               10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  // 100
-                                               10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  // 110
-                                               10, 10, 10, 10, 10, 10, 10, 10};         // 120
+
+                                                // 0   1   2   3   4   5   6   7   8   9
+const array<uint8_t, 128> Alignment::cigar_code = {10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  // 0
+                                                   10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  // 10
+                                                   10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  // 20
+                                                   10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  // 30
+                                                   10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  // 40
+                                                   10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  // 50
+                                                   10, 7,  10, 10, 10, 10, 10, 10, 2,  10,  // 60    =61, D68
+                                                   10, 10, 5,  1,  10, 10, 10, 0,  3,  10,  // 70    H72, I73, M77, N78
+                                                   6,  10, 10, 4,  10, 10, 10, 10, 8,  10,  // 80    P80, S83, X88
+                                                   10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  // 90
+                                                   10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  // 100
+                                                   10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  // 110
+                                                   10, 10, 10, 10, 10, 10, 10, 10};         // 120
 
 
-const array<bool, 9> Cigar::is_ref_move = {true,      //MATCH      0
+const array<bool, 9> Alignment::is_ref_move = {true,      //MATCH      0
                                            false,     //INS        1
                                            true,      //DEL        2
                                            true,      //REF_SKIP   3
@@ -37,7 +38,7 @@ const array<bool, 9> Cigar::is_ref_move = {true,      //MATCH      0
                                            true};     //MISMATCH   8
 
 
-const array<bool, 9> Cigar::is_query_move = {true,     //MATCH      0
+const array<bool, 9> Alignment::is_query_move = {true,     //MATCH      0
                                              true,     //INS        1
                                              false,    //DEL        2
                                              false,    //REF_SKIP   3
@@ -47,8 +48,37 @@ const array<bool, 9> Cigar::is_query_move = {true,     //MATCH      0
                                              true,     //EQUAL      7
                                              true};    //MISMATCH   8
 
+const array<char, 9> Alignment::cigar_type = {'M','I','D','N','S','H','P','=','X'};
 
-Cigar::Cigar(const string& s) {
+
+Cigar::Cigar(uint32_t length, char type):
+        code(Alignment::cigar_code[type]),
+        length(length)
+{}
+
+char Cigar::type() const{
+    return Alignment::cigar_type[code];
+}
+
+AlignmentIterator::AlignmentIterator(uint64_t query_index, uint64_t ref_index):
+    query_index(query_index),
+    ref_index(ref_index),
+    cigar_index(0),
+    intra_cigar_index(0),
+    first_step(true)
+{}
+
+
+AlignmentIterator::AlignmentIterator():
+    query_index(0),
+    ref_index(0),
+    cigar_index(0),
+    intra_cigar_index(0),
+    first_step(true)
+{}
+
+
+Alignment::Alignment(const string& s) {
     string token;
 
     for (auto& c: s) {
@@ -62,12 +92,127 @@ Cigar::Cigar(const string& s) {
 }
 
 
+void Alignment::compute_lengths(pair<uint64_t,uint64_t>& lengths){
+    // Reset lengths
+    lengths.first = 0;
+    lengths.second = 0;
+
+    // Count up the cigar operations
+    for (const auto& c: operations){
+        const uint8_t code = Alignment::cigar_code[c.type()];
+
+        // Assume the right side (sink) node is treated as the "reference" in the cigar
+        if (Alignment::is_ref_move[code]){
+            // Increment by the length of the cigar operation
+            lengths.second += c.length;
+        }
+
+        // Assume the left side (source) node is treated as the "query" in the cigar
+        if (Alignment::is_query_move[code]){
+            // Increment by the length of the cigar operation
+            lengths.first += c.length;
+        }
+    }
 }
 
-ostream& operator<<(ostream& o, bluntifier::Cigar& c){
-    for (const auto& item: c.operations) {
-        o << '(' << item.first << ',' << item.second << ')' << ',';
+
+bool Alignment::step_through_alignment(AlignmentIterator& iterator){
+    // Don't do anything on the first step
+    if (iterator.first_step){
+        // TODO: check what happens with 1M cigar
+        iterator.first_step = false;
+        return true;
     }
+
+    bool is_last_cigar = (iterator.cigar_index == operations.size() - 1);
+    bool is_last_step_in_cigar = (iterator.intra_cigar_index == operations[iterator.cigar_index].length - 1);
+    bool done = is_last_cigar and is_last_step_in_cigar;
+
+    // Exit early if this is the end my friend
+    if (done){
+        return false;
+    }
+
+    // Move up to the next cigar tuple if necessary
+    if (is_last_step_in_cigar){
+        iterator.cigar_index++;
+        iterator.intra_cigar_index = 0;
+    }
+    // Or just increment the intra_cigar_index
+    else{
+        iterator.intra_cigar_index++;
+    }
+
+    // Ref
+    if (is_ref_move[operations[iterator.cigar_index].code]){
+        iterator.ref_index++;
+    }
+
+    // Query
+    if (is_query_move[operations[iterator.cigar_index].code]){
+        iterator.query_index++;
+    }
+
+
+    return true;
+}
+
+
+string Alignment::generate_formatted_alignment_string(const string& ref_sequence, const string& query_sequence) {
+    AlignmentIterator iterator;
+
+    string aligned_ref;
+    string aligned_query;
+    string alignment_symbols;
+
+    size_t n = 0;
+    while (step_through_alignment(iterator)) {
+        char ref_base = ref_sequence[iterator.ref_index];
+        char query_base = query_sequence[iterator.query_index];
+
+        uint8_t code = operations[iterator.cigar_index].code;
+
+        if (Alignment::is_ref_move[code]) {
+            aligned_ref += ref_base;
+        } else {
+            aligned_ref += "-";
+        }
+
+        if (Alignment::is_query_move[code]) {
+            aligned_query += query_base;
+        } else {
+            aligned_query += "-";
+        }
+
+        if (ref_base == query_base) {
+            alignment_symbols += '|';
+        } else {
+            alignment_symbols += " ";
+        }
+
+    }
+
+    return aligned_ref + '\n' + alignment_symbols + '\n' + aligned_query;
+}
+
+
+}
+
+ostream& operator<<(ostream& o, bluntifier::Alignment& a){
+    for (const auto& cigar: a.operations) {
+        o << '(' << cigar.length << ',' << cigar.type() << ')' << ',';
+    }
+
+    return o;
+}
+
+
+ostream& operator<<(ostream& o, bluntifier::AlignmentIterator& a){
+    o << "cigar_index:\t\t" << a.cigar_index;
+    o << "\nintra_cigar_index:\t" << a.intra_cigar_index;
+    o << "\nref_index:\t\t" << a.ref_index;
+    o << "\nquery_index:\t\t" << a.query_index;
+    o << "\nfirst_step:\t\t" << a.first_step;
 
     return o;
 }

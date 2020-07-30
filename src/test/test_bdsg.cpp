@@ -17,7 +17,7 @@ using bluntifier::join_paths;
 using bluntifier::orient_nodes_forward;
 using bluntifier::IncrementalIdMap;
 using bluntifier::OverlapMap;
-using bluntifier::Cigar;
+using bluntifier::Alignment;
 using handlegraph::handle_t;
 using bdsg::PackedGraph;
 using bdsg::MutablePathMutableHandleGraph;

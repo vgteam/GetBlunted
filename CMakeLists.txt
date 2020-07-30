@@ -227,127 +227,58 @@ find_package(Threads REQUIRED)
 
 # -------- TESTS --------
 
-set(FILENAME_PREFIX test_gfak)
-add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
-set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
-target_link_libraries(${FILENAME_PREFIX}
-        Bluntifier
-        Threads::Threads
-        bdsg
-        divsufsort
-        libhandlegraph
-        libsdsl)
+set(TESTS
+        test_gfak
+        test_bdsg
+        test_handlegraph
+        test_utility
+        test_IncrementalIdMap
+        test_adjacency_components
+        test_overlaps
+        test_cigar
+        )
 
-if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+foreach(FILENAME_PREFIX ${TESTS})
+    add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
+    set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
     target_link_libraries(${FILENAME_PREFIX}
-        OpenMP::OpenMP_CXX)
-endif()
+            Bluntifier
+            Threads::Threads
+            bdsg
+            divsufsort
+            libhandlegraph
+            libsdsl)
 
-set(FILENAME_PREFIX test_bdsg)
-add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
-set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
-target_link_libraries(${FILENAME_PREFIX}
-        Bluntifier
-        Threads::Threads
-        bdsg
-        divsufsort
-        libhandlegraph
-        libsdsl)
+    if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+        target_link_libraries(${FILENAME_PREFIX}
+                OpenMP::OpenMP_CXX)
+    endif()
+endforeach()
 
-if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-    target_link_libraries(${FILENAME_PREFIX}
-        OpenMP::OpenMP_CXX)
-endif()
-
-
-set(FILENAME_PREFIX test_handlegraph)
-add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
-set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
-target_link_libraries(${FILENAME_PREFIX}
-        Bluntifier
-        Threads::Threads
-        bdsg
-        divsufsort
-        libhandlegraph
-        libsdsl)
-
-if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-    target_link_libraries(${FILENAME_PREFIX}
-            OpenMP::OpenMP_CXX)
-endif()
-
-
-set(FILENAME_PREFIX test_utility)
-add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
-set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
-target_link_libraries(${FILENAME_PREFIX}
-        Bluntifier
-        Threads::Threads
-        bdsg
-        divsufsort
-        libhandlegraph
-        libsdsl)
-
-if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-    target_link_libraries(${FILENAME_PREFIX}
-            OpenMP::OpenMP_CXX)
-endif()
-
-
-set(FILENAME_PREFIX test_IncrementalIdMap)
-add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
-set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
-target_link_libraries(${FILENAME_PREFIX}
-        Bluntifier
-        Threads::Threads
-        bdsg
-        divsufsort
-        libhandlegraph
-        libsdsl)
-
-if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-    target_link_libraries(${FILENAME_PREFIX}
-            OpenMP::OpenMP_CXX)
-endif()
-
-set(FILENAME_PREFIX test_adjacency_components)
-add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
-set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
-target_link_libraries(${FILENAME_PREFIX}
-        Bluntifier
-        Threads::Threads
-        bdsg
-        divsufsort
-        libhandlegraph
-        libsdsl)
-
-if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-    target_link_libraries(${FILENAME_PREFIX}
-            OpenMP::OpenMP_CXX)
-endif()
-
-set(FILENAME_PREFIX test_overlaps)
-add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
-set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
-target_link_libraries(${FILENAME_PREFIX}
-        Bluntifier
-        Threads::Threads
-        bdsg
-        divsufsort
-        libhandlegraph
-        libsdsl)
-
-if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-    target_link_libraries(${FILENAME_PREFIX}
-            OpenMP::OpenMP_CXX)
-endif()
 
 # -------- EXECUTABLES --------
 
-#set(FILENAME_PREFIX a)
-#add_executable(${FILENAME_PREFIX} src/executables/${FILENAME_PREFIX}.cpp)
-#set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
-#target_link_libraries(${FILENAME_PREFIX} Bluntifier Threads::Threads ${Boost_LIBRARIES})
+#set(EXECUTABLES
+#        a
+#        b
+#        )
+#
+#foreach(FILENAME_PREFIX ${EXECUTABLES})
+#    add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
+#    set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
+#    target_link_libraries(${FILENAME_PREFIX}
+#            Bluntifier
+#            Threads::Threads
+#            bdsg
+#            divsufsort
+#            libhandlegraph
+#            libsdsl)
+#
+#    if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+#        target_link_libraries(${FILENAME_PREFIX}
+#                OpenMP::OpenMP_CXX)
+#    endif()
+#endforeach()
 
 # -------- final steps --------
 

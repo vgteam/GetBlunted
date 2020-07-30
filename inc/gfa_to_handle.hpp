@@ -25,7 +25,7 @@ using bdsg::MutableHandleGraph;
 using bdsg::MutablePathMutableHandleGraph;
 using bluntifier::IncrementalIdMap;
 using bluntifier::OverlapMap;
-using bluntifier::Cigar;
+using bluntifier::Alignment;
 
 namespace bluntifier {
 

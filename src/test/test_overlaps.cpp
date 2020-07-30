@@ -4,7 +4,6 @@
 #include "IncrementalIdMap.hpp"
 #include "OverlapMap.hpp"
 
-
 using std::ifstream;
 using std::unordered_map;
 
@@ -15,7 +14,7 @@ using bluntifier::parent_path;
 using bluntifier::join_paths;
 using bluntifier::IncrementalIdMap;
 using bluntifier::OverlapMap;
-using bluntifier::Cigar;
+using bluntifier::Alignment;
 using handlegraph::handle_t;
 using bdsg::PackedGraph;
 using bdsg::MutablePathMutableHandleGraph;
@@ -49,7 +48,7 @@ int main(){
     }
 
     pair<size_t,size_t> lengths;
-    Cigar cigar("");
+    Alignment cigar("");
 
     g.for_each_edge([&](edge_t edge) {
         overlaps.canonicalize_and_compute_lengths(lengths, edge, g);
