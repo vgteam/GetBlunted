@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+using handlegraph::HandleGraph;
 using handlegraph::handle_t;
 using handlegraph::edge_t;
 using bluntifier::Cigar;
@@ -27,10 +28,12 @@ public:
     OverlapMap();
 
     void insert(const gfak::edge_elem& e, handle_t source, handle_t sink);
-    void insert(const gfak::edge_elem& e, edge_t& edge_handle);
-    Cigar at(handle_t source, handle_t sink);
-    Cigar at(edge_t& edge_handle);
-    void get_lengths(pair<size_t, size_t>& lengths, edge_t& edge_handle);
+    void insert(const gfak::edge_elem& e, const edge_t& edge_handle);
+    unordered_map<edge_t,Cigar>::iterator at(handle_t source, handle_t sink);
+    unordered_map<edge_t,Cigar>::iterator at(edge_t& edge_handle);
+    unordered_map<edge_t,Cigar>::iterator canonicalize_and_find(edge_t& edge, const HandleGraph& graph);
+    void compute_lengths(pair<size_t,size_t>& lengths, unordered_map<edge_t,Cigar>::iterator& iter);
+    void canonicalize_and_compute_lengths(pair<size_t,size_t>& lengths, edge_t& edge, const HandleGraph& graph);
 };
 
 }

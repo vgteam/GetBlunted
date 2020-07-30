@@ -61,4 +61,13 @@ Cigar::Cigar(const string& s) {
     }
 }
 
+
+}
+
+ostream& operator<<(ostream& o, bluntifier::Cigar& c){
+    for (const auto& item: c.operations) {
+        o << '(' << item.first << ',' << item.second << ')' << ',';
+    }
+
+    return o;
 }

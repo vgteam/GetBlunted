@@ -1,0 +1,18 @@
+S	Ref	AAAAATTTTT
+S	Match	GGGGGAAAAA
+S	Match_R	TTTTTCCCCC
+S	Mismatch_R	TTATTCCCCC
+S	Mismatch	GGGGGAATAA
+S	Ins	GGGGGAAACAA
+S	Ins_R	TTTATTCCCCC
+S	Del	GGGGGAAAA
+S	Del_R	TTTTCCCCC
+L	Mismatch	+	Ref	+	5M
+L	Match	+	Ref	+	5M
+L	Match_R	-	Ref	+	5M
+L	Mismatch_R	-	Ref	+	5M
+L	Match	+	Ref	-	5M
+L	Ins	+	Ref	+	3M1I2M
+L	Ins_R	-	Ref	+	3M1I2M
+L	Del	+	Ref	+	2M1D2M
+L	Del_R	-	Ref	+	2M1D2M

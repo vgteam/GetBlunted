@@ -123,7 +123,6 @@ ExternalProject_Add(project_gfak
         GIT_REPOSITORY https://github.com/edawson/gfakluge.git
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
         CONFIGURE_COMMAND ""
-        UPDATE_COMMAND ""
         BUILD_IN_SOURCE True
         INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/gfak/
         INSTALL_COMMAND make PREFIX=${CMAKE_SOURCE_DIR}/external/gfak/ install
@@ -172,7 +171,6 @@ ExternalProject_Add(project_bdsg
         GIT_REPOSITORY https://github.com/vgteam/libbdsg-easy.git
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
         CONFIGURE_COMMAND ""
-        UPDATE_COMMAND ""
         BUILD_IN_SOURCE True
         INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/bdsg/
         INSTALL_COMMAND make INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/bdsg/ install
@@ -313,6 +311,22 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 endif()
 
 set(FILENAME_PREFIX test_adjacency_components)
+add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
+set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
+target_link_libraries(${FILENAME_PREFIX}
+        Bluntifier
+        Threads::Threads
+        bdsg
+        divsufsort
+        libhandlegraph
+        libsdsl)
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    target_link_libraries(${FILENAME_PREFIX}
+            OpenMP::OpenMP_CXX)
+endif()
+
+set(FILENAME_PREFIX test_overlaps)
 add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
 set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
 target_link_libraries(${FILENAME_PREFIX}

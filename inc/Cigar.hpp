@@ -1,18 +1,32 @@
 #ifndef BLUNTIFIER_CIGAR_HPP
 #define BLUNTIFIER_CIGAR_HPP
 
-#include <string>
+#include <iostream>
 #include <utility>
 #include <vector>
+#include <string>
 #include <array>
 
+using std::ostream;
+using std::vector;
 using std::string;
 using std::pair;
-using std::vector;
 using std::array;
 
 
 namespace bluntifier{
+
+
+class CigarOperation{
+public:
+    /// Attributes ///
+    char type;
+    uint32_t length;
+
+    /// Methods ///
+    CigarOperation(uint32_t length, char type);
+};
+
 
 class Cigar {
 public:
@@ -32,5 +46,7 @@ public:
 
 
 }
+
+ostream& operator<<(ostream& o, bluntifier::Cigar& c);
 
 #endif //BLUNTIFIER_CIGAR_HPP
