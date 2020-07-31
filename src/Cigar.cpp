@@ -241,7 +241,7 @@ string Alignment::create_formatted_alignment_string(const string& query_sequence
             aligned_query += "-";
         }
 
-        if (ref_base == query_base) {
+        if (Alignment::is_ref_move[code] and Alignment::is_query_move[code] and ref_base == query_base) {
             alignment_symbols += '|';
         } else {
             alignment_symbols += " ";

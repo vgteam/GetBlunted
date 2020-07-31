@@ -51,17 +51,34 @@ int main(){
     Alignment cigar("");
 
     g.for_each_edge([&](edge_t edge) {
-        overlaps.canonicalize_and_compute_lengths(lengths, edge, g);
+        auto iter = overlaps.canonicalize_and_find(edge, g);
+
+        string left_sequence = g.get_sequence(edge.first).substr();
+        string right_sequence = g.get_sequence(edge.second).substr();
+
+        iter->second.compute_lengths(lengths);
+
+        size_t start;
+
+        start = left_sequence.size() - lengths.first;
+        left_sequence = left_sequence.substr(start, lengths.first);
+
+        start = 0;
+        right_sequence = right_sequence.substr(start, lengths.second);
 
         left_name = id_map.get_name(g.get_id(edge.first));
         right_name = id_map.get_name(g.get_id(edge.second));
 
+        cerr << '\n';
         cerr << left_name << '-' << g.get_is_reverse(edge.first) << ','
              << right_name << '-' << g.get_is_reverse(edge.second) << '\n';
-
         cerr << lengths.first << ',' << lengths.second << '\n';
-    });
+        cerr << left_sequence << '\n';
+        cerr << right_sequence << '\n';
+        cerr << iter->second << '\n';
+        cerr << iter->second.create_formatted_alignment_string(left_sequence, right_sequence) << '\n';
 
+    });
 
     return 0;
 }
