@@ -1,5 +1,7 @@
 #include "Cigar.hpp"
 
+using std::runtime_error;
+using std::to_string;
 using std::stol;
 
 
@@ -54,7 +56,11 @@ const array<char, 9> Alignment::cigar_type = {'M','I','D','N','S','H','P','=','X
 Cigar::Cigar(uint32_t length, char type):
         code(Alignment::cigar_code[type]),
         length(length)
-{}
+{
+    if (code > 8){
+        throw runtime_error("ERROR: unrecognized cigar character: " + string(1,type) + " has ASCII value: " + to_string(int(code)));
+    }
+}
 
 char Cigar::type() const{
     return Alignment::cigar_type[code];
@@ -76,6 +82,12 @@ AlignmentIterator::AlignmentIterator():
     intra_cigar_index(0),
     first_step(true)
 {}
+
+
+void AlignmentIterator::next_cigar(){
+    cigar_index++;
+    intra_cigar_index = 0;
+}
 
 
 Alignment::Alignment(const string& s) {
@@ -124,8 +136,8 @@ bool Alignment::step_through_alignment(AlignmentIterator& iterator){
         return true;
     }
 
-    bool is_last_cigar = (iterator.cigar_index == operations.size() - 1);
-    bool is_last_step_in_cigar = (iterator.intra_cigar_index == operations[iterator.cigar_index].length - 1);
+    bool is_last_cigar = (iterator.cigar_index >= operations.size() - 1);
+    bool is_last_step_in_cigar = (iterator.intra_cigar_index >= operations[iterator.cigar_index].length - 1);
     bool done = is_last_cigar and is_last_step_in_cigar;
 
     // Exit early if this is the end my friend
@@ -135,8 +147,7 @@ bool Alignment::step_through_alignment(AlignmentIterator& iterator){
 
     // Move up to the next cigar tuple if necessary
     if (is_last_step_in_cigar){
-        iterator.cigar_index++;
-        iterator.intra_cigar_index = 0;
+        iterator.next_cigar();
     }
     // Or just increment the intra_cigar_index
     else{
@@ -158,14 +169,60 @@ bool Alignment::step_through_alignment(AlignmentIterator& iterator){
 }
 
 
-string Alignment::generate_formatted_alignment_string(const string& ref_sequence, const string& query_sequence) {
+void Alignment::explitize_cigar_matches(const string& query_sequence, const string& ref_sequence) {
+    // TODO: rewrite this function without copying? Use insert operations instead
+
+    AlignmentIterator iterator;
+    vector<Cigar> explicit_operations;
+
+    while (step_through_alignment(iterator)) {
+        uint8_t code = operations[iterator.cigar_index].code;
+
+        if (operations[iterator.cigar_index].type() == 'M'){
+            char ref_base = ref_sequence[iterator.ref_index];
+            char query_base = query_sequence[iterator.query_index];
+
+            if (ref_base == query_base){
+                // If the last operation was already a Match (=), then extend its length
+                if (not explicit_operations.empty() and explicit_operations.back().type() == '='){
+                    explicit_operations.back().length++;
+                }
+                // Otherwise make a new operation of type =
+                else{
+                    explicit_operations.emplace_back(1,'=');
+                }
+            }
+            else{
+                // If the last operation was already a Mismatch (X), then extend its length
+                if (not explicit_operations.empty() and explicit_operations.back().type() == 'X'){
+                    explicit_operations.back().length++;
+                }
+                // Otherwise make a new operation of type X
+                else{
+                    explicit_operations.emplace_back(1,'X');
+                }
+            }
+        }
+        else{
+            // Just copy any non-match operations
+            explicit_operations.emplace_back(operations[iterator.cigar_index]);
+
+            // Skip iterating the remaining coordinates in this cigar if its not a Match operation
+            iterator.next_cigar();
+        }
+    }
+
+    operations = explicit_operations;
+}
+
+
+string Alignment::create_formatted_alignment_string(const string& query_sequence, const string& ref_sequence) {
     AlignmentIterator iterator;
 
     string aligned_ref;
     string aligned_query;
     string alignment_symbols;
 
-    size_t n = 0;
     while (step_through_alignment(iterator)) {
         char ref_base = ref_sequence[iterator.ref_index];
         char query_base = query_sequence[iterator.query_index];

@@ -160,10 +160,29 @@ int main(){
 
         Alignment alignment(cigar_strings[i]);
 
-        cerr << alignment.generate_formatted_alignment_string(ref, query_sequences[i]) << '\n';
+        cerr << alignment.create_formatted_alignment_string(query_sequences[i], ref) << '\n';
     }
 
-    cerr << "PASS\n";
+    cerr << '\n';
+
+    Alignment non_explicit(mismatch_vs_ref);
+    cerr << non_explicit << '\n';
+    non_explicit.explitize_cigar_matches(mismatch, ref);
+    cerr << non_explicit << '\n';
+
+    for (size_t i=0; i<cigar_mismatch_vs_ref_explicit.size(); i++){
+        if (i>non_explicit.operations.size()){
+            throw runtime_error("FAIL: explitized matches don't agree with truth set");
+        }
+        if (non_explicit.operations[i].code != cigar_mismatch_vs_ref_explicit[i].code){
+            throw runtime_error("FAIL: explitized matches don't agree with truth set");
+        }
+        if (non_explicit.operations[i].length != cigar_mismatch_vs_ref_explicit[i].length){
+            throw runtime_error("FAIL: explitized matches don't agree with truth set");
+        }
+    }
+
+    cerr << "\nPASS\n";
     return 0;
 }
 

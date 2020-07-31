@@ -228,14 +228,14 @@ find_package(Threads REQUIRED)
 # -------- TESTS --------
 
 set(TESTS
-        test_gfak
-        test_bdsg
-        test_handlegraph
-        test_utility
-        test_IncrementalIdMap
         test_adjacency_components
-        test_overlaps
+        test_bdsg
         test_cigar
+        test_gfak
+        test_handlegraph
+        test_IncrementalIdMap
+        test_overlaps
+        test_utility
         )
 
 foreach(FILENAME_PREFIX ${TESTS})

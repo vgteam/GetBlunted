@@ -40,6 +40,7 @@ public:
     /// Methods ///
     AlignmentIterator();
     AlignmentIterator(uint64_t query_index, uint64_t ref_index);
+    void next_cigar();
 };
 
 
@@ -76,8 +77,11 @@ public:
     //
     bool step_through_alignment(AlignmentIterator& iterator);
 
+    // Use the ref and query sequences to find mismatches and convert all M operations to = or X
+    void explitize_cigar_matches(const string& query_sequence, const string& ref_sequence);
+
     // Make a cool looking alignment string
-    string generate_formatted_alignment_string(const string& ref_sequence, const string& query_sequence);
+    string create_formatted_alignment_string(const string& query_sequence, const string& ref_sequence);
 };
 
 
