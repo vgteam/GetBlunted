@@ -9,7 +9,6 @@
 
 using bluntifier::adjacency_components;
 using bluntifier::AdjacencyComponent;
-using bipartition = bluntifier::AdjacencyComponent::bipartition;
 
 using bdsg::HashGraph;
 using handlegraph::handle_t;

@@ -37,6 +37,7 @@ using std::sort;
 
 // forward declaration
 class AdjacencyComponent;
+typedef pair<unordered_set<handle_t>, unordered_set<handle_t>> bipartition;
 
 // iterate over the adjacency components of a graph
 void for_each_adjacency_component(const HandleGraph& graph,
@@ -52,9 +53,6 @@ vector<AdjacencyComponent> adjacency_components(const HandleGraph& graph);
 class AdjacencyComponent {
 public:
     
-    // a division of the node sides of the adjacency component into two
-    // sets (even if the graph is not necessary bipartite)
-    using bipartition = pair<unordered_set<handle_t>, unordered_set<handle_t>>;
     // iterator over the node sides of the component
     using const_iterator = vector<handle_t>::const_iterator;
     
@@ -72,11 +70,8 @@ public:
                                 const function<bool(handle_t)>& lambda) const;
     
     const_iterator begin() const;
-    
     const_iterator end() const;
-    
     size_t size() const;
-    
     bool empty() const;
     
     // iterate through pairs of subgraphs and bipartitions that have the following properties:
