@@ -131,7 +131,6 @@ void Alignment::compute_lengths(pair<uint64_t,uint64_t>& lengths){
 bool Alignment::step_through_alignment(AlignmentIterator& iterator){
     // Don't do anything on the first step
     if (iterator.first_step){
-        // TODO: check what happens with 1M cigar
         iterator.first_step = false;
         return true;
     }
@@ -169,15 +168,18 @@ bool Alignment::step_through_alignment(AlignmentIterator& iterator){
 }
 
 
-void Alignment::explitize_cigar_matches(const string& query_sequence, const string& ref_sequence) {
+void Alignment::explicitize_mismatches(
+        const string& query_sequence,
+        const string& ref_sequence,
+        uint64_t query_start_index,
+        uint64_t ref_start_index) {
+
     // TODO: rewrite this function without copying? Use insert operations instead
 
-    AlignmentIterator iterator;
+    AlignmentIterator iterator(query_start_index, ref_start_index);
     vector<Cigar> explicit_operations;
 
     while (step_through_alignment(iterator)) {
-        uint8_t code = operations[iterator.cigar_index].code;
-
         if (operations[iterator.cigar_index].type() == 'M'){
             char ref_base = ref_sequence[iterator.ref_index];
             char query_base = query_sequence[iterator.query_index];
@@ -216,8 +218,105 @@ void Alignment::explitize_cigar_matches(const string& query_sequence, const stri
 }
 
 
-string Alignment::create_formatted_alignment_string(const string& query_sequence, const string& ref_sequence) {
-    AlignmentIterator iterator;
+void Alignment::explicitize_mismatches(
+        const HandleGraph& graph,
+        const edge_t& edge,
+        uint64_t query_start_index,
+        uint64_t ref_start_index) {
+
+    // TODO: rewrite this function without copying? Use insert operations instead
+
+    AlignmentIterator iterator(query_start_index, ref_start_index);
+    vector<Cigar> explicit_operations;
+
+    while (step_through_alignment(iterator)) {
+        if (operations[iterator.cigar_index].type() == 'M'){
+            char query_base = graph.get_base(edge.first, iterator.query_index);
+            char ref_base = graph.get_base(edge.second, iterator.ref_index);
+
+            if (ref_base == query_base){
+                // If the last operation was already a Match (=), then extend its length
+                if (not explicit_operations.empty() and explicit_operations.back().type() == '='){
+                    explicit_operations.back().length++;
+                }
+                    // Otherwise make a new operation of type =
+                else{
+                    explicit_operations.emplace_back(1,'=');
+                }
+            }
+            else{
+                // If the last operation was already a Mismatch (X), then extend its length
+                if (not explicit_operations.empty() and explicit_operations.back().type() == 'X'){
+                    explicit_operations.back().length++;
+                }
+                    // Otherwise make a new operation of type X
+                else{
+                    explicit_operations.emplace_back(1,'X');
+                }
+            }
+        }
+        else{
+            // Just copy any non-match operations
+            explicit_operations.emplace_back(operations[iterator.cigar_index]);
+
+            // Skip iterating the remaining coordinates in this cigar if its not a Match operation
+            iterator.next_cigar();
+        }
+    }
+
+    operations = explicit_operations;
+}
+
+
+string Alignment::create_formatted_alignment_string(
+        const HandleGraph& graph,
+        const edge_t& edge,
+        uint64_t query_start_index,
+        uint64_t ref_start_index) {
+
+    AlignmentIterator iterator(query_start_index, ref_start_index);
+
+    string aligned_ref;
+    string aligned_query;
+    string alignment_symbols;
+
+    while (step_through_alignment(iterator)) {
+        char ref_base = graph.get_base(edge.first, iterator.query_index);
+        char query_base = graph.get_base(edge.second, iterator.ref_index);
+
+        uint8_t code = operations[iterator.cigar_index].code;
+
+        if (Alignment::is_ref_move[code]) {
+            aligned_ref += ref_base;
+        } else {
+            aligned_ref += "-";
+        }
+
+        if (Alignment::is_query_move[code]) {
+            aligned_query += query_base;
+        } else {
+            aligned_query += "-";
+        }
+
+        if (Alignment::is_ref_move[code] and Alignment::is_query_move[code] and ref_base == query_base) {
+            alignment_symbols += '|';
+        } else {
+            alignment_symbols += " ";
+        }
+
+    }
+
+    return aligned_ref + '\n' + alignment_symbols + '\n' + aligned_query;
+}
+
+
+string Alignment::create_formatted_alignment_string(
+        const string& query_sequence,
+        const string& ref_sequence,
+        uint64_t query_start_index,
+        uint64_t ref_start_index) {
+
+    AlignmentIterator iterator(query_start_index, ref_start_index);
 
     string aligned_ref;
     string aligned_query;

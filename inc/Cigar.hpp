@@ -1,16 +1,24 @@
 #ifndef BLUNTIFIER_CIGAR_HPP
 #define BLUNTIFIER_CIGAR_HPP
 
+
+#include "handlegraph/handle_graph.hpp"
+
 #include <iostream>
 #include <utility>
 #include <vector>
 #include <string>
 #include <array>
 
+
+using handlegraph::HandleGraph;
+using handlegraph::edge_t;
+
 using std::ostream;
 using std::vector;
 using std::string;
 using std::pair;
+using std::array;
 using std::array;
 
 
@@ -78,10 +86,33 @@ public:
     bool step_through_alignment(AlignmentIterator& iterator);
 
     // Use the ref and query sequences to find mismatches and convert all M operations to = or X
-    void explitize_cigar_matches(const string& query_sequence, const string& ref_sequence);
+    void explicitize_mismatches(
+            const string& query_sequence,
+            const string& ref_sequence,
+            uint64_t query_start_index = 0,
+            uint64_t ref_start_index = 0);
+
+    // Use the ref and query sequences to find mismatches and convert all M operations to = or X
+    // Access the handlegraph sequences directly instead of expecting a string
+    void explicitize_mismatches(
+            const HandleGraph& graph,
+            const edge_t& edge,
+            uint64_t query_start_index = 0,
+            uint64_t ref_start_index = 0);
 
     // Make a cool looking alignment string
-    string create_formatted_alignment_string(const string& query_sequence, const string& ref_sequence);
+    string create_formatted_alignment_string(
+            const string& query_sequence,
+            const string& ref_sequence,
+            uint64_t query_start_index = 0,
+            uint64_t ref_start_index = 0);
+
+    // Make a cool looking alignment string without requiring strings (use the handlegraph DS)
+    string create_formatted_alignment_string(
+            const HandleGraph& graph,
+            const edge_t& edge,
+            uint64_t query_start_index = 0,
+            uint64_t ref_start_index = 0);
 };
 
 

@@ -167,7 +167,7 @@ int main(){
 
     Alignment non_explicit(mismatch_vs_ref);
     cerr << non_explicit << '\n';
-    non_explicit.explitize_cigar_matches(mismatch, ref);
+    non_explicit.explicitize_mismatches(mismatch, ref);
     cerr << non_explicit << '\n';
 
     for (size_t i=0; i<cigar_mismatch_vs_ref_explicit.size(); i++){
