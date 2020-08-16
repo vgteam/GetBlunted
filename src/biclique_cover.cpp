@@ -54,117 +54,126 @@ vector<bipartition> BicliqueCover::get() const {
     return return_val;
 }
 
-bool QuotientBall::QuotientBall(const BicliqueCover& super, handle_t center) const {
+bool CenteredGaloisTree::CenteredGaloisTree(const BicliqueCover& cover,
+                                            handle_t center) const {
     
     // get the two-hop subgraph starting at the center
     unordered_map<handle_t, size_t> left_idx;
     // we have to restrict rightward edges since some of them could
     // point outside the subgraph
-    vector<vector<size_t>> unrefined_left_edges;
+    vector<vector<size_t>> left_edges;
+    vector<handle_t> left_nodes, right_nodes;
     
-    super.for_each_adjacent_side(center, [&](handle_t right) {
-        super.for_each_adjacent_side(right, [&](handle_t left) {
+    cover.for_each_adjacent_side(center, [&](handle_t right) {
+        cover.for_each_adjacent_side(right, [&](handle_t left) {
             auto f = left_idx.find(left);
             if (f == left_idx.end()) {
-                left_idx[left] = unrefined_left_edges.size();
-                unrefined_left_edges.emplace_back(1, right_edges.size());
+                left_idx[left] = left_edges.size();
+                left_edges.emplace_back(1, right_nodes.size());
+                left_nodes.emplace_back(left);
             }
             else {
-                unrefined_left_edges[f->second].push_back(right_edges.size());
+                left_edges[f->second].push_back(right_nodes.size());
             }
             return true;
         });
-        right_edges.emplace_back();
         right_nodes.emplace_back(right);
         return true;
     });
     
     // initialize every node on the left in the same equivalence class
-    vector<size_t> equiv_classes(unrefined_left_edges.size(),
-                                 numeric_limits<size_t>::max());
+    vector<size_t> equiv_class_assignment(left_nodes.size(),
+                                          numeric_limits<size_t>::max());
     size_t next_equiv_class = 0;
-    super.for_each_adjacent_side(center, [&](handle_t right) {
+    for (handle_t right : right_nodes) {
         // refine the classes using the edges of this node
         // TODO: this coud be done without an unordered_map by reseting
-        // a vector after every iterations
+        // a vector after every iteration
         unordered_map<size_t, size_t> equiv_mapping;
-        super.for_each_adjacent_side(right, [&](handle_t left) {
-            size_t eq_class = equiv_classes[left_idx[left]];
+        cover.for_each_adjacent_side(right, [&](handle_t left) {
+            size_t eq_class = equiv_class_assignment[left_idx[left]];
             auto it = equiv_mapping.find(eq_class);
             if (it != equiv_mapping.end()) {
                 // we've already refined this class, just look it up
-                equiv_classes[left_idx[left]] = it->second;
+                equiv_class_assignment[left_idx[left]] = it->second;
             }
             else {
                 // refine with a new class
                 equiv_mapping[eq_class] = next_equiv_class;
-                equiv_classes[left_idx[left]] = next_equiv_class;
+                equiv_class_assignment[left_idx[left]] = next_equiv_class;
                 ++next_equiv_class;
             }
             return true;
         });
-        return true;
-    });
-    
-    // quotient the nodes by the equivalence classes
-    left_edges.reserve(next_equiv_class - right_nodes.size());
-    vector<bool> quotiented(next_equiv_class, false);
-    for (size_t i = 0; i < unrefined_left_nodes.size(); ++i) {
-        size_t equiv_class = equiv_classes[i];
-        if (!quotiented[equiv_class]) {
-            // we're coming across this class for the first time, bogart
-            // its edges to be the edges of the quotient node
-            left_edges.emplace_back(move(unrefined_left_edges[i]));
-            quotiented[equiv_class] = true;;
-        }
     }
     
-    // add the leftward edges to the now refined left side
-    for (size_t i = 0; i < left_edges.size(); ++i) {
-        for (auto j : left_edges[i]) {
-            right_edges[j].push_back(i);
+    // quotient the nodes by the equivalence classes and compact the
+    // equivalence class identifiers
+    vector<vector<size_t>> equiv_classes_left_edges;
+    equiv_classes_left_edges.reserve(next_equiv_class - right_nodes.size())
+    
+    vector<size_t> compacted_equiv_class(next_equiv_class, numeric_limits<size_t>::max());
+    for (size_t i = 0; i < left_nodes.size(); ++i) {
+        size_t eq_class = equiv_class_assignment[i];
+        if (compacted_equiv_class[eq_class] == numeric_limits<size_t>::max()) {
+            // we're coming across this class for the first time, assign it the next
+            // compacted class identifier
+            compacted_equiv_class[eq_class] = equiv_classes.size();
+            eq_class = equiv_classes.size();
+            equiv_classes.emplace_back();
+            
+            // bogart the edges from the original graph
+            equiv_classes_left_edges.emplace_back(move(left_edges[i]));
+            
+            // collect and remember its neighborhood on the right side
+            neighborhoods.emplace_back();
+            auto& neighborhood = neighborhoods.back();
+            neighborhood.reserve(equiv_classes_left_edges.back().size());
+            for (auto j : equiv_classes_left_edges.back()) {
+                neighborhood.push_back(right_nodes[j]);
+            }
         }
+        // add this left side node to the partition
+        equiv_classes[eq_class].push_back(left_nodes[i]));
     }
-}
-
-bool QuotientBall::check_neighbor_ordering_property() {
     
     // partition left nodes by their degree (T_x(k) in Amilhastre)
-    vector<vector<size_t>> degree_groups(right_edges.size());
-    for (size_t i = 0; i < left_edges.size(); ++i) {
-        degree_groups[left_edges[i].size()].push_back(i);
+    vector<vector<size_t>> degree_groups(right_nodes.size());
+    for (size_t i = 0; i < neighborhoods.size(); ++i) {
+        degree_groups[neighborhoods[i].size()].push_back(i);
     }
     
     // organize the neighborhoods of the right nodes in degree ordering
     // (V(y) in Amilhastre)
-    vector<vector<size_t>> degree_ordered_nbds(right_edges.size());
+    vector<vector<size_t>> degree_ordered_nbds(right_nodes.size());
     for (const auto& degree_group : degree_groups) {
         for (auto left : degree_group) {
-            for (auto right : left_edges[left]) {
+            for (auto right : equiv_classes_left_edges[left]) {
                 degree_ordered_nbds[right].push_back(left);
             }
         }
     }
     
     // immediate successor in the equiv class ordering (Succ in Amilhastre)
-    vector<size_t> successor(left_edges.size(), numeric_limits<size_t>::max());
+    successors.resize(equiv_classes.size(), numeric_limits<size_t>::max());
     // all immediate predecessors in the equiv class ordering (Gamma_x^-
     // in Amilhastre)
-    vector<vector<size_t>> predecessors;
+    equiv_class_predecessors.resize(equiv_classes.size());
     
     // construct the predecessor lists and check for tree structure
-    for (size_t i = 0; i < right_edges.size(); ++i) {
+    for (size_t i = 0; i < right_nodes.size(); ++i) {
         auto& degree_ordered_nbd = degree_ordered_nbds[i];
         size_t pred = degree_ordered_nbd.front();
         for (size_t j = 1; j < degree_ordered_nbd.size(); ++j) {
             size_t succ = degree_ordered_nbds[j];
-            if (successor[pred] != numeric_limits<size_t>::max()) {
-                successor[pred] = succ;
-                predecessors[succ].push_back(pred);
+            if (successors[pred] != numeric_limits<size_t>::max()) {
+                successors[pred] = succ;
+                equiv_class_predecessors[succ].push_back(pred);
             }
             else if (successors[pred] != succ) {
-                // the successors don't form a tree
-                return false;
+                // the successors don't form a tree, clear to mark as a failure
+                clear();
+                return;
             }
             pred = succ;
         }
@@ -172,10 +181,10 @@ bool QuotientBall::check_neighbor_ordering_property() {
     
     // check for the proper containent relationships between the neighborhoods
     // of the nodes on the left
-    for (size_t i = 0; i < left_edges.size(); ++i) {
-        auto& succ_nbd = left_edges[i];
-        for (auto j : predecessors[i]) {
-            auto& pred_nbd = left_edges[j];
+    for (size_t i = 0; i < equiv_classes_left_edges.size(); ++i) {
+        auto& succ_nbd = equiv_classes_left_edges[i];
+        for (auto j : equiv_class_predecessors[i]) {
+            auto& pred_nbd = equiv_classes_left_edges[j];
             
             // note: all of the left edge lists are constructed in sorted order
             size_t p = 0;
@@ -185,22 +194,107 @@ bool QuotientBall::check_neighbor_ordering_property() {
                 }
             }
             if (p < pred_nbd.size()) {
-                // the neighborhoods weren't contained
-                return false;
+                // the neighborhoods weren't contained, clear to mark as a failure
+                clear();
+                return;
             }
         }
     }
+}
     
-    // we've passed all the checks
-    return true;
+void CenteredGaloisTree::clear() {
+    equiv_classes.clear();
+    neighborhoods.clear();
+    successors.clear();
+    predecessors.clear();
+}
+
+bool CenteredGaloisTree::has_neighbor_ordering_property() {
+    // did we clear everything and return in the constructor?
+    return !equiv_classes.empty();
+}
+
+size_t CenteredGaloisTree::size() const {
+    return equiv_classes.size();
+}
+
+const vector<size_t>& CenteredGaloisTree::predecessors(size_t i) const {
+    return equiv_class_predecessors[i];
+}
+
+size_t CenteredGaloisTree::central_equivalence_class() const {
+    size_t i = 0;
+    while (successors[i] != numeric_limits<size_t>::max()) {
+        i = successors[i];
+    }
+    return i;
+}
+
+size_t CenteredGaloisTree::successor(size_t i) const {
+    return successors[i];
+}
+
+CenteredGaloisTree::edge_iterator CenteredGaloisTree::edge_begin(size_t i) const {
+    return edge_iterator(0, 0, i, this);
+}
+
+CenteredGaloisTree::edge_iterator CenteredGaloisTree::edge_end(size_t i) const {
+    return edge_iterator(equiv_classes[i].size(), 0, i, this);
+}
+
+CenteredGaloisTree::edge_iterator::edge_iterator(size_t left, size_t right, size_t eq_class,
+                                                 const CenteredGaloisTree* iteratee)
+    : left(left), right(right), eq_class(eq_class), iteratee(iteratee)
+{
+    
+}
+
+
+CenteredGaloisTree::edge_iterator& CenteredGaloisTree::edge_iterator::operator++() {
+    if (right == iteratee->neighborhoods[eq_class].size()) {
+        right = 0;
+        ++left;
+    }
+    else {
+        ++right;
+    }
+}
+
+pair<handle_t, handle_t> operator*() const {
+    return make_pair(iteratee->equiv_classes[eq_class][left],
+                     iteratee->neighborhoods[equiv_classes][right])
+}
+
+bool operator==(const edge_iterator& other) const {
+    return (left == other.left && right == other.right &&
+            eq_class == other.eq_class && iteratee == other.iteratee)
+}
+
+bool operator!=(const edge_iterator& other) const {
+    return !(*this == other);
+}
+
+
+pair<handle_t, handle_t> CenteredGaloisTree::arbitrary_edge_of(size_t i) const {
+    return make_pair(equiv_classes[i].front(), neighborhood[i].front());
+}
+
+bipartition CenteredGaloisTree::biclique(size_t i) const {
+    bipartition return_val;
+    return_val.second.insert(neighborhood[i].begin(), neighborhood[i].end());
+    while (i != numeric_limits<size_t>::max()) {
+        return_val.first.insert(equiv_classes[i].begin(), equiv_classes[i].end());
+        i = successors[i];
+    }
+    return return_val;
 }
 
 bool BicliqueCover::is_domino_free() const {
     bool domino_free = true;
     // TODO: embarassingly parallel
     for (size_t i = 0; i < left_partition.size() && domino_free; ++i) {
-        QuotientBall ball(*this, left_partition[i]);
-        domino_free = ball.check_neighbor_ordering_property();
+        CenteredGaloisTree tree(*this, left_partition[i]);
+        domino_free = tree.has_neighbor_ordering_property();
     }
     return domino_free;
 }
