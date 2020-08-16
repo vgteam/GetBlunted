@@ -3,6 +3,7 @@
 
 #include <stdexcept>
 #include <string>
+#include <tuple>
 
 using std::string;
 using std::runtime_error;

@@ -8,14 +8,13 @@
 #include <unordered_map>
 #include <memory>
 
-namespace bluntifier{
-
 using std::string;
 using std::vector;
 using std::unordered_map;
 using handlegraph::nid_t;
 using std::unique_ptr;
 
+namespace bluntifier{
 
 class IncrementalIdMap {
 public:

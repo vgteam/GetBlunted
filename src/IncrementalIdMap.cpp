@@ -1,12 +1,11 @@
 #include "IncrementalIdMap.hpp"
 #include <memory>
 
-namespace bluntifier{
-
 using std::runtime_error;
 using std::unique_ptr;
 using std::make_unique;
 
+namespace bluntifier{
 
 IncrementalIdMap::IncrementalIdMap()=default;
 
