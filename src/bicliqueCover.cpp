@@ -54,7 +54,7 @@ vector<bipartition> BicliqueCover::get() const {
     return return_val;
 }
 
-bool CenteredGaloisTree::CenteredGaloisTree(const BicliqueCover& cover,
+bool CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
                                             handle_t center) const {
     
     // get the two-hop subgraph starting at the center
@@ -64,8 +64,8 @@ bool CenteredGaloisTree::CenteredGaloisTree(const BicliqueCover& cover,
     vector<vector<size_t>> left_edges;
     vector<handle_t> left_nodes, right_nodes;
     
-    cover.for_each_adjacent_side(center, [&](handle_t right) {
-        cover.for_each_adjacent_side(right, [&](handle_t left) {
+    graph.for_each_adjacent_side(center, [&](handle_t right) {
+        graph.for_each_adjacent_side(right, [&](handle_t left) {
             auto f = left_idx.find(left);
             if (f == left_idx.end()) {
                 left_idx[left] = left_edges.size();
@@ -90,7 +90,7 @@ bool CenteredGaloisTree::CenteredGaloisTree(const BicliqueCover& cover,
         // TODO: this coud be done without an unordered_map by reseting
         // a vector after every iteration
         unordered_map<size_t, size_t> equiv_mapping;
-        cover.for_each_adjacent_side(right, [&](handle_t left) {
+        graph.for_each_adjacent_side(right, [&](handle_t left) {
             size_t eq_class = equiv_class_assignment[left_idx[left]];
             auto it = equiv_mapping.find(eq_class);
             if (it != equiv_mapping.end()) {
@@ -230,6 +230,10 @@ size_t CenteredGaloisTree::central_equivalence_class() const {
     return i;
 }
 
+size_t CenteredGaloisTree::right_size(size_t i) const {
+    return neighborhoods[i].size();
+}
+
 size_t CenteredGaloisTree::successor(size_t i) const {
     return successors[i];
 }
@@ -274,11 +278,6 @@ bool operator!=(const edge_iterator& other) const {
     return !(*this == other);
 }
 
-
-pair<handle_t, handle_t> CenteredGaloisTree::arbitrary_edge_of(size_t i) const {
-    return make_pair(equiv_classes[i].front(), neighborhood[i].front());
-}
-
 bipartition CenteredGaloisTree::biclique(size_t i) const {
     bipartition return_val;
     return_val.second.insert(neighborhood[i].begin(), neighborhood[i].end());
@@ -301,26 +300,23 @@ bool BicliqueCover::is_domino_free() const {
 
 SubtractiveHandleGraph BicliqueCover::simplify() const {
     SubtractiveHandleGraph simplified(graph);
-    simplify_side(left_partition, simplified);
-    simplify_side(right_partition, simplified);
+    simplify_side(graph.bipartition().first, simplified);
+    simplify_side(graph.bipartition().second, simplified);
     return simplified;
-}
-
-GaloisLattice BicliqueCover::get_galois_lattice(const HandleGraph& simple_graph) const {
-    
 }
 
 vector<bipartition> BicliqueCover::domino_free_cover() const {
     // simplify the graph without affecting the biclique cover (Amilhastre, et al.
     // 1998 algorithm 2).
     SubtractiveHandleGraph simplified = simplify();
-    GaloisLattice galois_lattice = get_galois_lattice(simplified);
-    // TODO: get separator of galois lattice
-    // TODO: convert separator to biclique cover
+    BipartiteGraph bigraph_simplified(simplified, graph.bipartition());
+    GaloisLattice galois_lattice(bigraph_simplified);
+    return galois_lattice.biclique_cover();
 }
 
 vector<bipartition> BicliqueCover::heuristic_cover() const {
-    
+    // TODO
+    return vector<bipartition>();
 }
 
 bool BicliqueCover::for_each_adjacent_side(const handle_t& side,
@@ -457,6 +453,95 @@ void BicliqueCover::simplify_side(const vector<handle_t>& simplifying_partition,
             nonmaximal[i] = false;
         }
     }
+}
+
+GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
+    
+    galois_trees.reserve(graph.left_size());
+    bool domino_free = true;
+    for (auto it = graph.left_begin(), end = graph.left_end(); it != end; ++it) {
+        galois_trees.emplace_back(graph, *it);
+        if (!galois_trees.back().has_neighbor_ordering_property()) {
+            // this graph is not domino free
+            clear();
+            return;
+        }
+    }
+    
+    // initialize the matrix of the maximal clique containing each edge,
+    // where clique are ordered by the right neighborhood size
+    vector<vector<pair<int64_t, int64_t>>> edge_max_biclique(graph.left_size(),
+                                                             vector<pair<int64_t, int64_t>>(graph.right_size(),
+                                                                                            pair<int64_t, int64_t>(-1, -1)));
+    
+    for (size_t i = 0; i < galois_trees.size(); ++i) {
+        auto& galois_tree = galois_trees[i];
+        
+        // stack records indicate the predecessors of an equivalence class
+        // and the index among these to handle next
+        vector<pair<vector<size_t>, size_t>> stack;
+        stack.emplace_back(vector<size_t>(1, galois_tree.central_equivalence_class()), 0);
+        
+        while (!stack.empty()) {
+            if (stack.back().first.size() == stack.back().second) {
+                stack.pop_back();
+            }
+            else {
+                // algorthm 5 in Amilhastre
+                
+                // check if the maximal biclique covering an edge is still maximal after
+                // adding in this galois tree
+                size_t equiv_class = stack.back().first[stack.back().second];
+                auto edge = *galois_tree.edge_begin(equiv_class);
+                auto max_so_far = edge_max_biclique[graph.left_iterator(edge.first) - graph.left_begin()]
+                                                   [graph.right_iterator(edge.second) - graph.right_begin()];
+                auto max_size = galois_trees[max_so_far.first].right_size(max_so_far.second);
+                auto size_here = galois_tree.right_size(equiv_class);
+                
+                if (size_here > max_size) {
+                    
+                    // we've found a larger maximal biclique covering this edge
+                    
+                    max_so_far.first = i;
+                    max_so_far.second = equiv_class;
+                    
+                    // update the maximal biclique for all of the edges of this equivalence class
+                    for (auto it = galois_tree.edge_begin(equiv_class), end = galois_tree.edge_end(equiv_class);
+                         it != end; ++it) {
+                        auto e = *it;
+                        edge_max_biclique[graph.left_iterator(e.first) - graph.left_begin()]
+                                         [graph.right_iterator(e.second) - graph.right_begin()] = max_so_far;
+                    }
+                    
+                    // enqueue the predecessors
+                    stack.emplace_back(galois_tree.predecessors(equiv_class), 0);
+                }
+                // TODO: will this ever produce duplicate edges? that could seriously fuck up
+                // the separator stage
+                if (stack.size() > 1) {
+                    // add a connection in the lattice from the previous recursive call
+                    auto prev_frame = stack[stack.size() - 2];
+                    lattice[make_pair(i, prev_frame.first[prev_frame.second - 1])].push_back(max_so_far);
+                }
+            }
+        }
+    }
+    
+    // TODO: add in the end caps
+}
+
+vector<bipartition> GaloisLattice::biclique_cover() const {
+    // TODO
+    return vector<bipartition>();
+}
+
+bool GaloisLattice::is_domino_free() const {
+    return !galois_trees.empty();
+}
+
+void GaloisLattice::clear() {
+    galois_trees.clear();
+    lattice.clear();
 }
 
 }

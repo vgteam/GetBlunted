@@ -2,7 +2,7 @@
 #define BLUNTIFIER_ADJACENCY_COMPONENTS_HPP
 
 /**
- * \file adjacency_components.hpp
+ * \file adjacenceComponent.hpp
  *
  * Defines algorithms for identifying and manipulating components
  * of node side adjacencies.
@@ -21,7 +21,8 @@
 #include "handlegraph/handle_graph.hpp"
 #include "handlegraph/util.hpp"
 #include "handlegraph/types.hpp"
-#include "subtractive_graph.hpp"
+#include "subtractiveHandleGraph.hpp"
+#include "bipartiteGraph.hpp"
 #include "utility.hpp"
 
 namespace bluntifier {
@@ -37,7 +38,6 @@ using std::sort;
 
 // forward declaration
 class AdjacencyComponent;
-typedef pair<unordered_set<handle_t>, unordered_set<handle_t>> bipartition;
 
 // iterate over the adjacency components of a graph
 void for_each_adjacency_component(const HandleGraph& graph,
@@ -76,9 +76,8 @@ public:
     
     // iterate through pairs of subgraphs and bipartitions that have the following properties:
     // - each edge in this adjacency component occurs in exactly one subgraph
-    // - each subgraphs's edges are a subset of the parent graph's edges
-    // - every subgraph is bipartite with respect to the paired bipartition
-    void decompose_into_bipartite_blocks(const function<void(const HandleGraph&,const bipartition&)>& lambda) const;
+    // - every subgraph is bipartite
+    void decompose_into_bipartite_blocks(const function<void(const BipartiteGraph&)>& lambda) const;
     
     
     

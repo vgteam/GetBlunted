@@ -429,12 +429,12 @@ AdjacencyComponent::bipartition AdjacencyComponent::exhaustive_maximum_bipartite
     return best_partition;
 }
 
-void AdjacencyComponent::decompose_into_bipartite_blocks(const function<void(const HandleGraph&,const bipartition&)>& lambda) const {
+void AdjacencyComponent::decompose_into_bipartite_blocks(const function<void(const BipartiteGraph&)>& lambda) const {
     
     bipartition partition = bipartite_partition();
     if (partition.first.size() + partition.second.size() == component.size()) {
         // the whole component is bipartite, so there is only need for the one bipartite block
-        lambda(*graph, partition);
+        lambda(BipartiteGraph(*graph, partition));
     }
     else {
         // TODO: magic constants
@@ -497,7 +497,7 @@ void AdjacencyComponent::decompose_into_bipartite_blocks(const function<void(con
             }
         }
         // execute on the part of the component that we bipartitioned
-        lambda(partition_graph, partition);
+        lambda(BipartiteGraph(partition_graph, partition));
         
         // repeat the whole procedure again on the part of the component that we didn't
         // manage to bipartition

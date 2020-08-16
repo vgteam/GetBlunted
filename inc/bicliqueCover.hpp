@@ -2,7 +2,7 @@
 #define BLUNTIFIER_BICLIQUE_COVER_HPP
 
 /**
- * \file biclique_cover.hpp
+ * \file bicliqueCover.hpp
  *
  * Defines algorithm for computing the biclique cover of a bipartite graph.
  */
@@ -15,8 +15,9 @@
 
 #include "handlegraph/handle_graph.hpp"
 #include "handlegraph/types.hpp"
-#include "adjacency_components.hpp"
-#include "subtractive_graph.hpp"
+#include "adjacencyComponent.hpp"
+#include "subtractiveHandleGraph.hpp"
+#include "bipartiteGraph.hpp"
 #include "utility.hpp"
 
 namespace bluntifier {
@@ -38,8 +39,7 @@ public:
     // initialize with a graph and partition of node sides. the
     // subgraph induced by the partition must be bipartite to be
     // valid (this is not checked)
-    BicliqueCover(const HandleGraph& graph,
-                  const bipartition& partition);
+    BicliqueCover(const BipartiteGraph& graph);
     ~BicliqueCover();
     
     // compute and return a biclique cover of the partition, where
@@ -73,11 +73,7 @@ private:
     
     GaloisLattice get_galois_lattice(const HandleGraph& simple_graph) const;
     
-    const HandleGraph& graph;
-    vector<handle_t> left_partition;
-    vector<handle_t> right_partition;
-    unordered_map<handle_t, size_t> left_partition_index;
-    unordered_map<handle_t, size_t> right_partition_index;
+    const BipartiteGraph& graph;
     
 };
 
@@ -112,6 +108,9 @@ public:
     
     // get the biclique that corresponds to the root of the Galois tree
     size_t central_equivalence_class() const;
+    
+    // returns the size of the right partition part of the i-th biclique
+    size_t right_size(size_t i) const;
     
     // get the i-th biclique in this tree
     bipartition biclique(size_t i) const;
@@ -155,16 +154,27 @@ private:
     friend class edge_iterator;
 };
 
+/*
+ * The lattice representing the containment ordering of
+ */
 class GaloisLattice {
 public:
+    // construct with algorithm 4 and 5 from Amilhastre, et al. (1998)
     GaloisLattice(const BicliqueCover& cover);
     ~GaloisLattice();
     
-    void separator();
+    bool is_domino_free() const;
+    
+    vector<bipartition> biclique_cover() const;
     
 private:
     
+    void clear();
+    
+    //void separator();
+    
     vector<CenteredGaloisTree> galois_trees;
+    unordered_map<pair<size_t, size_t>, vector<pair<size_t, size_t>>> lattice;
 }
 
 
