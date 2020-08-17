@@ -21,8 +21,8 @@
 #include "handlegraph/handle_graph.hpp"
 #include "handlegraph/util.hpp"
 #include "handlegraph/types.hpp"
-#include "subtractiveHandleGraph.hpp"
-#include "bipartiteGraph.hpp"
+#include "SubtractiveHandleGraph.hpp"
+#include "BipartiteGraph.hpp"
 #include "utility.hpp"
 
 namespace bluntifier {
@@ -122,7 +122,7 @@ private:
 template<typename SideIter>
 AdjacencyComponent::AdjacencyComponent(const HandleGraph& graph,
                                        SideIter begin, SideIter end)
-    : graph(&graph), component(begin, end)
+    : component(begin, end), graph(&graph)
 {
     // to remove any system dependent behavior due to ordering
     sort(component.begin(), component.end());

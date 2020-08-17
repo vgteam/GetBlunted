@@ -2,7 +2,7 @@
 #define BLUNTIFIER_BICLIQUE_COVER_HPP
 
 /**
- * \file bicliqueCover.hpp
+ * \file BicliqueCover.hpp
  *
  * Defines algorithm for computing the biclique cover of a bipartite graph.
  */
@@ -15,9 +15,9 @@
 
 #include "handlegraph/handle_graph.hpp"
 #include "handlegraph/types.hpp"
-#include "adjacencyComponent.hpp"
-#include "subtractiveHandleGraph.hpp"
-#include "bipartiteGraph.hpp"
+#include "AdjacencyComponent.hpp"
+#include "SubtractiveHandleGraph.hpp"
+#include "BipartiteGraph.hpp"
 #include "utility.hpp"
 
 namespace bluntifier {
@@ -63,16 +63,10 @@ private:
     // the biclique cover
     SubtractiveHandleGraph simplify() const;
     
-    // apply local checking (Amilhastre, et al. 1998, algorithm 3) to all
-    // nodes in order to check if the bipartite graph is domino-free
-    bool is_domino_free() const;
-    
     vector<bipartition> domino_free_cover() const;
     
     vector<bipartition> heuristic_cover() const;
-    
-    GaloisLattice get_galois_lattice(const HandleGraph& simple_graph) const;
-    
+        
     const BipartiteGraph& graph;
     
 };
@@ -88,7 +82,7 @@ public:
     
     class edge_iterator;
     
-    CenteredGaloisTree(const BicliqueCover& cover, handle_t center);
+    CenteredGaloisTree(const BipartiteGraph& cover, handle_t center);
     CenteredGaloisTree() = delete;
     ~CenteredGaloisTree() = default;
     
@@ -119,6 +113,23 @@ public:
     edge_iterator edge_begin(size_t i) const;
     edge_iterator edge_end(size_t i) const;
     
+    class edge_iterator {
+    public:
+        
+        edge_iterator& operator=(const edge_iterator& other) = default;
+        edge_iterator& operator++();
+        pair<handle_t, handle_t> operator*() const;
+        bool operator==(const edge_iterator& other) const;
+        bool operator!=(const edge_iterator& other) const;
+    private:
+        edge_iterator() = delete;
+        edge_iterator(size_t left, size_t right, size_t eq_class,
+                      const CenteredGaloisTree* iteratee);
+        size_t left, right, eq_class;
+        const CenteredGaloisTree* iteratee;
+        friend class CenteredGaloisTree;
+    };
+    
 private:
     
     // clear internal structures to indicate that the N.O.P. doesn't hold
@@ -135,22 +146,6 @@ private:
     // equivalence class
     vector<vector<size_t>> equiv_class_predecessors;
     
-    class edge_iterator {
-    public:
-        edge_iterator() = delete;
-        edge_iterator(size_t left, size_t right, size_t eq_class,
-                      const CenteredGaloisTree* iteratee);
-        
-        edge_iterator& operator=(const iterator& other) = default;
-        edge_iterator& operator++();
-        pair<handle_t, handle_t> operator*() const;
-        bool operator==(const edge_iterator& other) const;
-        bool operator!=(const edge_iterator& other) const;
-    private:
-        size_t left, right, eq_class;
-        const CenteredGaloisTree* iteratee;
-    };
-    
     friend class edge_iterator;
 };
 
@@ -160,7 +155,7 @@ private:
 class GaloisLattice {
 public:
     // construct with algorithm 4 and 5 from Amilhastre, et al. (1998)
-    GaloisLattice(const BicliqueCover& cover);
+    GaloisLattice(const BipartiteGraph& graph);
     ~GaloisLattice();
     
     bool is_domino_free() const;
@@ -175,7 +170,7 @@ private:
     
     vector<CenteredGaloisTree> galois_trees;
     unordered_map<pair<size_t, size_t>, vector<pair<size_t, size_t>>> lattice;
-}
+};
 
 
 }

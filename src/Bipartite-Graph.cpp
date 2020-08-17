@@ -1,15 +1,15 @@
 /**
- * \file bipartiteGraph.cpp
+ * \file BicliqueCover.cpp
  *
  * Implements algorithm for computing the biclique cover of a bipartite graph.
  */
-#include "bipartiteGraph.hpp"
+#include "BipartiteGraph.hpp"
 
 namespace bluntifier {
 
+// TODO: i don't know why thise needs the namespace here, but it does
 BipartiteGraph::BipartiteGraph(const HandleGraph& graph,
-                               const bipartition& partition)
-: graph(&graph),
+                               const bluntifier::bipartition& partition) : graph(&graph)
 {
     _partition.first.reserve(partition.first.size());
     _partition.second.reserve(partition.second.size());
@@ -47,6 +47,10 @@ BipartiteGraph::~BipartiteGraph() {
     
 }
 
+size_t BipartiteGraph::get_degree(handle_t node) const {
+    return graph->get_degree(node, false);
+}
+
 BipartiteGraph::const_iterator BipartiteGraph::left_begin() const {
     return _partition.first.begin();
 }
@@ -59,7 +63,7 @@ BipartiteGraph::const_iterator BipartiteGraph::left_iterator(const handle_t node
     return _partition.first.begin() + left_partition_index.at(node);
 }
 
-BipartiteGraph::size_t BipartiteGraph::left_size() const {
+size_t BipartiteGraph::left_size() const {
     return _partition.first.size();
 }
 
@@ -75,7 +79,7 @@ BipartiteGraph::const_iterator BipartiteGraph::right_iterator(const handle_t nod
     return _partition.second.begin() + right_partition_index.at(node);
 }
 
-BipartiteGraph::size_t BipartiteGraph::right_size() const {
+size_t BipartiteGraph::right_size() const {
     return _partition.second.size();
 }
 
@@ -87,6 +91,11 @@ bool BipartiteGraph::for_each_adjacent_side(const handle_t& side,
 }
 
 const ordered_bipartition& BipartiteGraph::bipartition() const {
-    return partition;
+    return _partition;
 }
+
+const HandleGraph& BipartiteGraph::get_graph() const {
+    return *graph;
+}
+
 }

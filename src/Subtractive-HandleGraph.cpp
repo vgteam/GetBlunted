@@ -1,9 +1,9 @@
 /**
- * \file subtractiveHandleGraph.cpp: contains the implementation of SubtractiveHandleGraph
+ * \file SubtractiveHandleGraph.cpp: contains the implementation of SubtractiveHandleGraph
  */
 
 
-#include "subtractiveHandleGraph.hpp"
+#include "SubtractiveHandleGraph.hpp"
 
 #include <atomic>
 

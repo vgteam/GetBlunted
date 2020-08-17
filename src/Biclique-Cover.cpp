@@ -1,33 +1,17 @@
 /**
- * \file biclique_cover.cpp
+ * \file BicliqueCover.cpp
  *
  * Implements algorithm for computing the biclique cover of a bipartite graph.
  */
-#include "biclique_cover.hpp"
+#include "BicliqueCover.hpp"
 
 namespace bluntifier {
 
 using std::unordered_set;
 using std::sort;
 
-BicliqueCover::BicliqueCover(const HandleGraph& graph,
-                             const bipartition& partition)
-: graph(graph),
-  left_partition(partition.first.begin() partition.first.end()),
-  right_partition(partition.second.begin(), partition.second.end())
-{
-    // sort to remove system dependent behavior
-    sort(left_partition.begin(), left_partition.end());
-    sort(right_partition.begin(), right_partition.end());
-    // map the handles back to their index as well
-    left_partition_index.reserve(left_partition.size());
-    right_partition_index.reserve(right_partition.size());
-    for (size_t i = 0; i < left_partition.size(); ++i) {
-        left_partition_index[left_partition[i]] = i;
-    }
-    for (size_t i = 0; i < left_partition.size(); ++i) {
-        right_partition_index[right_partition[i]] = i;
-    }
+BicliqueCover::BicliqueCover(const BipartiteGraph& graph) : graph(graph) {
+
 }
 
 BicliqueCover::~BicliqueCover() {
@@ -37,25 +21,25 @@ BicliqueCover::~BicliqueCover() {
 vector<bipartition> BicliqueCover::get() const {
     vector<bipartition> return_val;
     size_t edge_count = 0;
-    for (handle_t handle : left_partition) {
-        edge_count += graph.get_degree(handle, false);
+    for (auto it = graph.left_begin(), end = graph.left_end(); it != end; ++it) {
+        edge_count += graph.get_degree(*it);
     }
     // TODO: magic number
-    if (edge_count * (left_partition.size() + right_partition.size()) <= 65536
-        && is_domino_free()) {
+    if (edge_count * (graph.left_size() + graph.right_size()) <= 65536) {
         // compute the biclique cover on the simplified graph using the algorithm
         // of Amilhastre, et al. 1998
         return_val = domino_free_cover();
     }
-    else {
+    
+    if (return_val.empty()){
         // use the heuristic algorithm of Ene, et al. 2008
         return_val = heuristic_cover();
     }
     return return_val;
 }
 
-bool CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
-                                            handle_t center) const {
+CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
+                                       handle_t center) {
     
     // get the two-hop subgraph starting at the center
     unordered_map<handle_t, size_t> left_idx;
@@ -110,7 +94,6 @@ bool CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
     // quotient the nodes by the equivalence classes and compact the
     // equivalence class identifiers
     vector<vector<size_t>> equiv_classes_left_edges;
-    equiv_classes_left_edges.reserve(next_equiv_class - right_nodes.size())
     
     vector<size_t> compacted_equiv_class(next_equiv_class, numeric_limits<size_t>::max());
     for (size_t i = 0; i < left_nodes.size(); ++i) {
@@ -134,7 +117,7 @@ bool CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
             }
         }
         // add this left side node to the partition
-        equiv_classes[eq_class].push_back(left_nodes[i]));
+        equiv_classes[eq_class].push_back(left_nodes[i]);
     }
     
     // partition left nodes by their degree (T_x(k) in Amilhastre)
@@ -165,7 +148,7 @@ bool CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
         auto& degree_ordered_nbd = degree_ordered_nbds[i];
         size_t pred = degree_ordered_nbd.front();
         for (size_t j = 1; j < degree_ordered_nbd.size(); ++j) {
-            size_t succ = degree_ordered_nbds[j];
+            size_t succ = degree_ordered_nbd[j];
             if (successors[pred] != numeric_limits<size_t>::max()) {
                 successors[pred] = succ;
                 equiv_class_predecessors[succ].push_back(pred);
@@ -206,10 +189,10 @@ void CenteredGaloisTree::clear() {
     equiv_classes.clear();
     neighborhoods.clear();
     successors.clear();
-    predecessors.clear();
+    equiv_class_predecessors.clear();
 }
 
-bool CenteredGaloisTree::has_neighbor_ordering_property() {
+bool CenteredGaloisTree::has_neighbor_ordering_property() const {
     // did we clear everything and return in the constructor?
     return !equiv_classes.empty();
 }
@@ -262,25 +245,26 @@ CenteredGaloisTree::edge_iterator& CenteredGaloisTree::edge_iterator::operator++
     else {
         ++right;
     }
+    return *this;
 }
 
-pair<handle_t, handle_t> operator*() const {
+pair<handle_t, handle_t> CenteredGaloisTree::edge_iterator::operator*() const {
     return make_pair(iteratee->equiv_classes[eq_class][left],
-                     iteratee->neighborhoods[equiv_classes][right])
+                     iteratee->neighborhoods[eq_class][right]);
 }
 
-bool operator==(const edge_iterator& other) const {
+bool CenteredGaloisTree::edge_iterator::operator==(const edge_iterator& other) const {
     return (left == other.left && right == other.right &&
-            eq_class == other.eq_class && iteratee == other.iteratee)
+            eq_class == other.eq_class && iteratee == other.iteratee);
 }
 
-bool operator!=(const edge_iterator& other) const {
+bool CenteredGaloisTree::edge_iterator::operator!=(const edge_iterator& other) const {
     return !(*this == other);
 }
 
 bipartition CenteredGaloisTree::biclique(size_t i) const {
     bipartition return_val;
-    return_val.second.insert(neighborhood[i].begin(), neighborhood[i].end());
+    return_val.second.insert(neighborhoods[i].begin(), neighborhoods[i].end());
     while (i != numeric_limits<size_t>::max()) {
         return_val.first.insert(equiv_classes[i].begin(), equiv_classes[i].end());
         i = successors[i];
@@ -288,18 +272,8 @@ bipartition CenteredGaloisTree::biclique(size_t i) const {
     return return_val;
 }
 
-bool BicliqueCover::is_domino_free() const {
-    bool domino_free = true;
-    // TODO: embarassingly parallel
-    for (size_t i = 0; i < left_partition.size() && domino_free; ++i) {
-        CenteredGaloisTree tree(*this, left_partition[i]);
-        domino_free = tree.has_neighbor_ordering_property();
-    }
-    return domino_free;
-}
-
 SubtractiveHandleGraph BicliqueCover::simplify() const {
-    SubtractiveHandleGraph simplified(graph);
+    SubtractiveHandleGraph simplified(graph.get_graph());
     simplify_side(graph.bipartition().first, simplified);
     simplify_side(graph.bipartition().second, simplified);
     return simplified;
@@ -319,15 +293,10 @@ vector<bipartition> BicliqueCover::heuristic_cover() const {
     return vector<bipartition>();
 }
 
-bool BicliqueCover::for_each_adjacent_side(const handle_t& side,
-                                           const function<bool(handle_t)>& lambda) const {
-    return graph->follow_edges(side, false, [&](const handle_t& neighbor) {
-        return lambda(graph->flip(neighbor));
-    });
-}
-
 void BicliqueCover::simplify_side(const vector<handle_t>& simplifying_partition,
                                   SubtractiveHandleGraph& simplifying) const {
+    
+    const HandleGraph& raw_graph = graph.get_graph();
     
     // keeps track of which nodes have successors (LI in Amilhastre, et al. 1998)
     vector<bool> nonmaximal(simplifying_partition.size(), false);
@@ -350,7 +319,7 @@ void BicliqueCover::simplify_side(const vector<handle_t>& simplifying_partition,
         
         // get the neighborhood of i
         unordered_set<handle_t> neighborhood;
-        graph.follow_edges(simplifying_partition[i], false, [&](const handle_t& nbr) {
+        raw_graph.follow_edges(simplifying_partition[i], false, [&](const handle_t& nbr) {
             neighborhood.insert(nbr);
         });
         degree[i] = neighborhood.size();
@@ -364,7 +333,7 @@ void BicliqueCover::simplify_side(const vector<handle_t>& simplifying_partition,
             }
             // subtract from the size of the set difference of the neighborhoods for
             // each node that these have in common
-            graph.follow_edges(simplifying_partition[j], false, [&](const handle_t& nbr) {
+            raw_graph.follow_edges(simplifying_partition[j], false, [&](const handle_t& nbr) {
                 if (neighborhood.count(nbr)) {
                     --neighbor_delta[i][j];
                 }
@@ -397,7 +366,7 @@ void BicliqueCover::simplify_side(const vector<handle_t>& simplifying_partition,
             fully_simplified = false;
             // find the next successor
             for (size_t j = 0; j < simplifying_partition.size(); ++j) {
-                if (!successors[i][j]) {
+                if (!successor[i][j]) {
                     continue;
                 }
                 // we've found a successor of i, remove the edges in j that go to
@@ -413,7 +382,7 @@ void BicliqueCover::simplify_side(const vector<handle_t>& simplifying_partition,
                     unordered_set<handle_t> nbr_nbrs;
                     simplifying.follow_edges(nbr, true, [&](const handle_t& nbr_nbr) {
                         nbr_nbrs.insert(nbr_nbr);
-                    }):
+                    });
                     
                     for (size_t k = 0; k < simplifying_partition.size(); ++k) {
                         // there's now one less edge in j's neighborhood
@@ -426,10 +395,10 @@ void BicliqueCover::simplify_side(const vector<handle_t>& simplifying_partition,
                             // removed by the set difference with j's neighborhood
                             ++neighbor_delta[k][j];
                             if (nonmaximal[k]) {
-                                if (successors[k][j]) {
+                                if (successor[k][j]) {
                                     // j can no longer be a successor of k because we took
                                     // away a neighbor from j that they shared
-                                    successors[k][j] = false;
+                                    successor[k][j] = false;
                                     --num_successors[k];
                                 }
                                 if (num_successors[k] == 0) {
@@ -442,8 +411,8 @@ void BicliqueCover::simplify_side(const vector<handle_t>& simplifying_partition,
                         if (neighbor_delta[j][k] == 0 && degree[j] > 0) {
                             // j's neighbors are now a subset of k's neighbors
                             nonmaximal[j] = true;
-                            if (!successors[k][j]) {
-                                successors[k][j] = true;
+                            if (!successor[k][j]) {
+                                successor[k][j] = true;
                                 ++num_successors[k];
                             }
                         }
@@ -458,7 +427,6 @@ void BicliqueCover::simplify_side(const vector<handle_t>& simplifying_partition,
 GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
     
     galois_trees.reserve(graph.left_size());
-    bool domino_free = true;
     for (auto it = graph.left_begin(), end = graph.left_end(); it != end; ++it) {
         galois_trees.emplace_back(graph, *it);
         if (!galois_trees.back().has_neighbor_ordering_property()) {
