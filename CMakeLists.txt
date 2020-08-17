@@ -35,15 +35,17 @@ include_directories(
 
 # Define our shared library sources. NOT test/executables.
 set(SOURCES
-        src/adjacency_components.cpp
+        src/AdjacencyComponent.cpp
         src/apply_bulk_modifications.cpp
+	src/BicliqueCover.cpp
+	src/BipartiteGraph.cpp
         src/Cigar.cpp
         src/find_tips.cpp
         src/gfa_to_handle.cpp
         src/IncrementalIdMap.cpp
         src/is_single_stranded.cpp
         src/OverlapMap.cpp
-        src/subtractive_graph.cpp
+        src/SubtractiveHandleGraph.cpp
         src/topological_sort.cpp
         src/utility.cpp
         )

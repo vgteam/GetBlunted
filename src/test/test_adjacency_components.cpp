@@ -5,10 +5,13 @@
 #include <functional>
 
 #include "bdsg/hash_graph.hpp"
-#include "adjacency_components.hpp"
+#include "AdjacencyComponent.hpp"
 
 using bluntifier::adjacency_components;
 using bluntifier::AdjacencyComponent;
+using bluntifier::bipartition;
+using bluntifier::ordered_bipartition;
+using bluntifier::BipartiteGraph;
 
 using bdsg::HashGraph;
 using handlegraph::handle_t;
@@ -35,34 +38,38 @@ int count_edges_across(const AdjacencyComponent& adj_comp,
     return count;
 }
 
-bool check_bipartite(const HandleGraph& graph, const bipartition& partition) {
+bool check_bipartite(const BipartiteGraph& graph) {
     
     bool looks_bipartite = true;
-    for (auto it = partition.first.begin(); it != partition.first.end() && looks_bipartite; ++it) {
-        graph.follow_edges(*it, false, [&](const handle_t& adj_node) {
-            handle_t adj_side = graph.flip(adj_node);
-            if (partition.first.count(adj_side)) {
-                looks_bipartite = false;
-                return false;
+    for (auto lit = graph.left_begin(), lend = graph.left_end(); lit != lend; ++lit) {
+        graph.for_each_adjacent_side(*lit,[&](handle_t node) {
+            for (auto lit2 = graph.left_begin(), lend2 = graph.left_end(); lit2 != lend2; ++lit2) {
+                looks_bipartite = looks_bipartite && node != *lit2;
             }
-            if (!partition.second.count(adj_side)) {
-                looks_bipartite = false;
-                return false;
+            bool found = false;
+            for (auto rit = graph.right_begin(), rend = graph.right_end(); rit != rend; ++rit) {
+                if (*rit == node) {
+                    found = true;
+                    break;
+                }
             }
+            looks_bipartite = looks_bipartite && found;
             return true;
         });
     }
-    for (auto it = partition.second.begin(); it != partition.second.end() && looks_bipartite; ++it) {
-        graph.follow_edges(*it, false, [&](const handle_t& adj_node) {
-            handle_t adj_side = graph.flip(adj_node);
-            if (partition.second.count(adj_side)) {
-                looks_bipartite = false;
-                return false;
+    for (auto rit = graph.right_begin(), rend = graph.right_end(); rit != rend; ++rit) {
+        graph.for_each_adjacent_side(*rit,[&](handle_t node) {
+            for (auto rit2 = graph.right_begin(), rend2 = graph.right_end(); rit2 != rend2; ++rit2) {
+                looks_bipartite = looks_bipartite && node != *rit2;
             }
-            if (!partition.first.count(adj_side)) {
-                looks_bipartite = false;
-                return false;
+            bool found = false;
+            for (auto lit = graph.left_begin(), lend = graph.left_end(); lit != lend; ++lit) {
+                if (*rit == node) {
+                    found = true;
+                    break;
+                }
             }
+            looks_bipartite = looks_bipartite && found;
             return true;
         });
     }
@@ -349,9 +356,8 @@ int main(){
         
         bool success = true;
         for (auto& adj_comp : adjacency_components(graph)) {
-            adj_comp.decompose_into_bipartite_blocks([&](const HandleGraph& g,
-                                                         const bipartition& p) {
-                success = success && check_bipartite(g, p);
+            adj_comp.decompose_into_bipartite_blocks([&](const BipartiteGraph& g) {
+                success = success && check_bipartite(g);
             });
         }
         if (!success) {
