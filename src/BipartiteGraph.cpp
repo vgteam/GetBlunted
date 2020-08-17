@@ -7,6 +7,9 @@
 
 namespace bluntifier {
 
+using std::cerr;
+using std::endl;
+
 // TODO: i don't know why thise needs the namespace here, but it does
 BipartiteGraph::BipartiteGraph(const HandleGraph& graph,
                                const bluntifier::bipartition& partition) : graph(&graph)

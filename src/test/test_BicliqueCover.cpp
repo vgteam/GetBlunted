@@ -39,6 +39,7 @@ int main(){
         handle_t h4 = graph.create_handle("A");
         handle_t h5 = graph.create_handle("A");
         
+        // initialize with an incomplete domino
         graph.create_edge(h0, h3);
         graph.create_edge(h0, h4);
         graph.create_edge(h1, h3);
@@ -46,7 +47,8 @@ int main(){
         graph.create_edge(h1, h5);
         graph.create_edge(h2, h4);
         
-        ordered_bipartition partition({h0, h1, h2}, {h3, h4, h5});
+        bipartition partition({h0, h1, h2},
+                              {graph.flip(h3), graph.flip(h4), graph.flip(h5)});
         
         BipartiteGraph bigraph(graph, partition);
         
@@ -76,6 +78,10 @@ int main(){
                 return 1;
             }
         }
+    }
+    
+    {
+         
     }
     
     cerr << "biclique cover tests successful" << endl;

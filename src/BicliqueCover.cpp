@@ -5,7 +5,8 @@
  */
 #include "BicliqueCover.hpp"
 
-//#define debug
+//#define debug_galois_tree
+//#define debug_galois_lattice
 
 namespace bluntifier {
 
@@ -43,7 +44,7 @@ vector<bipartition> BicliqueCover::get() const {
 CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
                                        handle_t center) {
     
-#ifdef debug
+#ifdef debug_galois_tree
     cerr << "building centered galois tree around " << graph.get_graph().get_id(center) << " " << graph.get_graph().get_is_reverse(center) << endl;
 #endif
     
@@ -71,7 +72,7 @@ CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
         return true;
     });
     
-#ifdef debug
+#ifdef debug_galois_tree
     cerr << "two-hop graph:" << endl;
     for (size_t i = 0; i < left_nodes.size(); ++i) {
         auto left = left_nodes[i];
@@ -83,7 +84,7 @@ CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
     }
 #endif
     
-#ifdef debug
+#ifdef debug_galois_tree
     cerr << "computing equivalence classes" << endl;
 #endif
     
@@ -113,7 +114,7 @@ CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
         });
     }
     
-#ifdef debug
+#ifdef debug_galois_tree
     cerr << "equivalence class assignments:" << endl;
     for (size_t i = 0; i < left_nodes.size(); ++i) {
         cerr << graph.get_graph().get_id(left_nodes[i]) << " " << graph.get_graph().get_is_reverse(left_nodes[i]) << ": " << equiv_class_assignment[i] << endl;
@@ -127,21 +128,9 @@ CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
     
     vector<size_t> compacted_equiv_class(next_equiv_class, numeric_limits<size_t>::max());
     for (size_t i = 0; i < left_nodes.size(); ++i) {
-//        cerr << "iter " << i << endl;
-//        for (size_t i = 0; i < equiv_classes.size(); ++i) {
-//            cerr << "equiv class " << i << endl;
-//            cerr << "edges: " << endl;
-//            for (auto j : equiv_classes_left_edges[i]) {
-//                cerr << "\t" << j << endl;
-//            }
-//            cerr << "neighborhood:" << endl;
-//            for (auto node : neighborhoods[i]) {
-//                cerr << "\t" << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
-//            }
-//        }
         size_t eq_class = equiv_class_assignment[i];
         if (compacted_equiv_class[eq_class] == numeric_limits<size_t>::max()) {
-#ifdef debug
+#ifdef debug_galois_tree
             cerr << "compacting equivalence class " << eq_class << " into " << equiv_classes.size() << endl;
 #endif
             
@@ -162,35 +151,14 @@ CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
                 neighborhood.push_back(right_nodes[j]);
             }
         }
-//        cerr << "after if condition " << i << endl;
-//        for (size_t i = 0; i < equiv_classes.size(); ++i) {
-//            cerr << "equiv class " << i << endl;
-//            cerr << "edges: " << endl;
-//            for (auto j : equiv_classes_left_edges[i]) {
-//                cerr << "\t" << j << endl;
-//            }
-//            cerr << "neighborhood:" << endl;
-//            for (auto node : neighborhoods[i]) {
-//                cerr << "\t" << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
-//            }
-//        }
+        else {
+            eq_class = compacted_equiv_class[eq_class];
+        }
         // add this left side node to the partition
         equiv_classes[eq_class].push_back(left_nodes[i]);
-//        cerr << "after adding to eq class " << i << endl;
-//        for (size_t i = 0; i < equiv_classes.size(); ++i) {
-//            cerr << "equiv class " << i << endl;
-//            cerr << "edges: " << endl;
-//            for (auto j : equiv_classes_left_edges[i]) {
-//                cerr << "\t" << j << endl;
-//            }
-//            cerr << "neighborhood:" << endl;
-//            for (auto node : neighborhoods[i]) {
-//                cerr << "\t" << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
-//            }
-//        }
     }
     
-#ifdef debug
+#ifdef debug_galois_tree
     for (size_t i = 0; i < equiv_classes.size(); ++i) {
         cerr << "equiv class " << i << endl;
         cerr << "\tmembers: " << endl;
@@ -216,7 +184,7 @@ CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
         degree_groups[neighborhoods[i].size()].push_back(i);
     }
     
-#ifdef debug
+#ifdef debug_galois_tree
     cerr << "finding degree ordered neighborhoods" << endl;
 #endif
     
@@ -225,15 +193,13 @@ CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
     vector<vector<size_t>> degree_ordered_nbds(right_nodes.size());
     for (const auto& degree_group : degree_groups) {
         for (auto left : degree_group) {
-            cerr << "eq class " <<  left << endl;
             for (auto right : equiv_classes_left_edges[left]) {
-                cerr << "\tadd to nbd of " << right << endl;
                 degree_ordered_nbds[right].push_back(left);
             }
         }
     }
     
-#ifdef debug
+#ifdef debug_galois_tree
     cerr << "degree ordered neighborhoods:" << endl;
     for (size_t i = 0; i < right_nodes.size(); ++i) {
         cerr << graph.get_graph().get_id(right_nodes[i]) << " " << graph.get_graph().get_is_reverse(right_nodes[i]) << ":" << endl;
@@ -256,20 +222,30 @@ CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
         size_t pred = degree_ordered_nbd.front();
         for (size_t j = 1; j < degree_ordered_nbd.size(); ++j) {
             size_t succ = degree_ordered_nbd[j];
-            if (successors[pred] != numeric_limits<size_t>::max()) {
+#ifdef debug_galois_tree
+            cerr << "processing pred/succ pair " << pred << " " << succ << endl;
+#endif
+            if (successors[pred] == numeric_limits<size_t>::max()) {
                 successors[pred] = succ;
                 equiv_class_predecessors[succ].push_back(pred);
+#ifdef debug_galois_tree
+                cerr << "\tidentifying " << succ << " as the immediate successor class of " << pred << endl;
+#endif
             }
             else if (successors[pred] != succ) {
                 // the successors don't form a tree, clear to mark as a failure
+#ifdef debug_galois_tree
+                cerr << "\tsuccessor class of " << pred << " was not " << succ << " as expected, graph is not domino free" << endl;
+#endif
                 clear();
+
                 return;
             }
             pred = succ;
         }
     }
     
-#ifdef debug
+#ifdef debug_galois_tree
     cerr << "checking for neighbor ordering property" << endl;
 #endif
     
@@ -290,10 +266,16 @@ CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
             if (p < pred_nbd.size()) {
                 // the neighborhoods weren't contained, clear to mark as a failure
                 clear();
+#ifdef debug_galois_tree
+                cerr << "neighborhood of " << j << " is not contained in neighborhood of " << i << ", graph is not domino free" << endl;
+#endif
                 return;
             }
         }
     }
+#ifdef debug_galois_tree
+    cerr << "tree is consistent with a domino free graph" << endl;
+#endif
 }
     
 void CenteredGaloisTree::clear() {
@@ -349,12 +331,10 @@ CenteredGaloisTree::edge_iterator::edge_iterator(size_t left, size_t right, size
 
 
 CenteredGaloisTree::edge_iterator& CenteredGaloisTree::edge_iterator::operator++() {
+    ++right;
     if (right == iteratee->neighborhoods[eq_class].size()) {
         right = 0;
         ++left;
-    }
-    else {
-        ++right;
     }
     return *this;
 }
@@ -537,6 +517,10 @@ void BicliqueCover::simplify_side(const vector<handle_t>& simplifying_partition,
 
 GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
     
+#ifdef debug_galois_lattice
+    cerr << "making centered trees" << endl;
+#endif
+    
     galois_trees.reserve(graph.left_size());
     for (auto it = graph.left_begin(), end = graph.left_end(); it != end; ++it) {
         galois_trees.emplace_back(graph, *it);
@@ -546,6 +530,10 @@ GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
             return;
         }
     }
+    
+#ifdef debug_galois_lattice
+    cerr << "combining trees into lattice" << endl;
+#endif
     
     // initialize the matrix of the maximal clique containing each edge,
     // where clique are ordered by the right neighborhood size
@@ -561,8 +549,25 @@ GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
         vector<pair<vector<size_t>, size_t>> stack;
         stack.emplace_back(vector<size_t>(1, galois_tree.central_equivalence_class()), 0);
         
+#ifdef debug_galois_lattice
+        auto c = galois_tree.central_equivalence_class();
+        auto bc = galois_tree.biclique(c);
+        cerr << "linking tree " << i << " with central eq class " << c << endl;
+        cerr << "biclique left:" << endl;
+        for (auto node : bc.first) {
+            cerr << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
+        }
+        cerr << "biclique right:" << endl;
+        for (auto node : bc.second) {
+            cerr << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
+        }
+#endif
+        
         while (!stack.empty()) {
             if (stack.back().first.size() == stack.back().second) {
+#ifdef debug_galois_lattice
+                cerr << "popping stack frame" << endl;
+#endif
                 stack.pop_back();
             }
             else {
@@ -571,15 +576,35 @@ GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
                 // check if the maximal biclique covering an edge is still maximal after
                 // adding in this galois tree
                 size_t equiv_class = stack.back().first[stack.back().second];
+                ++stack.back().second;
+#ifdef debug_galois_lattice
+                cerr << "linking equiv class " << equiv_class << endl;
+#endif
+                
                 auto edge = *galois_tree.edge_begin(equiv_class);
                 auto max_so_far = edge_max_biclique[graph.left_iterator(edge.first) - graph.left_begin()]
                                                    [graph.right_iterator(edge.second) - graph.right_begin()];
-                auto max_size = galois_trees[max_so_far.first].right_size(max_so_far.second);
-                auto size_here = galois_tree.right_size(equiv_class);
+                size_t max_size;
+                if (max_so_far.first == -1) {
+                    max_size = 0;
+                }
+                else {
+                    max_size = galois_trees[max_so_far.first].right_size(max_so_far.second);
+                }
+                size_t size_here = galois_tree.right_size(equiv_class);
                 
+#ifdef debug_galois_lattice
+                cerr << "test edge " << graph.get_graph().get_id(edge.first) << " " << graph.get_graph().get_is_reverse(edge.first) << " -- " << graph.get_graph().get_id(edge.second) << " " << graph.get_graph().get_is_reverse(edge.second) << endl;
+                cerr << "current max biclique " << max_so_far.first << " " << max_so_far.second << endl;
+                cerr << "edge max size: " << max_size << ", vs size here " << size_here << endl;
+#endif
                 if (size_here > max_size) {
                     
                     // we've found a larger maximal biclique covering this edge
+                    
+#ifdef debug_galois_lattice
+                    cerr << "reassigning max" << endl;
+#endif
                     
                     max_so_far.first = i;
                     max_so_far.second = equiv_class;
@@ -594,6 +619,12 @@ GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
                     
                     // enqueue the predecessors
                     stack.emplace_back(galois_tree.predecessors(equiv_class), 0);
+#ifdef debug_galois_lattice
+                    cerr << "enqueuing equivlance classes:" << endl;
+                    for (auto j : stack.back().first) {
+                        cerr << "\t" << j << endl;
+                    }
+#endif
                 }
                 // TODO: will this ever produce duplicate edges? that could seriously fuck up
                 // the separator stage
@@ -601,6 +632,10 @@ GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
                     // add a connection in the lattice from the previous recursive call
                     auto prev_frame = stack[stack.size() - 2];
                     lattice[make_pair(i, prev_frame.first[prev_frame.second - 1])].push_back(max_so_far);
+                    
+#ifdef debug_galois_lattice
+                    cerr << "setting " << max_so_far.first << " " << max_so_far.second << " as predecessor to " << i << " " << prev_frame.first[prev_frame.second - 1] << endl;
+#endif
                 }
             }
         }
