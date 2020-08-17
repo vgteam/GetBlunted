@@ -156,7 +156,7 @@ class GaloisLattice {
 public:
     // construct with algorithm 4 and 5 from Amilhastre, et al. (1998)
     GaloisLattice(const BipartiteGraph& graph);
-    ~GaloisLattice();
+    ~GaloisLattice() = default;
     
     bool is_domino_free() const;
     
@@ -169,6 +169,10 @@ private:
     //void separator();
     
     vector<CenteredGaloisTree> galois_trees;
+    
+    // graph of predecessors in the galois lattice, where maximal bicliques
+    // are identified by the corresponding equivalence class in a galois tree
+    // (tree index, equivlance class index)
     unordered_map<pair<size_t, size_t>, vector<pair<size_t, size_t>>> lattice;
 };
 

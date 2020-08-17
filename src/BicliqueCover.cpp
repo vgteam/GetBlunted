@@ -5,6 +5,8 @@
  */
 #include "BicliqueCover.hpp"
 
+//#define debug
+
 namespace bluntifier {
 
 using std::unordered_set;
@@ -41,6 +43,10 @@ vector<bipartition> BicliqueCover::get() const {
 CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
                                        handle_t center) {
     
+#ifdef debug
+    cerr << "building centered galois tree around " << graph.get_graph().get_id(center) << " " << graph.get_graph().get_is_reverse(center) << endl;
+#endif
+    
     // get the two-hop subgraph starting at the center
     unordered_map<handle_t, size_t> left_idx;
     // we have to restrict rightward edges since some of them could
@@ -64,6 +70,22 @@ CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
         right_nodes.emplace_back(right);
         return true;
     });
+    
+#ifdef debug
+    cerr << "two-hop graph:" << endl;
+    for (size_t i = 0; i < left_nodes.size(); ++i) {
+        auto left = left_nodes[i];
+        cerr << graph.get_graph().get_id(left) << " " << graph.get_graph().get_is_reverse(left) << ":" << endl;
+        for (auto j : left_edges[i]) {
+            auto right = right_nodes[j];
+            cerr << "\t-> " << graph.get_graph().get_id(right) << " " << graph.get_graph().get_is_reverse(right) << endl;
+        }
+    }
+#endif
+    
+#ifdef debug
+    cerr << "computing equivalence classes" << endl;
+#endif
     
     // initialize every node on the left in the same equivalence class
     vector<size_t> equiv_class_assignment(left_nodes.size(),
@@ -91,14 +113,38 @@ CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
         });
     }
     
+#ifdef debug
+    cerr << "equivalence class assignments:" << endl;
+    for (size_t i = 0; i < left_nodes.size(); ++i) {
+        cerr << graph.get_graph().get_id(left_nodes[i]) << " " << graph.get_graph().get_is_reverse(left_nodes[i]) << ": " << equiv_class_assignment[i] << endl;
+    }
+    cerr << "compacting equivalence classes and making quotient graph" << endl;
+#endif
+    
     // quotient the nodes by the equivalence classes and compact the
     // equivalence class identifiers
     vector<vector<size_t>> equiv_classes_left_edges;
     
     vector<size_t> compacted_equiv_class(next_equiv_class, numeric_limits<size_t>::max());
     for (size_t i = 0; i < left_nodes.size(); ++i) {
+//        cerr << "iter " << i << endl;
+//        for (size_t i = 0; i < equiv_classes.size(); ++i) {
+//            cerr << "equiv class " << i << endl;
+//            cerr << "edges: " << endl;
+//            for (auto j : equiv_classes_left_edges[i]) {
+//                cerr << "\t" << j << endl;
+//            }
+//            cerr << "neighborhood:" << endl;
+//            for (auto node : neighborhoods[i]) {
+//                cerr << "\t" << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
+//            }
+//        }
         size_t eq_class = equiv_class_assignment[i];
         if (compacted_equiv_class[eq_class] == numeric_limits<size_t>::max()) {
+#ifdef debug
+            cerr << "compacting equivalence class " << eq_class << " into " << equiv_classes.size() << endl;
+#endif
+            
             // we're coming across this class for the first time, assign it the next
             // compacted class identifier
             compacted_equiv_class[eq_class] = equiv_classes.size();
@@ -116,26 +162,87 @@ CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
                 neighborhood.push_back(right_nodes[j]);
             }
         }
+//        cerr << "after if condition " << i << endl;
+//        for (size_t i = 0; i < equiv_classes.size(); ++i) {
+//            cerr << "equiv class " << i << endl;
+//            cerr << "edges: " << endl;
+//            for (auto j : equiv_classes_left_edges[i]) {
+//                cerr << "\t" << j << endl;
+//            }
+//            cerr << "neighborhood:" << endl;
+//            for (auto node : neighborhoods[i]) {
+//                cerr << "\t" << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
+//            }
+//        }
         // add this left side node to the partition
         equiv_classes[eq_class].push_back(left_nodes[i]);
+//        cerr << "after adding to eq class " << i << endl;
+//        for (size_t i = 0; i < equiv_classes.size(); ++i) {
+//            cerr << "equiv class " << i << endl;
+//            cerr << "edges: " << endl;
+//            for (auto j : equiv_classes_left_edges[i]) {
+//                cerr << "\t" << j << endl;
+//            }
+//            cerr << "neighborhood:" << endl;
+//            for (auto node : neighborhoods[i]) {
+//                cerr << "\t" << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
+//            }
+//        }
     }
     
+#ifdef debug
+    for (size_t i = 0; i < equiv_classes.size(); ++i) {
+        cerr << "equiv class " << i << endl;
+        cerr << "\tmembers: " << endl;
+        for (auto node : equiv_classes[i]) {
+            cerr << "\t\t" << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
+        }
+        cerr << "\tedges: " << endl;
+        for (auto j : equiv_classes_left_edges[i]) {
+            cerr << "\t\t" << j << endl;
+        }
+        cerr << "neighborhood:" << endl;
+        for (auto node : neighborhoods[i]) {
+            cerr << "\t\t" << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
+        }
+    }
+    
+    cerr << "splitting classes into degree groups" << endl;
+#endif
+    
     // partition left nodes by their degree (T_x(k) in Amilhastre)
-    vector<vector<size_t>> degree_groups(right_nodes.size());
+    vector<vector<size_t>> degree_groups(right_nodes.size() + 1);
     for (size_t i = 0; i < neighborhoods.size(); ++i) {
         degree_groups[neighborhoods[i].size()].push_back(i);
     }
+    
+#ifdef debug
+    cerr << "finding degree ordered neighborhoods" << endl;
+#endif
     
     // organize the neighborhoods of the right nodes in degree ordering
     // (V(y) in Amilhastre)
     vector<vector<size_t>> degree_ordered_nbds(right_nodes.size());
     for (const auto& degree_group : degree_groups) {
         for (auto left : degree_group) {
+            cerr << "eq class " <<  left << endl;
             for (auto right : equiv_classes_left_edges[left]) {
+                cerr << "\tadd to nbd of " << right << endl;
                 degree_ordered_nbds[right].push_back(left);
             }
         }
     }
+    
+#ifdef debug
+    cerr << "degree ordered neighborhoods:" << endl;
+    for (size_t i = 0; i < right_nodes.size(); ++i) {
+        cerr << graph.get_graph().get_id(right_nodes[i]) << " " << graph.get_graph().get_is_reverse(right_nodes[i]) << ":" << endl;
+        for (auto eq_class : degree_ordered_nbds[i]) {
+            cerr << "\t" << eq_class << endl;
+        }
+    }
+    cerr << "finding successors and predecessors" << endl;
+#endif
     
     // immediate successor in the equiv class ordering (Succ in Amilhastre)
     successors.resize(equiv_classes.size(), numeric_limits<size_t>::max());
@@ -161,6 +268,10 @@ CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
             pred = succ;
         }
     }
+    
+#ifdef debug
+    cerr << "checking for neighbor ordering property" << endl;
+#endif
     
     // check for the proper containent relationships between the neighborhoods
     // of the nodes on the left

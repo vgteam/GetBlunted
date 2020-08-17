@@ -238,6 +238,7 @@ set(TESTS
         test_IncrementalIdMap
         test_overlaps
         test_utility
+	test_BicliqueCover
         )
 
 foreach(FILENAME_PREFIX ${TESTS})
