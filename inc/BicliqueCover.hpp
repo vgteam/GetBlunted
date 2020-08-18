@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
+#include <deque>
 
 #include "handlegraph/handle_graph.hpp"
 #include "handlegraph/types.hpp"
@@ -166,14 +167,17 @@ private:
     
     void clear();
     
-    //void separator();
+    // Dinic's algorithm to compute max-flow
+    vector<size_t> separator() const;
     
     vector<CenteredGaloisTree> galois_trees;
     
     // graph of predecessors in the galois lattice, where maximal bicliques
     // are identified by the corresponding equivalence class in a galois tree
     // (tree index, equivlance class index)
-    unordered_map<pair<size_t, size_t>, vector<pair<size_t, size_t>>> lattice;
+    unordered_map<pair<size_t, size_t>, size_t> biclique_index;
+    vector<pair<size_t, size_t>> bicliques;
+    vector<vector<size_t>> lattice;
 };
 
 

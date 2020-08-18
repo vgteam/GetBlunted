@@ -12,6 +12,7 @@ namespace bluntifier {
 
 using std::unordered_set;
 using std::sort;
+using std::deque;
 
 BicliqueCover::BicliqueCover(const BipartiteGraph& graph) : graph(graph) {
 
@@ -609,6 +610,11 @@ GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
                     max_so_far.first = i;
                     max_so_far.second = equiv_class;
                     
+                    // make sure there's a node for this maximal biclique in the lattice
+                    biclique_index[max_so_far] = bicliques.size();
+                    bicliques.emplace_back(max_so_far);
+                    lattice.emplace_back();
+                    
                     // update the maximal biclique for all of the edges of this equivalence class
                     for (auto it = galois_tree.edge_begin(equiv_class), end = galois_tree.edge_end(equiv_class);
                          it != end; ++it) {
@@ -631,7 +637,7 @@ GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
                 if (stack.size() > 1) {
                     // add a connection in the lattice from the previous recursive call
                     auto prev_frame = stack[stack.size() - 2];
-                    lattice[make_pair(i, prev_frame.first[prev_frame.second - 1])].push_back(max_so_far);
+                    lattice[biclique_index[make_pair(i, prev_frame.first[prev_frame.second - 1])]].push_back(biclique_index[max_so_far]);
                     
 #ifdef debug_galois_lattice
                     cerr << "setting " << max_so_far.first << " " << max_so_far.second << " as predecessor to " << i << " " << prev_frame.first[prev_frame.second - 1] << endl;
@@ -641,12 +647,206 @@ GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
         }
     }
     
-    // TODO: add in the end caps
+    // identify sources and sinks in the lattice
+    
+    vector<bool> is_source(bicliques.size(), false);
+    vector<size_t> sinks;
+    for (size_t i = 0; i < bicliques.size(); ++i) {
+        if (lattice[i].empty()) {
+            sinks.push_back(i);
+        }
+        else {
+            for (auto j : lattice[i]) {
+                is_source[j] = false;
+            }
+        }
+    }
+    
+    // make nodes and edges for the meet and join
+    
+    pair<size_t, size_t> join(numeric_limits<size_t>::max(), 0);
+    pair<size_t, size_t> meet(numeric_limits<size_t>::max(), 1);
+    
+    biclique_index[join] = bicliques.size();
+    bicliques.emplace_back(join);
+    lattice.emplace_back();
+    for (size_t i = 0; i < is_source.size(); ++i) {
+        if (is_source[i]) {
+            lattice.back().push_back(i);
+        }
+    }
+    
+    biclique_index[meet] = bicliques.size();
+    for (size_t i : sinks) {
+        lattice[i].push_back(bicliques.size());
+    }
+    bicliques.emplace_back(meet);
+    lattice.emplace_back();
 }
 
 vector<bipartition> GaloisLattice::biclique_cover() const {
-    // TODO
-    return vector<bipartition>();
+    // identify a separator in the lattice and use the Galois trees
+    // to convert each node into the corresponding maximal biclique
+    vector<bipartition> cover;
+    for (size_t i : separator()) {
+        cover.emplace_back(galois_trees[bicliques[i].first].biclique(bicliques[i].second));
+    }
+    return cover;
+}
+
+vector<size_t> GaloisLattice::separator() const {
+    
+    // expand the graph with an "across-the-node" edge for each non-source/sink node
+    // (which are constructed in the final two positions of the adjacency list)
+    size_t source = 2 * lattice.size() - 2;
+    size_t sink = 2 * lattice.size() - 1;
+    vector<vector<size_t>> menger_graph(2 * lattice.size() - 2);
+    size_t num_edges = 0;
+    for (size_t i = 0; i + 2 < lattice.size(); ++i) {
+        size_t in = i * 2;
+        size_t out = in + 1;
+        menger_graph[in].push_back(out);
+        menger_graph[out].reserve(lattice[i].size());
+        for (size_t j : lattice[i]) {
+            // the sink node isn't doubled, so we handle it differently
+            size_t adj = j + 1 == lattice.size() ? sink : 2 * j;
+            menger_graph[out].push_back(adj);
+        }
+        num_edges += 1 + menger_graph[out].size();
+    }
+    // add the source's edges
+    menger_graph[source].reserve(lattice[lattice.size() - 2].size());
+    for (size_t j : lattice[lattice.size() - 2]) {
+        menger_graph[source].push_back(2 * j);
+    }
+    num_edges += menger_graph[source].size();
+    
+    // we'll keep track of whether the flow is using each edge
+    vector<bool> flow_through(num_edges, false);
+    // this will store the edge indexes of the cut edges when we find them
+    vector<size_t> cut_edges;
+    while (true) {
+        // construct the level graph, and with each edge keep track of the
+        // edge's index in the flow vector
+        vector<vector<pair<size_t, size_t>>> level_graph(menger_graph.size());
+        for (size_t i = 0, edge_idx = 0; i < menger_graph.size(); ++i) {
+            auto& edges = menger_graph[i];
+            for (size_t j = 0; j < edges.size(); ++j, ++edge_idx) {
+                auto adj = edges[j];
+                if (!flow_through[edge_idx]) {
+                    // flow edge
+                    level_graph[i].emplace_back(adj, edge_idx);
+                }
+                else if (flow_through[edge_idx]) {
+                    // residual edge
+                    level_graph[adj].emplace_back(i, edge_idx);
+                }
+            }
+        }
+        
+        // assign levels to the nodes using BFS
+        vector<size_t> level(menger_graph.size(), numeric_limits<size_t>::max());
+        // traversal starts at the source node
+        deque<pair<size_t, size_t>> queue(1, pair<size_t, size_t>(source, 0));
+        while (!queue.empty()) {
+            auto here = queue.front();
+            queue.pop_front();
+            if (level[here.first] > here.second) {
+                level[here.first] = here.second;
+                for (auto& adj : level_graph[here.first]) {
+                    queue.emplace_back(adj.first, here.second + 1);
+                }
+            }
+        }
+        
+        if (level[sink] == numeric_limits<size_t>::max()) {
+            // we're done, now find the edges that cross the reachability boundary
+            // are the cut
+            for (size_t i = 0; i < level_graph.size(); ++i) {
+                bool reachable = level[i] != numeric_limits<size_t>::max();
+                for (auto& edge : level_graph[i]) {
+                    if (reachable != (level[edge.first] != numeric_limits<size_t>::max())) {
+                        cut_edges.emplace_back(edge.second);
+                    }
+                }
+            }
+            break;
+        }
+        
+        // remove edges that don't increase in level
+        for (size_t i = 0; i < level_graph.size(); ++i) {
+            auto& edges = level_graph[i];
+            size_t end = edges.size();
+            for (size_t j = 0; j < end; ) {
+                auto adj = edges[j];
+                if (level[adj.first] <= level[i]) {
+                    edges[j] = edges.back();
+                    --end;
+                }
+                else{
+                    ++j;
+                }
+            }
+            if (end < edges.size()) {
+                edges.resize(end);
+            }
+        }
+        
+        // do a pruning DFS through the level graph
+        vector<size_t> stack(1, source);
+        while (!stack.empty()) {
+            auto top = stack.back();
+            if (top == sink) {
+                // the stack represents an augmenting path, flip the edges' used status
+                // and remove them from the graph
+                for (size_t i = 0, end = stack.size() - 1; i < end; ++i) {
+                    auto& edges = level_graph[stack[i]];
+                    auto edge = edges.back();
+                    edges.pop_back();
+                    flow_through[edge.second] = !flow_through[edge.second];
+                }
+                // reset the stack out of the source
+                stack.clear();
+                stack.emplace_back(source);
+            }
+            else if (level_graph[stack.back()].empty()) {
+                // backtrack along this edge
+                stack.pop_back();
+                // and remove it from the graph
+                if (!stack.empty()) {
+                    level_graph[stack.back()].pop_back();
+                }
+            }
+            else {
+                // follow an edge out of this node
+                stack.push_back(level_graph[stack.back()].back().first);
+            }
+        }
+    }
+    
+    // TODO: could i do the translation in the breakout condition above?
+    
+    // convert the cut edges in the Menger graph into into the corresponding
+    // nodes in the lattice
+    // note: the cut edges are identified in edge index order
+    vector<size_t> return_val(cut_edges.size());
+    for (size_t i = 0, edge_idx = 0, cut_idx = 0; i < menger_graph.size() && cut_idx < cut_edges.size(); ++i) {
+        auto& edges = menger_graph[i];
+        for (size_t j = 0; j < edges.size() && cut_idx < cut_edges.size(); ++j, ++edge_idx) {
+            if (edge_idx == cut_edges[cut_idx]) {
+                if (i == source) {
+                    // when an edge from a source is identified as at cut edge,
+                    // it's actually the following across-the-node edge that we
+                    // want
+                    return_val[cut_idx] = edges[j] / 2;
+                }
+                else {
+                    return_val[cut_idx] = i / 2;
+                }
+            }
+        }
+    }
+    return return_val;
 }
 
 bool GaloisLattice::is_domino_free() const {
