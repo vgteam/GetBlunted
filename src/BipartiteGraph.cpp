@@ -16,6 +16,8 @@ BipartiteGraph::BipartiteGraph(const HandleGraph& graph,
 {
     _partition.first.reserve(partition.first.size());
     _partition.second.reserve(partition.second.size());
+    _partition.first.insert(_partition.first.end(), partition.first.begin(), partition.first.end());
+    _partition.second.insert(_partition.second.end(), partition.second.begin(), partition.second.end());
     // sort to remove system dependent behavior
     sort(_partition.first.begin(), _partition.first.end());
     sort(_partition.second.begin(), _partition.second.end());

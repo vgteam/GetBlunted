@@ -56,12 +56,12 @@ public:
     
 private:
     
-    
+    // Amilhastre, et al. 1998, algorithm 1
     void simplify_side(const vector<handle_t>& simplifying_side,
                        SubtractiveHandleGraph& simplifying) const;
     
     // Amilhastre, et al. 1998, algorithm 2. remove edges without affecting
-    // the biclique cover
+    // the size of the biclique cover
     SubtractiveHandleGraph simplify() const;
     
     vector<bipartition> domino_free_cover() const;
@@ -110,7 +110,7 @@ public:
     // get the i-th biclique in this tree
     bipartition biclique(size_t i) const;
     
-    // iterate over the edges of the i-th equivalence class (note: not biclique)
+    // iterate over the edges of the i-th equivalence class (note: not i-th biclique)
     edge_iterator edge_begin(size_t i) const;
     edge_iterator edge_end(size_t i) const;
     
@@ -123,7 +123,7 @@ public:
         bool operator==(const edge_iterator& other) const;
         bool operator!=(const edge_iterator& other) const;
     private:
-        edge_iterator() = delete;
+        edge_iterator() = default;
         edge_iterator(size_t left, size_t right, size_t eq_class,
                       const CenteredGaloisTree* iteratee);
         size_t left, right, eq_class;
@@ -151,7 +151,8 @@ private:
 };
 
 /*
- * The lattice representing the containment ordering of
+ * The lattice representing the containment ordering of the maximal
+ * bicliques of a domino-free bipartite graph.
  */
 class GaloisLattice {
 public:
@@ -159,15 +160,19 @@ public:
     GaloisLattice(const BipartiteGraph& graph);
     ~GaloisLattice() = default;
     
+    // return true if the bipartite graph given to the constructor is
+    // domino-free
     bool is_domino_free() const;
     
+    // if the graph is domino-free, return the minimum biclique cover
     vector<bipartition> biclique_cover() const;
     
 private:
     
+    // clear to mark graph as not domino-free
     void clear();
     
-    // Dinic's algorithm to compute max-flow
+    // Dinic's algorithm and Menger transformation to compute minimum separator
     vector<size_t> separator() const;
     
     vector<CenteredGaloisTree> galois_trees;

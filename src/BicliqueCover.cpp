@@ -7,7 +7,8 @@
 
 //#define debug_galois_tree
 //#define debug_galois_lattice
-
+//#define debug_max_flow
+ 
 namespace bluntifier {
 
 using std::unordered_set;
@@ -166,11 +167,7 @@ CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
         for (auto node : equiv_classes[i]) {
             cerr << "\t\t" << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
         }
-        cerr << "\tedges: " << endl;
-        for (auto j : equiv_classes_left_edges[i]) {
-            cerr << "\t\t" << j << endl;
-        }
-        cerr << "neighborhood:" << endl;
+        cerr << "\tneighborhood:" << endl;
         for (auto node : neighborhoods[i]) {
             cerr << "\t\t" << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
         }
@@ -276,6 +273,13 @@ CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
     }
 #ifdef debug_galois_tree
     cerr << "tree is consistent with a domino free graph" << endl;
+    cerr << "predecessor graph:" << endl;
+    for (size_t i = 0; i < equiv_class_predecessors.size(); ++i) {
+        cerr << i << ":" << endl;
+        for (auto j : equiv_class_predecessors[i]) {
+            cerr << "\t" << j << endl;
+        }
+    }
 #endif
 }
     
@@ -389,16 +393,15 @@ void BicliqueCover::simplify_side(const vector<handle_t>& simplifying_partition,
                                   SubtractiveHandleGraph& simplifying) const {
     
     const HandleGraph& raw_graph = graph.get_graph();
-    
-    // keeps track of which nodes have successors (LI in Amilhastre, et al. 1998)
-    vector<bool> nonmaximal(simplifying_partition.size(), false);
-    
+        
     // matrix of successors (succ(u) in Amilhastre)
     vector<vector<bool>> successor;
     successor.reserve(simplifying_partition.size());
     for (size_t i = 0; i < simplifying_partition.size(); ++i) {
         successor.emplace_back(simplifying_partition.size(), false);
     }
+    // keeps track how many successors a node has (and thereby also if it
+    // has successors, i.e. LI in Amilhastre)
     vector<size_t> num_successors(simplifying_partition.size(), 0);
     
     // the degree of each node
@@ -435,7 +438,6 @@ void BicliqueCover::simplify_side(const vector<handle_t>& simplifying_partition,
                 // the neighborhood of i is constained in the neighborhood of j, so the
                 // containment preorder applies here
                 successor[i][j] = true;
-                nonmaximal[i] = true;
                 ++num_successors[i];
             }
         }
@@ -450,8 +452,8 @@ void BicliqueCover::simplify_side(const vector<handle_t>& simplifying_partition,
         fully_simplified = true;
         
         // look for a simplification
-        for (size_t i = 0; i < nonmaximal.size() && fully_simplified; ++i) {
-            if (!nonmaximal[i]) {
+        for (size_t i = 0; i < num_successors.size() && fully_simplified; ++i) {
+            if (num_successors[i] == 0) {
                 // we want to find a node with successors
                 continue;
             }
@@ -486,23 +488,18 @@ void BicliqueCover::simplify_side(const vector<handle_t>& simplifying_partition,
                             // there's now one more element in k's neighborhood being
                             // removed by the set difference with j's neighborhood
                             ++neighbor_delta[k][j];
-                            if (nonmaximal[k]) {
+                            if (num_successors[k] > 0) {
                                 if (successor[k][j]) {
                                     // j can no longer be a successor of k because we took
                                     // away a neighbor from j that they shared
                                     successor[k][j] = false;
                                     --num_successors[k];
                                 }
-                                if (num_successors[k] == 0) {
-                                    // j was the last successor of k, so k is now maximal
-                                    nonmaximal[k] = false;
-                                }
                             }
                         }
                         
                         if (neighbor_delta[j][k] == 0 && degree[j] > 0) {
                             // j's neighbors are now a subset of k's neighbors
-                            nonmaximal[j] = true;
                             if (!successor[k][j]) {
                                 successor[k][j] = true;
                                 ++num_successors[k];
@@ -511,12 +508,14 @@ void BicliqueCover::simplify_side(const vector<handle_t>& simplifying_partition,
                     }
                 });
             }
-            nonmaximal[i] = false;
+            //has_successor[i] = false;
         }
     }
 }
 
 GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
+    
+    // algorithm 4 in Amilhastre
     
 #ifdef debug_galois_lattice
     cerr << "making centered trees" << endl;
@@ -548,20 +547,13 @@ GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
         // stack records indicate the predecessors of an equivalence class
         // and the index among these to handle next
         vector<pair<vector<size_t>, size_t>> stack;
-        stack.emplace_back(vector<size_t>(1, galois_tree.central_equivalence_class()), 0);
+        stack.emplace_back();
+        stack.back().first.emplace_back(galois_tree.central_equivalence_class());
         
 #ifdef debug_galois_lattice
         auto c = galois_tree.central_equivalence_class();
         auto bc = galois_tree.biclique(c);
         cerr << "linking tree " << i << " with central eq class " << c << endl;
-        cerr << "biclique left:" << endl;
-        for (auto node : bc.first) {
-            cerr << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
-        }
-        cerr << "biclique right:" << endl;
-        for (auto node : bc.second) {
-            cerr << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
-        }
 #endif
         
         while (!stack.empty()) {
@@ -577,10 +569,13 @@ GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
                 // check if the maximal biclique covering an edge is still maximal after
                 // adding in this galois tree
                 size_t equiv_class = stack.back().first[stack.back().second];
-                ++stack.back().second;
 #ifdef debug_galois_lattice
-                cerr << "linking equiv class " << equiv_class << endl;
+                cerr << "linking equiv class " << equiv_class << ", position " << stack.back().second << " of " << stack.back().first.size() << endl;
 #endif
+                ++stack.back().second;
+                
+                // remember the position of this frame on the stack
+                size_t stack_pos = stack.size() - 1;
                 
                 auto edge = *galois_tree.edge_begin(equiv_class);
                 auto max_so_far = edge_max_biclique[graph.left_iterator(edge.first) - graph.left_begin()]
@@ -604,7 +599,16 @@ GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
                     // we've found a larger maximal biclique covering this edge
                     
 #ifdef debug_galois_lattice
-                    cerr << "reassigning max" << endl;
+                    cerr << "reassigning max, creating biclique node " << bicliques.size() << endl;
+                    auto bc = galois_tree.biclique(equiv_class);
+                    cerr << "biclique left:" << endl;
+                    for (auto node : bc.first) {
+                        cerr << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
+                    }
+                    cerr << "biclique right:" << endl;
+                    for (auto node : bc.second) {
+                        cerr << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
+                    }
 #endif
                     
                     max_so_far.first = i;
@@ -634,22 +638,26 @@ GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
                 }
                 // TODO: will this ever produce duplicate edges? that could seriously fuck up
                 // the separator stage
-                if (stack.size() > 1) {
+                if (stack_pos > 0) {
                     // add a connection in the lattice from the previous recursive call
-                    auto prev_frame = stack[stack.size() - 2];
+                    auto& prev_frame = stack[stack_pos - 1];
                     lattice[biclique_index[make_pair(i, prev_frame.first[prev_frame.second - 1])]].push_back(biclique_index[max_so_far]);
                     
 #ifdef debug_galois_lattice
-                    cerr << "setting " << max_so_far.first << " " << max_so_far.second << " as predecessor to " << i << " " << prev_frame.first[prev_frame.second - 1] << endl;
+                    cerr << "setting " << max_so_far.first << " " << max_so_far.second << " (" << biclique_index.at(max_so_far) << ") as predecessor to " << i << " " << prev_frame.first[prev_frame.second - 1] << endl;
 #endif
                 }
             }
         }
     }
     
+#ifdef debug_galois_lattice
+    cerr << "adding meet and join" << endl;
+#endif
+    
     // identify sources and sinks in the lattice
     
-    vector<bool> is_source(bicliques.size(), false);
+    vector<bool> is_source(bicliques.size(), true);
     vector<size_t> sinks;
     for (size_t i = 0; i < bicliques.size(); ++i) {
         if (lattice[i].empty()) {
@@ -687,6 +695,10 @@ GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
 vector<bipartition> GaloisLattice::biclique_cover() const {
     // identify a separator in the lattice and use the Galois trees
     // to convert each node into the corresponding maximal biclique
+    if (!is_domino_free()) {
+        cerr << "error:[GaloisLattice] cannot compute cover of a graph with dominos" << endl;
+        exit(1);
+    }
     vector<bipartition> cover;
     for (size_t i : separator()) {
         cover.emplace_back(galois_trees[bicliques[i].first].biclique(bicliques[i].second));
@@ -696,11 +708,22 @@ vector<bipartition> GaloisLattice::biclique_cover() const {
 
 vector<size_t> GaloisLattice::separator() const {
     
+#ifdef debug_max_flow
+    cerr << "constructing menger graph for lattice" << endl;
+    for (size_t i = 0; i < lattice.size(); ++i) {
+        cerr << i << ": ";
+        for (size_t j : lattice[i]) {
+            cerr << j << " ";
+        }
+        cerr << endl;
+    }
+#endif
+    
     // expand the graph with an "across-the-node" edge for each non-source/sink node
     // (which are constructed in the final two positions of the adjacency list)
-    size_t source = 2 * lattice.size() - 2;
-    size_t sink = 2 * lattice.size() - 1;
     vector<vector<size_t>> menger_graph(2 * lattice.size() - 2);
+    size_t source = menger_graph.size() - 2;
+    size_t sink = menger_graph.size() - 1;
     size_t num_edges = 0;
     for (size_t i = 0; i + 2 < lattice.size(); ++i) {
         size_t in = i * 2;
@@ -709,7 +732,7 @@ vector<size_t> GaloisLattice::separator() const {
         menger_graph[out].reserve(lattice[i].size());
         for (size_t j : lattice[i]) {
             // the sink node isn't doubled, so we handle it differently
-            size_t adj = j + 1 == lattice.size() ? sink : 2 * j;
+            size_t adj = j == lattice.size() - 1 ? sink : 2 * j;
             menger_graph[out].push_back(adj);
         }
         num_edges += 1 + menger_graph[out].size();
@@ -721,11 +744,26 @@ vector<size_t> GaloisLattice::separator() const {
     }
     num_edges += menger_graph[source].size();
     
+#ifdef debug_max_flow
+    cerr << "final menger graph:" << endl;
+    for (size_t i = 0; i < menger_graph.size(); ++i) {
+        cerr << i << ": ";
+        for (size_t j : menger_graph[i]) {
+            cerr << j << " ";
+        }
+        cerr << endl;
+    }
+#endif
+    
     // we'll keep track of whether the flow is using each edge
     vector<bool> flow_through(num_edges, false);
     // this will store the edge indexes of the cut edges when we find them
     vector<size_t> cut_edges;
     while (true) {
+#ifdef debug_max_flow
+        cerr << "construcing level graph" << endl;
+#endif
+        
         // construct the level graph, and with each edge keep track of the
         // edge's index in the flow vector
         vector<vector<pair<size_t, size_t>>> level_graph(menger_graph.size());
@@ -760,18 +798,28 @@ vector<size_t> GaloisLattice::separator() const {
         }
         
         if (level[sink] == numeric_limits<size_t>::max()) {
+#ifdef debug_max_flow
+            cerr << "terminating flow computation, identifying cut edges" << endl;
+#endif
             // we're done, now find the edges that cross the reachability boundary
             // are the cut
             for (size_t i = 0; i < level_graph.size(); ++i) {
                 bool reachable = level[i] != numeric_limits<size_t>::max();
                 for (auto& edge : level_graph[i]) {
                     if (reachable != (level[edge.first] != numeric_limits<size_t>::max())) {
+#ifdef debug_max_flow
+                        cerr << "\t" << edge.second << "-th edge is a cut edge" << endl;
+#endif
                         cut_edges.emplace_back(edge.second);
                     }
                 }
             }
             break;
         }
+        
+#ifdef debug_max_flow
+        cerr << "pruning non-level-increasing edges" << endl;
+#endif
         
         // remove edges that don't increase in level
         for (size_t i = 0; i < level_graph.size(); ++i) {
@@ -792,6 +840,10 @@ vector<size_t> GaloisLattice::separator() const {
             }
         }
         
+#ifdef debug_max_flow
+        cerr << "looking for augmenting paths" << endl;
+#endif
+        
         // do a pruning DFS through the level graph
         vector<size_t> stack(1, source);
         while (!stack.empty()) {
@@ -799,6 +851,15 @@ vector<size_t> GaloisLattice::separator() const {
             if (top == sink) {
                 // the stack represents an augmenting path, flip the edges' used status
                 // and remove them from the graph
+#ifdef debug_max_flow
+                cerr << "found augmenting path" << endl;
+                for (auto i : stack) {
+                    cerr << "\t" << i << endl;
+                    if (i != sink) {
+                        cerr << "\t" << (flow_through[level_graph[i].back().second] ? "-" : "+") << endl;
+                    }
+                }
+#endif
                 for (size_t i = 0, end = stack.size() - 1; i < end; ++i) {
                     auto& edges = level_graph[stack[i]];
                     auto edge = edges.back();
@@ -824,6 +885,10 @@ vector<size_t> GaloisLattice::separator() const {
         }
     }
     
+#ifdef debug_max_flow
+    cerr << "translating menger edges into nodes" << endl;
+#endif
+    
     // TODO: could i do the translation in the breakout condition above?
     
     // convert the cut edges in the Menger graph into into the corresponding
@@ -834,6 +899,7 @@ vector<size_t> GaloisLattice::separator() const {
         auto& edges = menger_graph[i];
         for (size_t j = 0; j < edges.size() && cut_idx < cut_edges.size(); ++j, ++edge_idx) {
             if (edge_idx == cut_edges[cut_idx]) {
+
                 if (i == source) {
                     // when an edge from a source is identified as at cut edge,
                     // it's actually the following across-the-node edge that we
@@ -843,9 +909,19 @@ vector<size_t> GaloisLattice::separator() const {
                 else {
                     return_val[cut_idx] = i / 2;
                 }
+#ifdef debug_max_flow
+                cerr << "\t" <<  edge_idx << "-th edge " << i << " -> " << j << " corresponds to node " << return_val[cut_idx] << endl;
+#endif
+                ++cut_idx;
             }
         }
     }
+#ifdef debug_max_flow
+    cerr << "finished separator:" << endl;
+    for (size_t i : return_val) {
+        cerr << "\t" << i << endl;
+    }
+#endif
     return return_val;
 }
 
