@@ -57,7 +57,7 @@ unordered_map<edge_t,Alignment>::iterator OverlapMap::canonicalize_and_find(edge
 }
 
 
-void OverlapMap::canonicalize_and_compute_lengths(pair<uint64_t,uint64_t>& lengths, edge_t& edge, const HandleGraph& graph){
+void OverlapMap::canonicalize_and_compute_lengths(pair<size_t,size_t>& lengths, edge_t& edge, const HandleGraph& graph){
     auto iter = canonicalize_and_find(edge, graph);
     iter->second.compute_lengths(lengths);
 }

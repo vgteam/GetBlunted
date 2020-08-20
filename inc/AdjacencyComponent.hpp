@@ -2,7 +2,7 @@
 #define BLUNTIFIER_ADJACENCY_COMPONENTS_HPP
 
 /**
- * \file adjacency_components.hpp
+ * \file AdjacencyComponent.hpp
  *
  * Defines algorithms for identifying and manipulating components
  * of node side adjacencies.
@@ -21,7 +21,8 @@
 #include "handlegraph/handle_graph.hpp"
 #include "handlegraph/util.hpp"
 #include "handlegraph/types.hpp"
-#include "subtractive_graph.hpp"
+#include "SubtractiveHandleGraph.hpp"
+#include "BipartiteGraph.hpp"
 #include "utility.hpp"
 
 namespace bluntifier {
@@ -52,9 +53,6 @@ vector<AdjacencyComponent> adjacency_components(const HandleGraph& graph);
 class AdjacencyComponent {
 public:
     
-    // a division of the node sides of the adjacency component into two
-    // sets (even if the graph is not necessary bipartite)
-    using bipartition = pair<unordered_set<handle_t>, unordered_set<handle_t>>;
     // iterator over the node sides of the component
     using const_iterator = vector<handle_t>::const_iterator;
     
@@ -72,18 +70,14 @@ public:
                                 const function<bool(handle_t)>& lambda) const;
     
     const_iterator begin() const;
-    
     const_iterator end() const;
-    
     size_t size() const;
-    
     bool empty() const;
     
     // iterate through pairs of subgraphs and bipartitions that have the following properties:
     // - each edge in this adjacency component occurs in exactly one subgraph
-    // - each subgraphs's edges are a subset of the parent graph's edges
-    // - every subgraph is bipartite with respect to the paired bipartition
-    void decompose_into_bipartite_blocks(const function<void(const HandleGraph&,const bipartition&)>& lambda) const;
+    // - every subgraph is bipartite
+    void decompose_into_bipartite_blocks(const function<void(const BipartiteGraph&)>& lambda) const;
     
     
     
@@ -128,7 +122,7 @@ private:
 template<typename SideIter>
 AdjacencyComponent::AdjacencyComponent(const HandleGraph& graph,
                                        SideIter begin, SideIter end)
-    : graph(&graph), component(begin, end)
+    : component(begin, end), graph(&graph)
 {
     // to remove any system dependent behavior due to ordering
     sort(component.begin(), component.end());

@@ -1,9 +1,9 @@
 /**
- * \file subtractive_subgraph.cpp: contains the implementation of SubtractiveHandleGraph
+ * \file SubtractiveHandleGraph.cpp: contains the implementation of SubtractiveHandleGraph
  */
 
 
-#include "subtractive_graph.hpp"
+#include "SubtractiveHandleGraph.hpp"
 
 #include <atomic>
 
@@ -65,7 +65,7 @@ bool SubtractiveHandleGraph::follow_edges_impl(const handle_t& handle, bool go_l
 
 bool SubtractiveHandleGraph::for_each_handle_impl(const function<bool(const handle_t&)>& iteratee,
                                                   bool parallel) const {
-    super->for_each_handle(iteratee, parallel);
+    return super->for_each_handle(iteratee, parallel);
 }
 
 size_t SubtractiveHandleGraph::get_node_count() const {
