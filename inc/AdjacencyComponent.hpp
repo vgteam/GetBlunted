@@ -2,7 +2,7 @@
 #define BLUNTIFIER_ADJACENCY_COMPONENTS_HPP
 
 /**
- * \file adjacenceComponent.hpp
+ * \file AdjacencyComponent.hpp
  *
  * Defines algorithms for identifying and manipulating components
  * of node side adjacencies.

@@ -1,7 +1,7 @@
 /**
- * \file BicliqueCover.cpp
+ * \file BipartiteGraph.cpp
  *
- * Implements algorithm for computing the biclique cover of a bipartite graph.
+ * Implements bipartite graph
  */
 #include "BipartiteGraph.hpp"
 
