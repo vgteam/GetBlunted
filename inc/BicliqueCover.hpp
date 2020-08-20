@@ -28,8 +28,6 @@ using std::unordered_map;
 using std::function;
 using handlegraph::HandleGraph;
 
-class GaloisLattice;
-
 /*
  * Represents an instance of the minimum biclique cover problem for a
  * bipartite subgraph of a larger graph
@@ -48,24 +46,15 @@ public:
     // subset of the nodes
     vector<bipartition> get() const;
     
-    // lambda returns true if iteration should continue. function returns
-    // true if iteration was not stopped early by lambda.
-    // TODO: redundant with adjacency component
-    bool for_each_adjacent_side(const handle_t& side,
-                                const function<bool(handle_t)>& lambda) const;
-    
 private:
     
-    // Amilhastre, et al. 1998, algorithm 1
-    void simplify_side(const vector<handle_t>& simplifying_side,
-                       SubtractiveHandleGraph& simplifying) const;
+    // convert biclique cover for a simplified graph into cover
+    // for the original graph (using procecure described in proof
+    // of property 4.2 in Amilhastre, et al. 1998)
+    void unsimplify(vector<bipartition>& simplified_cover,
+                    const vector<pair<handle_t, vector<handle_t>>>& simplifications) const;
     
-    // Amilhastre, et al. 1998, algorithm 2. remove edges without affecting
-    // the size of the biclique cover
-    SubtractiveHandleGraph simplify() const;
-    
-    vector<bipartition> domino_free_cover() const;
-    
+    // Ene, et al. (2008) algorithm
     vector<bipartition> heuristic_cover() const;
         
     const BipartiteGraph& graph;
@@ -75,7 +64,7 @@ private:
 
 /*
  * Represents the quotient graph of two-hop subgraph starting at a center
- * node over the equivalence relationship of having the same neighborhood
+ * node over the equivalence relation of having the same neighborhood
  * (applied to nodes on the same side as the center)
  */
 class CenteredGaloisTree {
@@ -83,11 +72,12 @@ public:
     
     class edge_iterator;
     
+    // Amilhastre, et al (1998) algorithm 3
     CenteredGaloisTree(const BipartiteGraph& cover, handle_t center);
     CenteredGaloisTree() = delete;
     ~CenteredGaloisTree() = default;
     
-    // Amilhastre, et al (1998) algorithm 3
+    // true if this tree is consistent with a domino-free graph
     bool has_neighbor_ordering_property() const;
     
     // returns the number of maximal bicliques
@@ -164,8 +154,8 @@ public:
     // domino-free
     bool is_domino_free() const;
     
-    // if the graph is domino-free, return the minimum biclique cover
-    vector<bipartition> biclique_cover() const;
+    // if the graph is domino-free and simple, returns the biclique cover
+    vector<bipartition> biclique_separator() const;
     
 private:
     

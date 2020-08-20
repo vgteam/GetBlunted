@@ -24,16 +24,24 @@ BicliqueCover::~BicliqueCover() {
 }
 
 vector<bipartition> BicliqueCover::get() const {
+    
     vector<bipartition> return_val;
+    
     size_t edge_count = 0;
     for (auto it = graph.left_begin(), end = graph.left_end(); it != end; ++it) {
         edge_count += graph.get_degree(*it);
     }
-    // TODO: magic number
+    // TODO: magic number (2^16)
     if (edge_count * (graph.left_size() + graph.right_size()) <= 65536) {
         // compute the biclique cover on the simplified graph using the algorithm
         // of Amilhastre, et al. 1998
-        return_val = domino_free_cover();
+        vector<pair<handle_t, vector<handle_t>>> simplifications;
+        BipartiteGraph simplified = graph.simplify(simplifications);
+        GaloisLattice galois_lattice(simplified);
+        if (galois_lattice.is_domino_free()) {
+            return_val = galois_lattice.biclique_separator();
+            unsimplify(return_val, simplifications);
+        }
     }
     
     if (return_val.empty()){
@@ -41,6 +49,49 @@ vector<bipartition> BicliqueCover::get() const {
         return_val = heuristic_cover();
     }
     return return_val;
+}
+
+void BicliqueCover::unsimplify(vector<bipartition>& simplified_cover,
+                               const vector<pair<handle_t, vector<handle_t>>>& simplifications) const {
+    
+    unordered_map<handle_t, unordered_set<size_t>> left_clique_membership, right_clique_membership;
+    
+    for (size_t i = 0; i < simplified_cover.size(); ++i) {
+        for (auto side : simplified_cover[i].first) {
+            left_clique_membership[side].insert(i);
+        }
+        for (auto side : simplified_cover[i].second) {
+            right_clique_membership[side].insert(i);
+        }
+    }
+    
+    // undo the simplifications in reverse order
+    for (auto rit = simplifications.rbegin(); rit != simplifications.rend(); ++rit) {
+        auto it = left_clique_membership.find(rit->first);
+        if (it != left_clique_membership.end()) {
+            // simplification is on the left side
+            for (size_t biclique_idx : it->second) {
+                for (handle_t side : rit->second) {
+                    simplified_cover[biclique_idx].first.insert(side);
+                    left_clique_membership[side].insert(biclique_idx);
+                }
+            }
+        }
+        else {
+            // simplification is on the right side
+            for (size_t biclique_idx : right_clique_membership[rit->first]) {
+                for (handle_t side : rit->second) {
+                    simplified_cover[biclique_idx].second.insert(side);
+                    right_clique_membership[side].insert(biclique_idx);
+                }
+            }
+        }
+    }
+}
+
+vector<bipartition> BicliqueCover::heuristic_cover() const {
+    // TODO
+    return vector<bipartition>();
 }
 
 CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
@@ -368,151 +419,6 @@ bipartition CenteredGaloisTree::biclique(size_t i) const {
     return return_val;
 }
 
-SubtractiveHandleGraph BicliqueCover::simplify() const {
-    SubtractiveHandleGraph simplified(graph.get_graph());
-    simplify_side(graph.bipartition().first, simplified);
-    simplify_side(graph.bipartition().second, simplified);
-    return simplified;
-}
-
-vector<bipartition> BicliqueCover::domino_free_cover() const {
-    // simplify the graph without affecting the biclique cover (Amilhastre, et al.
-    // 1998 algorithm 2).
-    SubtractiveHandleGraph simplified = simplify();
-    BipartiteGraph bigraph_simplified(simplified, graph.bipartition());
-    GaloisLattice galois_lattice(bigraph_simplified);
-    return galois_lattice.biclique_cover();
-}
-
-vector<bipartition> BicliqueCover::heuristic_cover() const {
-    // TODO
-    return vector<bipartition>();
-}
-
-void BicliqueCover::simplify_side(const vector<handle_t>& simplifying_partition,
-                                  SubtractiveHandleGraph& simplifying) const {
-    
-    const HandleGraph& raw_graph = graph.get_graph();
-        
-    // matrix of successors (succ(u) in Amilhastre)
-    vector<vector<bool>> successor;
-    successor.reserve(simplifying_partition.size());
-    for (size_t i = 0; i < simplifying_partition.size(); ++i) {
-        successor.emplace_back(simplifying_partition.size(), false);
-    }
-    // keeps track how many successors a node has (and thereby also if it
-    // has successors, i.e. LI in Amilhastre)
-    vector<size_t> num_successors(simplifying_partition.size(), 0);
-    
-    // the degree of each node
-    vector<size_t> degree(simplifying_partition.size());
-    // number of nodes in Nbd(i) \ Nbd(j)  (Delta(u,v) in Amilhastre)
-    vector<vector<uint64_t>> neighbor_delta;
-    
-    // initialize the data structures above
-    for (size_t i = 0; i < simplifying_partition.size(); ++i) {
-        
-        // get the neighborhood of i
-        unordered_set<handle_t> neighborhood;
-        raw_graph.follow_edges(simplifying_partition[i], false, [&](const handle_t& nbr) {
-            neighborhood.insert(nbr);
-        });
-        degree[i] = neighborhood.size();
-        
-        // the size of this set difference starts at the degree
-        neighbor_delta.emplace_back(simplifying_partition.size(), neighborhood.size());
-        for (size_t j = 0; j < simplifying_partition.size(); ++j) {
-            if (i == j) {
-                // it's pointless to compare i to itself
-                continue;
-            }
-            // subtract from the size of the set difference of the neighborhoods for
-            // each node that these have in common
-            raw_graph.follow_edges(simplifying_partition[j], false, [&](const handle_t& nbr) {
-                if (neighborhood.count(nbr)) {
-                    --neighbor_delta[i][j];
-                }
-            });
-            
-            if (neighbor_delta[i][j] == 0) {
-                // the neighborhood of i is constained in the neighborhood of j, so the
-                // containment preorder applies here
-                successor[i][j] = true;
-                ++num_successors[i];
-            }
-        }
-    }
-    
-    // TODO: there should be a more efficient way to do this in a system-independent
-    // manner with a queue, but i think it doesn't affect the asymptotic run time
-    
-    // now we will start removing edges to simplify the graph
-    bool fully_simplified = false;
-    while (!fully_simplified)  {
-        fully_simplified = true;
-        
-        // look for a simplification
-        for (size_t i = 0; i < num_successors.size() && fully_simplified; ++i) {
-            if (num_successors[i] == 0) {
-                // we want to find a node with successors
-                continue;
-            }
-            fully_simplified = false;
-            // find the next successor
-            for (size_t j = 0; j < simplifying_partition.size(); ++j) {
-                if (!successor[i][j]) {
-                    continue;
-                }
-                // we've found a successor of i, remove the edges in j that go to
-                // neighbors of i
-                simplifying.follow_edges(simplifying_partition[i], false, [&](const handle_t& nbr) {
-                    
-                    simplifying.subtract_edge(simplifying_partition[j], nbr);
-                    --degree[j];
-                    
-                    // update the state tracking variables
-                    
-                    // collect the neighbors of the other side of this edge
-                    unordered_set<handle_t> nbr_nbrs;
-                    simplifying.follow_edges(nbr, true, [&](const handle_t& nbr_nbr) {
-                        nbr_nbrs.insert(nbr_nbr);
-                    });
-                    
-                    for (size_t k = 0; k < simplifying_partition.size(); ++k) {
-                        // there's now one less edge in j's neighborhood
-                        --neighbor_delta[j][k];
-                        
-                        if (nbr_nbrs.count(simplifying_partition[k])) {
-                            // this is a neighbor of i and j's neighbor whose edge we just removed
-                            
-                            // there's now one more element in k's neighborhood being
-                            // removed by the set difference with j's neighborhood
-                            ++neighbor_delta[k][j];
-                            if (num_successors[k] > 0) {
-                                if (successor[k][j]) {
-                                    // j can no longer be a successor of k because we took
-                                    // away a neighbor from j that they shared
-                                    successor[k][j] = false;
-                                    --num_successors[k];
-                                }
-                            }
-                        }
-                        
-                        if (neighbor_delta[j][k] == 0 && degree[j] > 0) {
-                            // j's neighbors are now a subset of k's neighbors
-                            if (!successor[k][j]) {
-                                successor[k][j] = true;
-                                ++num_successors[k];
-                            }
-                        }
-                    }
-                });
-            }
-            //has_successor[i] = false;
-        }
-    }
-}
-
 GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
     
     // algorithm 4 in Amilhastre
@@ -692,7 +598,7 @@ GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
     lattice.emplace_back();
 }
 
-vector<bipartition> GaloisLattice::biclique_cover() const {
+vector<bipartition> GaloisLattice::biclique_separator() const {
     // identify a separator in the lattice and use the Galois trees
     // to convert each node into the corresponding maximal biclique
     if (!is_domino_free()) {
