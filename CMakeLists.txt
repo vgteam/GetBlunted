@@ -41,6 +41,7 @@ set(SOURCES
 	src/BipartiteGraph.cpp
         src/Cigar.cpp
         src/find_tips.cpp
+	src/GaloisLattice.cpp
         src/gfa_to_handle.cpp
         src/IncrementalIdMap.cpp
         src/is_single_stranded.cpp
@@ -128,6 +129,8 @@ ExternalProject_Add(project_gfak
         BUILD_IN_SOURCE True
         INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/gfak/
         INSTALL_COMMAND make PREFIX=${CMAKE_SOURCE_DIR}/external/gfak/ install
+	DOWNLOAD_COMMAND ""
+        UPDATE_COMMAND ""
         )
 
 # Define INSTALL_DIR as the install directory for external library

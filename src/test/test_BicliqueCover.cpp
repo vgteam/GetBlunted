@@ -7,8 +7,6 @@
 #include "bdsg/hash_graph.hpp"
 #include "BicliqueCover.hpp"
 
-using bluntifier::adjacency_components;
-using bluntifier::AdjacencyComponent;
 using bluntifier::bipartition;
 using bluntifier::ordered_bipartition;
 using bluntifier::BipartiteGraph;
