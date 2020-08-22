@@ -66,7 +66,8 @@ private:
     
     vector<size_t> reduced_clique_partition(bool& is_exact_out);
     
-    // use Lawler's (1976) algorithm using Tsukiyama's, et al. (1977) to
+    // TODO: implement
+    // use Lawler's (1976) algorithm with Tsukiyama's, et al. (1977) to
     // list maximal independent sets
     vector<size_t> vertex_coloring_exact(vector<vector<size_t>>& complement_graph) const;
     
