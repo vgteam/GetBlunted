@@ -486,7 +486,7 @@ int main(){
         graph.create_edge(h1, h3);
         
         bipartition partition({h0, h1},
-                              {graph.flip(h2), graph.flip(h3),});
+                              {graph.flip(h2), graph.flip(h3)});
         
         BipartiteGraph bigraph(graph, partition);
         
@@ -506,7 +506,44 @@ int main(){
         if (!verify_biclique_cover(cover, partition, bigraph)) {
             return 1;
         }
+    }
+    
+    // the dual graph produces a correct biclique cover on an
+    // irreducible graph
+    {
+        HashGraph graph;
         
+        handle_t h0 = graph.create_handle("A");
+        handle_t h1 = graph.create_handle("A");
+        handle_t h2 = graph.create_handle("A");
+        handle_t h3 = graph.create_handle("A");
+        handle_t h4 = graph.create_handle("A");
+        handle_t h5 = graph.create_handle("A");
+        
+        graph.create_edge(h0, h3);
+        graph.create_edge(h0, h5);
+        graph.create_edge(h1, h3);
+        graph.create_edge(h1, h4);
+        graph.create_edge(h2, h4);
+        graph.create_edge(h2, h5);
+        
+        bipartition partition({h0, h1, h2},
+                              {graph.flip(h3), graph.flip(h4), graph.flip(h5)});
+        
+        BipartiteGraph bigraph(graph, partition);
+        
+        ReducedDualGraph dual(bigraph);
+        
+        bool is_exact;
+        auto cover = dual.biclique_cover(is_exact);
+        
+        if (cover.size() != 3) {
+            return 1;
+        }
+        
+        if (!verify_biclique_cover(cover, partition, bigraph)) {
+            return 1;
+        }
         
 //        for (auto bc : cover) {
 //            cerr << "covering biclique:" << endl;

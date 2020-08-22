@@ -9,12 +9,10 @@
 
 namespace bluntifier {
 
-using std::stable_sort;
-using std::make_heap;
-using std::pop_heap;
 using std::numeric_limits;
 using std::make_pair;
 using std::max_element;
+using std::remove_if;
 using std::endl;
 using std::cerr;
 
@@ -65,13 +63,17 @@ void ReducedDualGraph::dual_neighborhood_do(size_t i, vector<bool>& is_left_neig
     if (left_edges[dual_node.first].size() * right_edges[dual_node.second].size() < reduced_size()) {
         // it is faster to iterate over pairs of nodes in the non-dual neighborhood
         
+#ifdef debug_dual_graph
+        cerr << "finding neighborhood of " << i << " using non-dual method" << endl;
+#endif
+        
         for (size_t j : left_edges[dual_node.first]) {
             size_t k = edge_to_dual_node[make_pair(dual_node.first, j)];
             is_dual_neighbor[k] = true;
             dual_neighborhood.push_back(k);
         }
         for (size_t j : right_edges[dual_node.second]) {
-            size_t k = edge_to_dual_node[make_pair(dual_node.first, j)];
+            size_t k = edge_to_dual_node[make_pair(j, dual_node.second)];
             if (!is_dual_neighbor[k]) {
                 is_dual_neighbor[k] = true;
                 dual_neighborhood.push_back(k);
@@ -93,6 +95,10 @@ void ReducedDualGraph::dual_neighborhood_do(size_t i, vector<bool>& is_left_neig
     }
     else {
         // it is faster to iterate over dual nodes
+        
+#ifdef debug_dual_graph
+        cerr << "finding neighborhood of " << i << " using dual method" << endl;
+#endif
         
         // record which nodes are adjacent to the endpoints of the edge
         for (size_t j : left_edges[dual_node.first]) {
@@ -125,7 +131,7 @@ void ReducedDualGraph::dual_neighborhood_do(size_t i, vector<bool>& is_left_neig
     // execute on the neighborhood
     lambda(dual_neighborhood);
     
-    // reset the dual neighor status
+    // reset the dual neighbor status
     for (size_t j : dual_neighborhood) {
         is_dual_neighbor[j] = false;
     }
@@ -293,7 +299,7 @@ vector<size_t> ReducedDualGraph::reduced_clique_partition(bool& is_exact_out) {
     vector<bool> is_right_neighbor(right_edges.size(), false);
     vector<bool> is_dual_neighbor(reduced_size(), false);
     
-    vector<vector<size_t>> complement_graph;
+    vector<vector<size_t>> complement_graph(reduced_size());
     for (size_t i = 0; i < reduced_size(); ++i) {
         dual_neighborhood_do(i, is_left_neighbor, is_right_neighbor, is_dual_neighbor,
                              [&](const vector<size_t>& dual_neighborhood) {
@@ -306,6 +312,17 @@ vector<size_t> ReducedDualGraph::reduced_clique_partition(bool& is_exact_out) {
             }
         });
     }
+    
+#ifdef debug_dual_graph
+    cerr << "complement graph:" << endl;
+    for (size_t i = 0; i < complement_graph.size(); ++i) {
+        cerr << "\t" << i << ":";
+        for (auto j : complement_graph[i]) {
+            cerr << " " << j;
+        }
+        cerr << endl;
+    }
+#endif
     
     // compute a vertex coloring of the complement graph
     // TODO: implement toggle between exact and apx algorithm depending on size
@@ -334,36 +351,52 @@ vector<size_t> ReducedDualGraph::vertex_coloring_exact(vector<vector<size_t>>& c
 }
 
 vector<size_t> ReducedDualGraph::vertex_coloring_apx(vector<vector<size_t>>& complement_graph) const {
-
     
-    // sort in descending degree order
-    vector<size_t> ordering(complement_graph.size(), 0);
-    stable_sort(ordering.begin(), ordering.end(), [&](size_t i, size_t j) {
-        return complement_graph[i].size() > complement_graph[j].size();
-    });
-    
-    // set up a comparator based on the ordering
-    vector<size_t> index(complement_graph.size());
-    for (size_t i = 0; i < index.size(); ++i) {
-        index[ordering[i]] = i;
+    // aggregate by degree
+    vector<vector<size_t>> degree_sets;
+    for (size_t i = 0; i < complement_graph.size(); ++i) {
+        size_t degree = complement_graph[i].size();
+        while (degree_sets.size() <= degree) {
+            degree_sets.emplace_back();
+        }
+        degree_sets[degree].push_back(i);
     }
-    auto cmp = [&](size_t i, size_t j) {
-        return index[i] > index[j];
-    };
-
+    
+    // convert the degree sets into an ordering and an index lookup
+    // descending by degree
+    vector<size_t> ordering(complement_graph.size());
+    vector<size_t> index(complement_graph.size());
+    for (size_t ordering_idx = 0, i = degree_sets.size(); i > 0; --i) {
+        auto& degree_set = degree_sets[i - 1];
+        for (size_t j = 0; j < degree_set.size(); ++j, ++ordering_idx) {
+            ordering[ordering_idx] = degree_set[j];
+            index[degree_set[j]] = ordering_idx;
+        }
+    }
+    
+#ifdef debug_dual_graph
+    cerr << "degree ordering:" << endl;
+    for (auto i : ordering) {
+        cerr << "\t" << i << endl;
+    }
+#endif
+    
     vector<size_t> coloring(complement_graph.size());
     vector<bool> color_used;
     for (size_t i : ordering) {
         
-        auto& adj_list = complement_graph[i];
+#ifdef debug_dual_graph
+        cerr << "assigning color to " << i << endl;
+#endif
         
         // mark the colors of the predecessor neighbors used
-        auto end = adj_list.end();
-        make_heap(adj_list.begin(), end, cmp);
-        while (adj_list.begin() != end && index[adj_list.front()] < index[i]) {
-            color_used[coloring[adj_list.front()]] = true;
-            pop_heap(adj_list.begin(), end, cmp);
-            --end;
+        for (auto j : complement_graph[i]) {
+            if (index[j] < index[i]) {
+#ifdef debug_dual_graph
+                cerr << "\tpredecessor " << j << " has color " << coloring[j] << endl;
+#endif
+                color_used[coloring[j]] = true;
+            }
         }
         
         // find the lowest valued unused color
@@ -371,6 +404,9 @@ vector<size_t> ReducedDualGraph::vertex_coloring_apx(vector<vector<size_t>>& com
         for (size_t j = 0; j < color_used.size(); ++j) {
             if (!color_used[j]) {
                 color = j;
+#ifdef debug_dual_graph
+                cerr << "assigning previous color " << color << endl;
+#endif
                 break;
             }
         }
@@ -379,13 +415,18 @@ vector<size_t> ReducedDualGraph::vertex_coloring_apx(vector<vector<size_t>>& com
             // all of the colors are already used, we need a new color
             color = color_used.size();
             color_used.emplace_back(false);
+#ifdef debug_dual_graph
+            cerr << "assigning new color " << color << endl;
+#endif
         }
         
         coloring[i] = color;
         
         // reset the used status for the neighbor's colors
-        for (auto it = end; it != adj_list.end(); ++it) {
-            color_used[coloring[*it]] = false;
+        for (auto j : complement_graph[i]) {
+            if (index[j] < index[i]) {
+                color_used[j] = false;
+            }
         }
     }
     
