@@ -27,6 +27,7 @@ vector<bipartition> BicliqueCover::get() const {
     
     vector<bipartition> return_val;
 
+    // attempt the exact solution for domino-free graphs
     vector<pair<handle_t, vector<handle_t>>> simplifications;
     BipartiteGraph simplified = graph.simplify(simplifications);
     GaloisLattice galois_lattice(simplified);
@@ -47,7 +48,7 @@ vector<bipartition> BicliqueCover::get() const {
             // locally improve both heuristic solutions
             lattice_polish(alt_cover);
             lattice_polish(return_val);
-            // choose the smallest solution as the final result
+            // choose the smallest heuristic solution as the final result
             if (return_val.empty() || alt_cover.size() < return_val.size()) {
                 return_val = move(alt_cover);
             }

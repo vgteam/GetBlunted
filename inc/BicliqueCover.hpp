@@ -49,10 +49,11 @@ public:
     
     
     
-    
+    // TODO: implement
     // use Ene's, et al. (2008) fast heuristic
     vector<bipartition> biclique_cover_apx() const;
     
+    // TODO: implement
     // use Ene's, et al. (2008) lattice-based post-processing for an
     // approximate solution
     void lattice_polish(vector<bipartition>& biclique_cover) const;

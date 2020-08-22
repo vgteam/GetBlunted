@@ -15,8 +15,7 @@
 
 #include "handlegraph/types.hpp"
 #include "BipartiteGraph.hpp"
-#include "GaloisLattice.hpp"
-#include "GaloisLattice.hpp"
+#include "utility.hpp"
 
 namespace bluntifier {
 

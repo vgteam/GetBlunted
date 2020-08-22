@@ -13,6 +13,7 @@ using bluntifier::BipartiteGraph;
 using bluntifier::GaloisLattice;
 using bluntifier::CenteredGaloisTree;
 using bluntifier::BicliqueCover;
+using bluntifier::ReducedDualGraph;
 
 using bdsg::HashGraph;
 using handlegraph::handle_t;
@@ -25,6 +26,42 @@ using std::endl;
 using std::function;
 using std::pair;
 
+
+bool verify_biclique_cover(const vector<bipartition>& cover,
+                           const bipartition& partition,
+                           const BipartiteGraph& bigraph) {
+    bool complete = true;
+    for (auto side : partition.first) {
+        bigraph.for_each_adjacent_side(side, [&](handle_t adj) {
+            bool found = false;
+            for (auto& biclique : cover) {
+                if (biclique.first.count(side) && biclique.second.count(adj)) {
+                    found = true;
+                }
+            }
+            if (!found) {
+                complete = false;
+            }
+        });
+    }
+    bool consistent = true;
+    for (auto& biclique : cover) {
+        for (auto side : biclique.first) {
+            bool found = false;
+            for (auto other_side : biclique.second) {
+                bigraph.for_each_adjacent_side(side, [&](handle_t adj) {
+                    if (adj == other_side) {
+                        found = true;
+                    }
+                });
+            }
+            if (!found) {
+                consistent = false;
+            }
+        }
+    }
+    return consistent && complete;
+}
 
 int main(){
         
@@ -429,42 +466,47 @@ int main(){
             return 1;
         }
         
-        bool complete = true;
-        for (auto side : partition.first) {
-            bigraph.for_each_adjacent_side(side, [&](handle_t adj) {
-                bool found = false;
-                for (auto& biclique : cover) {
-                    if (biclique.first.count(side) && biclique.second.count(adj)) {
-                        found = true;
-                    }
-                }
-                if (!found) {
-                    complete = false;
-                }
-            });
-        }
-        if (!complete) {
+        if (!verify_biclique_cover(cover, partition, bigraph)) {
             return 1;
         }
-        bool consistent = true;
-        for (auto& biclique : cover) {
-            for (auto side : biclique.first) {
-                bool found = false;
-                for (auto other_side : biclique.second) {
-                    bigraph.for_each_adjacent_side(side, [&](handle_t adj) {
-                        if (adj == other_side) {
-                            found = true;
-                        }
-                    });
-                }
-                if (!found) {
-                    consistent = false;
-                }
-            }
-        }
-        if (!consistent) {
+    }
+    
+    // the dual graph produces the correct answer on a graph it can
+    // completely decompose
+    {
+        HashGraph graph;
+        
+        handle_t h0 = graph.create_handle("A");
+        handle_t h1 = graph.create_handle("A");
+        handle_t h2 = graph.create_handle("A");
+        handle_t h3 = graph.create_handle("A");
+        
+        graph.create_edge(h0, h2);
+        graph.create_edge(h1, h2);
+        graph.create_edge(h1, h3);
+        
+        bipartition partition({h0, h1},
+                              {graph.flip(h2), graph.flip(h3),});
+        
+        BipartiteGraph bigraph(graph, partition);
+        
+        ReducedDualGraph dual(bigraph);
+        
+        bool is_exact;
+        auto cover = dual.biclique_cover(is_exact);
+        
+        if (!is_exact) {
             return 1;
         }
+        
+        if (cover.size() != 2) {
+            return 1;
+        }
+        
+        if (!verify_biclique_cover(cover, partition, bigraph)) {
+            return 1;
+        }
+        
         
 //        for (auto bc : cover) {
 //            cerr << "covering biclique:" << endl;

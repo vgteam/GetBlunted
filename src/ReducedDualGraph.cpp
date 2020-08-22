@@ -5,7 +5,8 @@
  */
 #include "ReducedDualGraph.hpp"
 
- 
+//#define debug_dual_graph
+
 namespace bluntifier {
 
 using std::stable_sort;
@@ -14,13 +15,21 @@ using std::pop_heap;
 using std::numeric_limits;
 using std::make_pair;
 using std::max_element;
+using std::endl;
+using std::cerr;
 
 ReducedDualGraph::ReducedDualGraph(const BipartiteGraph& graph) : graph(&graph) {
+    
+#ifdef debug_dual_graph
+    cerr << "constructing dual graph" << endl;
+#endif
     
     // make a local, mutable copy of the bipartite graph and init
     // the dual nodes (which correspond to edges)
     left_edges.resize(graph.left_size());
+    left_edge_index.resize(graph.left_size());
     right_edges.resize(graph.right_size());
+    right_edge_index.resize(graph.right_size());
     for (size_t i = 0; i < left_edges.size(); ++i) {
         left_edges[i].reserve(graph.get_degree(*(graph.left_begin() + i)));
         graph.for_each_adjacent_side(*(graph.left_begin() + i),
@@ -34,6 +43,9 @@ ReducedDualGraph::ReducedDualGraph(const BipartiteGraph& graph) : graph(&graph) 
             
             edge_to_dual_node[make_pair(i, j)] = dual_nodes.size();
             dual_nodes.emplace_back(i, j);
+#ifdef debug_dual_graph
+            cerr << "\tdual node " << dual_nodes.size() - 1 << " for edge " << i << " " << j << " (" << graph.get_graph().get_id(*(graph.left_begin() + i)) << " " << graph.get_graph().get_id(adj) << ")" << endl;
+#endif
         });
     }
     
@@ -140,14 +152,32 @@ void ReducedDualGraph::do_reduction(size_t i, size_t dominatee) {
     // move the dual node to the back
     size_t unreduced_back = reduced_size() - 1;
     swap(dual_node, dual_nodes[unreduced_back]);
-    edge_to_dual_node[dual_node] = unreduced_back;
     edge_to_dual_node[dual_nodes[i]] = i;
         
     // record the reduction
     reductions.emplace_back(i, dominatee);
+    
+#ifdef debug_dual_graph
+    cerr << "reduced away " << i << " (" << dual_node.first << " " << dual_node.second << ") ";
+    if (dominatee == numeric_limits<size_t>::max()) {
+        cerr << "as isolated node";
+    }
+    else {
+        cerr << "as dominator of " << dominatee;
+    }
+    cerr << ", dual node " << unreduced_back << " (" << dual_nodes[i].first << " " << dual_nodes[i].second << ") moved to position " << i << endl;
+    cerr << "remaining dual nodes:" << endl;
+    for (size_t i = 0; i < reduced_size(); ++i) {
+        cerr << "\t" << i << ": " << dual_nodes[i].first << " " << dual_nodes[i].second << endl;
+    }
+#endif
 }
 
 void ReducedDualGraph::reduce() {
+    
+#ifdef debug_dual_graph
+    cerr << "reducing dual graph" << endl;
+#endif
     
     // TODO: implement a bail out to avoid worst case O(VE^3) run time?
     
@@ -234,6 +264,9 @@ void ReducedDualGraph::reduce() {
             }
         }
     }
+#ifdef debug_dual_graph
+    cerr << "finished reducing graph" << endl;
+#endif
 }
 
 size_t ReducedDualGraph::reduced_size() const {
@@ -244,9 +277,16 @@ vector<size_t> ReducedDualGraph::reduced_clique_partition(bool& is_exact_out) {
     
     vector<size_t> complement_coloring;
     if (reduced_size() == 0) {
+#ifdef debug_dual_graph
+        cerr << "graph is completely reduced, return trivial coloring" << endl;
+#endif
         is_exact_out = true;
         return complement_coloring;
     }
+    
+#ifdef debug_dual_graph
+    cerr << "making complement graph" << endl;
+#endif
     
     // construct the complement graph
     vector<bool> is_left_neighbor(left_edges.size(), false);
@@ -271,10 +311,16 @@ vector<size_t> ReducedDualGraph::reduced_clique_partition(bool& is_exact_out) {
     // TODO: implement toggle between exact and apx algorithm depending on size
     // once exact is implemented
     if (false) {
+#ifdef debug_dual_graph
+        cerr << "computing exact vertex coloring" << endl;
+#endif
         complement_coloring = vertex_coloring_exact(complement_graph);
         is_exact_out = true;
     }
     else {
+#ifdef debug_dual_graph
+        cerr << "computing approximate vertex coloring" << endl;
+#endif
         complement_coloring = vertex_coloring_apx(complement_graph);
         is_exact_out = false;
     }
@@ -348,6 +394,10 @@ vector<size_t> ReducedDualGraph::vertex_coloring_apx(vector<vector<size_t>>& com
 
 void ReducedDualGraph::reverse_reduction(vector<size_t>& reduced_partition) {
     
+#ifdef debug_dual_graph
+    cerr << "reversing reductions" << endl;
+#endif
+    
     size_t next_clique_id = 0;
     if (!reduced_partition.empty()) {
         next_clique_id = 1 + *max_element(reduced_partition.begin(), reduced_partition.end());
@@ -359,28 +409,43 @@ void ReducedDualGraph::reverse_reduction(vector<size_t>& reduced_partition) {
         
         auto reduction = reductions.back();
         reductions.pop_back();
+        size_t unreduced_back = reduced_size() - 1;
+        
+#ifdef debug_dual_graph
+        cerr << "reversing reduction " << reduction.first << " " << reduction.second << " swapping positions of " << endl;
+        cerr << "\t" << reduction.first << ": " << dual_nodes[reduction.first].first << " " << dual_nodes[reduction.first].second << endl;
+        cerr << "\t" << unreduced_back << ": " << dual_nodes[unreduced_back].first << " " << dual_nodes[unreduced_back].second << endl;
+#endif
         
         // swap the reduced node out from the back position
-        size_t unreduced_back = reduced_size() - 1;
         swap(dual_nodes[reduction.first], dual_nodes[unreduced_back]);
         reduced_partition[unreduced_back] = reduced_partition[reduction.first];
         if (reduction.second == numeric_limits<size_t>::max()) {
             // this was an isolated dual node, it gets its own new clique
             reduced_partition[reduction.first] = next_clique_id;
             ++next_clique_id;
+#ifdef debug_dual_graph
+            cerr << "assigned " << reduction.first << " to new clique " << next_clique_id - 1 << endl;
+#endif
         }
         else {
             // this was a dominator, it gets assigned to the clique of the dominatee
             reduced_partition[reduction.first] = reduced_partition[reduction.second];
+#ifdef debug_dual_graph
+            cerr << "assigned " << reduction.first << " to dominatee " << reduction.second << "'s clique " << reduced_partition[reduction.second] << endl;
+#endif
         }
     }
 }
 
 vector<bipartition> ReducedDualGraph::convert_to_biclique_cover(vector<size_t>& clique_partition) const {
     size_t num_bicliques = 1 + *max_element(clique_partition.begin(), clique_partition.end());
+#ifdef debug_dual_graph
+    cerr << "computed dual clique cover of size " << num_bicliques << ", converting to bicliques" << endl;
+#endif
     vector<bipartition> return_val(num_bicliques);
     for (size_t i = 0; i < clique_partition.size(); ++i) {
-        auto& biclique = return_val[i];
+        auto& biclique = return_val[clique_partition[i]];
         auto& dual_node = dual_nodes[i];
         biclique.first.insert(*(graph->left_begin() + dual_node.first));
         biclique.second.insert(*(graph->right_begin() + dual_node.second));
