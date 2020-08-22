@@ -26,27 +26,32 @@ BicliqueCover::~BicliqueCover() {
 vector<bipartition> BicliqueCover::get() const {
     
     vector<bipartition> return_val;
-    
-    size_t edge_count = 0;
-    for (auto it = graph.left_begin(), end = graph.left_end(); it != end; ++it) {
-        edge_count += graph.get_degree(*it);
+
+    vector<pair<handle_t, vector<handle_t>>> simplifications;
+    BipartiteGraph simplified = graph.simplify(simplifications);
+    GaloisLattice galois_lattice(simplified);
+    if (galois_lattice.is_domino_free()) {
+        // the graph is domino-free, we can compute the exact cover
+        return_val = galois_lattice.biclique_separator();
+        unsimplify(return_val, simplifications);
     }
-    // TODO: magic number (2^16)
-    if (edge_count * (graph.left_size() + graph.right_size()) <= 65536) {
-        // compute the biclique cover on the simplified graph using the algorithm
-        // of Amilhastre, et al. 1998
-        vector<pair<handle_t, vector<handle_t>>> simplifications;
-        BipartiteGraph simplified = graph.simplify(simplifications);
-        GaloisLattice galois_lattice(simplified);
-        if (galois_lattice.is_domino_free()) {
-            return_val = galois_lattice.biclique_separator();
-            unsimplify(return_val, simplifications);
+    else {
+        // the graph is not domino-free, try the reduction algorithm
+        ReducedDualGraph dual_graph(graph);
+        bool is_exact;
+        return_val = dual_graph.biclique_cover(is_exact);
+        if (!is_exact || return_val.empty()) {
+            // the reduced graph was too large to get an exact result, let's
+            // also try another heuristic
+            vector<bipartition> alt_cover = biclique_cover_apx();
+            // locally improve both heuristic solutions
+            lattice_polish(alt_cover);
+            lattice_polish(return_val);
+            // choose the smallest solution as the final result
+            if (return_val.empty() || alt_cover.size() < return_val.size()) {
+                return_val = move(alt_cover);
+            }
         }
-    }
-    
-    if (return_val.empty()){
-        // use the heuristic algorithm of Ene, et al. 2008
-        return_val = heuristic_cover();
     }
     return return_val;
 }
@@ -89,9 +94,12 @@ void BicliqueCover::unsimplify(vector<bipartition>& simplified_cover,
     }
 }
 
-vector<bipartition> BicliqueCover::heuristic_cover() const {
+void BicliqueCover::lattice_polish(vector<bipartition>& cover) const {
     // TODO
-    return vector<bipartition>();
+}
+
+vector<bipartition> BicliqueCover::biclique_cover_apx() const {
+    // TODO
 }
 
 }

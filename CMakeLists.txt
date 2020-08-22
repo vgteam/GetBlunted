@@ -46,6 +46,7 @@ set(SOURCES
         src/IncrementalIdMap.cpp
         src/is_single_stranded.cpp
         src/OverlapMap.cpp
+	src/ReducedDualGraph.cpp
         src/SubtractiveHandleGraph.cpp
         src/topological_sort.cpp
         src/utility.cpp
