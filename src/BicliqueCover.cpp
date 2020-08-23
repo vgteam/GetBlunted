@@ -15,7 +15,9 @@ using std::deque;
 using std::make_heap;
 using std::pop_heap;
 using std::push_heap;
+using std::priority_queue;
 using std::greater;
+using std::tuple;
 using std::cerr;
 using std::endl;
 
@@ -107,110 +109,108 @@ vector<bipartition> BicliqueCover::biclique_cover_apx() const {
     
     vector<bipartition> return_val;
     
-    static greater<pair<size_t, size_t>> cmp;
-    
-    // records of (remaining edge, node idx)
-    vector<pair<size_t, size_t>> queue;
-    queue.reserve(graph.left_size());
-    
-    // collect the uncovered edges (i.e. all of them, at this point) and compute
-    // the set of nodes with a given degree
-    vector<unordered_set<handle_t>> uncovered_edges_left(graph.left_size());
-    vector<unordered_set<handle_t>> uncovered_edges_right(graph.right_size());
+    // gather the edges and queue up the left side nodes based on their degree
+    vector<unordered_set<handle_t>> left_uncovered_edges(graph.left_size());
+    vector<unordered_set<handle_t>> right_uncovered_edges(graph.right_size());
+    priority_queue<tuple<size_t, size_t, bool>, vector<tuple<size_t, size_t, bool>>, greater<tuple<size_t, size_t, bool>>> queue;
     for (auto it = graph.left_begin(); it != graph.left_end(); ++it) {
-        auto& edges = uncovered_edges_left[it - graph.left_begin()];
-        graph.for_each_adjacent_side(*it, [&](handle_t side) {
-            edges.insert(side);
-            uncovered_edges_right[graph.right_iterator(side) - graph.right_begin()].insert(*it);
+        auto& left_edges = left_uncovered_edges[it - graph.left_begin()];
+        graph.for_each_adjacent_side(*it, [&](handle_t right_side) {
+            right_uncovered_edges[graph.right_iterator(right_side) - graph.right_begin()].insert(*it);
+            left_edges.insert(right_side);
         });
-        queue.emplace_back(edges.size(), it - graph.left_begin());
+        queue.emplace(left_edges.size(), it - graph.left_begin(), true);
+    }
+    for (size_t i = 0; i < right_uncovered_edges.size(); ++i) {
+        queue.emplace(right_uncovered_edges[i].size(), i, false);
     }
     
-    vector<bool> covered(graph.left_size(), false);
-    size_t num_covered = 0;
-    
-    make_heap(queue.begin(), queue.end(), cmp);
-    while ((num_covered < graph.left_size()) && !queue.empty()) {
-        // TODO: use a heap with optimal asymptotics (e.g. fibonacci)?
-        cerr << num_covered << " of " << graph.left_size() << " " << (num_covered < graph.left_size()) << " " << queue.size() << " " << queue.empty() << " " << ((num_covered < graph.left_size()) && !queue.empty()) << endl;
-        // get the node with the fewest uncovered edges
-        auto top = queue.front();
-        pop_heap(queue.begin(), queue.end(), cmp);
-        queue.pop_back();
+    // we'll keep track of how many nodes don't have all of their edges covered
+    vector<bool> covered_left(graph.left_size());
+    vector<bool> covered_right(graph.right_size());
+    size_t num_covered_left = 0;
         
-#ifdef debug_apx_cover
-        cerr << "next node is " << graph.get_graph().get_id(*(graph.left_begin() + top.second)) << " with " << top.first << " uncovered edges" << endl;
-#endif
-        if (covered[top.second]) {
-#ifdef debug_apx_cover
-            cerr << "this node has been covered since being queued" << endl;
-#endif
+    while (num_covered_left < graph.left_size()) {
+        
+        // dequeue the record with the smallest degree
+        auto top = queue.top();
+        queue.pop();
+                
+        if (std::get<2>(top) ? covered_left[std::get<0>(top)] : covered_right[std::get<0>(top)]) {
             continue;
         }
         
-        // the uncovered neighbors of this pivot element will be the right side of the biclique
+        // make a new biclique to fill out
         return_val.emplace_back();
         auto& biclique = return_val.back();
-        graph.for_each_adjacent_side(*(graph.left_begin() + top.second), [&](handle_t side) {
-            biclique.second.insert(side);
+        auto& same_side = std::get<2>(top) ? biclique.first : biclique.second;
+        auto& other_side = std::get<2>(top) ? biclique.second : biclique.first;
+        
+        handle_t pivot = std::get<2>(top) ? *(graph.left_begin() + std::get<1>(top)) : *(graph.right_begin() + std::get<1>(top));
+        
+        // the right side consists of the neighbors of this node
+        graph.for_each_adjacent_side(pivot, [&](handle_t other_side_node) {
+            other_side.insert(other_side_node);
         });
         
-        // start with the neighbors of an arbitrary right node as the left side of the clique
-        auto it = biclique.second.begin();
-        graph.for_each_adjacent_side(*it, [&](handle_t side) {
-            biclique.first.insert(side);
+        // set the left side to be the intersection of the right side's neighborhoods
+        auto it = other_side.begin();
+        graph.for_each_adjacent_side(*it, [&](handle_t same_side_node) {
+            same_side.insert(same_side_node);
         });
         ++it;
-        // reduce the left side to the intersection of the neighborhoods
-        for (; it != biclique.second.end(); ++it) {
+        for (; it != other_side.end(); ++it) {
             unordered_set<handle_t> neighborhood;
-            graph.for_each_adjacent_side(*it, [&](handle_t side) {
-                neighborhood.insert(side);
+            graph.for_each_adjacent_side(*it, [&](handle_t same_side_node) {
+                neighborhood.insert(same_side_node);
             });
-            vector<handle_t> to_remove;
-            for (auto side : biclique.first) {
-                if (!neighborhood.count(side)) {
-                    to_remove.push_back(side);
+            vector<handle_t> to_erase;
+            for (auto same_side_node : same_side) {
+                if (!neighborhood.count(same_side_node)) {
+                    to_erase.push_back(same_side_node);
                 }
             }
-            for (auto side : to_remove) {
-                biclique.first.erase(side);
+            for (auto same_side_node : to_erase) {
+                same_side.erase(same_side_node);
             }
         }
         
-        // mark edges as covered and add new heap records for nodes that
-        // still have uncovered edges
+        // mark any newly covered edges and enqueue newly reduced nodes
         for (auto left_side : biclique.first) {
-            auto& left_edges = uncovered_edges_left[graph.left_iterator(left_side) - graph.left_begin()];
+            auto& left_edges = left_uncovered_edges[graph.left_iterator(left_side) - graph.left_begin()];
             for (auto right_side : biclique.second) {
-                auto& right_edges = uncovered_edges_right[graph.right_iterator(right_side) - graph.right_begin()];
-                auto lit = left_edges.find(right_side);
-                if (lit != left_edges.end()) {
-                    left_edges.erase(lit);
+                auto& right_edges = right_uncovered_edges[graph.right_iterator(right_side) - graph.right_begin()];
+                if (left_edges.count(right_side)) {
+                    left_edges.erase(right_side);
                 }
-                auto rit = right_edges.find(left_side);
-                if (rit != right_edges.end()) {
-                    right_edges.erase(rit);
+                if (right_edges.count(left_side)) {
+                    right_edges.erase(left_side);
                 }
             }
             if (left_edges.size() == 0) {
-                if (!covered[graph.left_iterator(left_side) - graph.left_begin()]) {
-#ifdef debug_apx_cover
-                    cerr << "marking " << graph.get_graph().get_id(left_side) << " covered" << endl;
-#endif
-                    covered[graph.left_iterator(left_side) - graph.left_begin()] = true;
-                    ++num_covered;
+                if (!covered_left[graph.left_iterator(left_side) - graph.left_begin()]) {
+                    covered_left[graph.left_iterator(left_side) - graph.left_begin()] = true;
+                    ++num_covered_left;
                 }
             }
             else {
-#ifdef debug_apx_cover
-                cerr << "enqueuing " << graph.get_graph().get_id(left_side) << " with " << left_edges.size() << " uncovered edges" << endl;
-#endif
-                queue.emplace_back(left_edges.size(), graph.left_iterator(left_side) - graph.left_begin());
-                push_heap(queue.begin(), queue.end(), cmp);
+                queue.emplace(left_edges.size(), graph.left_iterator(left_side) - graph.left_begin());
+            }
+        }
+        for (auto right_side : biclique.second) {
+            auto& right_edges = right_uncovered_edges[graph.right_iterator(right_side) - graph.right_begin()];
+            if (right_edges.size() == 0) {
+                if (!covered_right[graph.right_iterator(right_side) - graph.right_begin()]) {
+                    covered_right[graph.right_iterator(right_side) - graph.right_begin()] = true;
+                }
+            }
+            else {
+                queue.emplace(right_edges.size(), graph.right_iterator(right_side) - graph.right_begin());
             }
         }
     }
+    
+    return return_val;
 }
 
 }

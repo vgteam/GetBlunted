@@ -13,6 +13,9 @@
 #include <unordered_set>
 #include <algorithm>
 #include <deque>
+#include <queue>
+#include <tuple>
+
 
 #include "handlegraph/handle_graph.hpp"
 #include "handlegraph/types.hpp"

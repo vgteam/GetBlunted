@@ -572,15 +572,43 @@ int main(){
         BipartiteGraph bigraph(graph, partition);
                 
         auto cover = BicliqueCover(bigraph).biclique_cover_apx();
-        
-        if (cover.size() != 2) {
+                
+        if (!verify_biclique_cover(cover, partition, bigraph)) {
             return 1;
         }
+//        for (auto bc : cover) {
+//            cerr << "covering biclique:" << endl;
+//            cerr << "\tleft:" << endl;
+//            for (auto h : bc.first) {
+//                cerr << "\t\t" << graph.get_id(h) << " " << graph.get_is_reverse(h) << endl;
+//            }
+//            cerr << "\tright:" << endl;
+//            for (auto h : bc.second) {
+//                cerr << "\t\t" << graph.get_id(h) << " " << graph.get_is_reverse(h) << endl;
+//            }
+//        }
+    }
+    // another test that will make it start from the right
+    {
+        HashGraph graph;
+        
+        handle_t h0 = graph.create_handle("A");
+        handle_t h1 = graph.create_handle("A");
+        handle_t h2 = graph.create_handle("A");
+        
+        graph.create_edge(h0, h2);
+        graph.create_edge(h1, h2);
+        
+        bipartition partition({h0, h1},
+                              {graph.flip(h2)});
+        
+        BipartiteGraph bigraph(graph, partition);
+        
+        auto cover = BicliqueCover(bigraph).biclique_cover_apx();
         
         if (!verify_biclique_cover(cover, partition, bigraph)) {
             return 1;
         }
-        
         for (auto bc : cover) {
             cerr << "covering biclique:" << endl;
             cerr << "\tleft:" << endl;
