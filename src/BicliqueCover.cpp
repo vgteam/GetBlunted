@@ -102,7 +102,63 @@ void BicliqueCover::unsimplify(vector<bipartition>& simplified_cover,
 }
 
 void BicliqueCover::lattice_polish(vector<bipartition>& cover) const {
-    // TODO
+    
+    // TODO: a limit on the number of local search steps?
+    
+    bool completely_polished = false;
+    while (!completely_polished) {
+        completely_polished = true;
+        for (bool on_right : {true, false}) {
+            for (size_t i = 0; i < cover.size(); ) {
+                auto& biclique = cover[i];
+                // copy the right side to keep track of uncovered nodes
+                unordered_set<handle_t> remaining = on_right ? biclique.second : biclique.first;
+                vector<size_t> contained;
+                for (size_t j = 0; j < cover.size() && !remaining.empty(); ++j) {
+                    if (i == j) {
+                        continue;
+                    }
+                    auto& other = cover[j];
+                    // check if the right side of this biclique is contained in the other
+                    bool is_contained = true;
+                    auto it = on_right ? other.second.begin() : other.first.begin();
+                    auto end = on_right ? other.second.end() : other.first.end();
+                    for (; it != end && is_contained; ++it) {
+                        is_contained = on_right ? biclique.second.count(*it) : biclique.first.count(*it);
+                    }
+                    if (is_contained) {
+                        // mark the right side nodes in the parent as having been found
+                        bool any_new = false;
+                        for (auto node : on_right ? other.second : other.first) {
+                            if (remaining.count(node)) {
+                                remaining.erase(node);
+                                any_new = true;
+                            }
+                        }
+                        if (any_new) {
+                            contained.push_back(j);
+                        }
+                    }
+                }
+                
+                if (remaining.empty()) {
+                    // we found a lattice cover of this biclique, expand its successors
+                    auto& merging = on_right ? biclique.first : biclique.second;
+                    for (size_t j : contained) {
+                        auto& merge_into = on_right ? cover[j].first : cover[j].second;
+                        merge_into.insert(merging.begin(), merging.end());
+                    }
+                    // and remove this biclique
+                    cover[i] = move(cover.back());
+                    cover.pop_back();
+                    completely_polished = false;
+                }
+                else {
+                    ++i;
+                }
+            }
+        }
+    }
 }
 
 vector<bipartition> BicliqueCover::biclique_cover_apx() const {
