@@ -545,17 +545,53 @@ int main(){
             return 1;
         }
         
-//        for (auto bc : cover) {
-//            cerr << "covering biclique:" << endl;
-//            cerr << "\tleft:" << endl;
-//            for (auto h : bc.first) {
-//                cerr << "\t\t" << graph.get_id(h) << " " << graph.get_is_reverse(h) << endl;
-//            }
-//            cerr << "\tright:" << endl;
-//            for (auto h : bc.second) {
-//                cerr << "\t\t" << graph.get_id(h) << " " << graph.get_is_reverse(h) << endl;
-//            }
-//        }
+    }
+    
+    // test out the fast heuristic for biclique cover
+    {
+        HashGraph graph;
+        
+        handle_t h0 = graph.create_handle("A");
+        handle_t h1 = graph.create_handle("A");
+        handle_t h2 = graph.create_handle("A");
+        handle_t h3 = graph.create_handle("A");
+        handle_t h4 = graph.create_handle("A");
+        handle_t h5 = graph.create_handle("A");
+        
+        graph.create_edge(h0, h3);
+        graph.create_edge(h0, h4);
+        graph.create_edge(h1, h3);
+        graph.create_edge(h1, h4);
+        graph.create_edge(h1, h5);
+        graph.create_edge(h2, h4);
+        graph.create_edge(h2, h5);
+        
+        bipartition partition({h0, h1, h2},
+                              {graph.flip(h3), graph.flip(h4), graph.flip(h5)});
+        
+        BipartiteGraph bigraph(graph, partition);
+                
+        auto cover = BicliqueCover(bigraph).biclique_cover_apx();
+        
+        if (cover.size() != 2) {
+            return 1;
+        }
+        
+        if (!verify_biclique_cover(cover, partition, bigraph)) {
+            return 1;
+        }
+        
+        for (auto bc : cover) {
+            cerr << "covering biclique:" << endl;
+            cerr << "\tleft:" << endl;
+            for (auto h : bc.first) {
+                cerr << "\t\t" << graph.get_id(h) << " " << graph.get_is_reverse(h) << endl;
+            }
+            cerr << "\tright:" << endl;
+            for (auto h : bc.second) {
+                cerr << "\t\t" << graph.get_id(h) << " " << graph.get_is_reverse(h) << endl;
+            }
+        }
     }
     
     cerr << "biclique cover tests successful" << endl;
