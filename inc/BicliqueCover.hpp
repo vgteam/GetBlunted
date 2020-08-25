@@ -48,9 +48,7 @@ public:
     // subset of the nodes
     vector<bipartition> get() const;
     
-    
-    
-    
+protected:
     
     // use Ene's, et al. (2008) fast heuristic
     vector<bipartition> biclique_cover_apx() const;
@@ -58,8 +56,6 @@ public:
     // use Ene's, et al. (2008) lattice-based post-processing for an
     // approximate solution
     void lattice_polish(vector<bipartition>& biclique_cover) const;
-    
-private:
     
     // convert biclique cover for a simplified graph into cover
     // for the original graph (using procecure described in proof

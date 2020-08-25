@@ -4,8 +4,6 @@
  * Implements algorithm for computing the biclique cover of a bipartite graph.
  */
 #include "BicliqueCover.hpp"
-
-#define debug_apx_cover
  
 namespace bluntifier {
 

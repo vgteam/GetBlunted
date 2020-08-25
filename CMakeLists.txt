@@ -234,7 +234,7 @@ find_package(Threads REQUIRED)
 # -------- TESTS --------
 
 set(TESTS
-        test_adjacency_components
+        test_AdjacencyComponent
         test_bdsg
         test_cigar
         test_gfak

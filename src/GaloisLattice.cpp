@@ -16,6 +16,8 @@ using std::sort;
 using std::deque;
 using std::numeric_limits;
 using std::make_pair;
+using std::cerr;
+using std::endl;
 
 CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
                                        handle_t center) {
@@ -459,7 +461,7 @@ GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
                     // enqueue the predecessors
                     stack.emplace_back(galois_tree.predecessors(equiv_class), 0);
 #ifdef debug_galois_lattice
-                    cerr << "enqueuing equivlance classes:" << endl;
+                    cerr << "enqueuing equivalance classes:" << endl;
                     for (auto j : stack.back().first) {
                         cerr << "\t" << j << endl;
                     }

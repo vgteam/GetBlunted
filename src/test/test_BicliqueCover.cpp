@@ -25,7 +25,22 @@ using std::cerr;
 using std::endl;
 using std::function;
 using std::pair;
+using std::max_element;
 
+class TestBicliqueCover : public BicliqueCover{
+public:
+    TestBicliqueCover(const BipartiteGraph& graph) : BicliqueCover(graph) {}
+    using BicliqueCover::biclique_cover_apx;
+    using BicliqueCover::lattice_polish;
+};
+
+class TestReducedDualGraph : public ReducedDualGraph {
+public:
+    TestReducedDualGraph(const BipartiteGraph& graph) : ReducedDualGraph(graph) {}
+    TestReducedDualGraph() = default;
+    using ReducedDualGraph::maximal_independent_sets;
+    using ReducedDualGraph::vertex_coloring_exact;
+};
 
 bool verify_biclique_cover(const vector<bipartition>& cover,
                            const bipartition& partition,
@@ -64,7 +79,7 @@ bool verify_biclique_cover(const vector<bipartition>& cover,
 }
 
 int main(){
-        
+            
     // dominos can be detected
     {
         HashGraph graph;
@@ -571,7 +586,7 @@ int main(){
         
         BipartiteGraph bigraph(graph, partition);
                 
-        auto cover = BicliqueCover(bigraph).biclique_cover_apx();
+        auto cover = TestBicliqueCover(bigraph).biclique_cover_apx();
                 
         if (!verify_biclique_cover(cover, partition, bigraph)) {
             return 1;
@@ -594,7 +609,7 @@ int main(){
         
         BipartiteGraph bigraph(graph, partition);
         
-        auto cover = BicliqueCover(bigraph).biclique_cover_apx();
+        auto cover = TestBicliqueCover(bigraph).biclique_cover_apx();
         
         if (!verify_biclique_cover(cover, partition, bigraph)) {
             return 1;
@@ -646,7 +661,7 @@ int main(){
             return 1;
         }
         
-        BicliqueCover biclique_cover(bigraph);
+        TestBicliqueCover biclique_cover(bigraph);
         biclique_cover.lattice_polish(cover);
         
         if (!verify_biclique_cover(cover, partition, bigraph)) {
@@ -685,7 +700,7 @@ int main(){
             return 1;
         }
         
-        BicliqueCover biclique_cover(bigraph);
+        TestBicliqueCover biclique_cover(bigraph);
         biclique_cover.lattice_polish(cover);
         
         if (!verify_biclique_cover(cover, partition, bigraph)) {
@@ -708,6 +723,106 @@ int main(){
 //            }
 //        }
     }
+    
+    // test the maximal independent sets algorithm
+    {
+        vector<vector<size_t>> graph{
+            {1, 3},
+            {0, 2},
+            {1, 3},
+            {0, 2}
+        };
+        vector<size_t> index_translator(graph.size());
+        for (size_t i = 0; i < index_translator.size(); ++i) {
+            index_translator[i] = i;
+        }
+        
+        TestReducedDualGraph tester;
+        auto ind_sets = tester.maximal_independent_sets(graph, index_translator);
+        
+        // 1010
+        uint16_t set1 = 10;
+        // 0101
+        uint16_t set2 = 5;
+        
+        if (ind_sets.size() != 2) {
+            return 1;
+        }
+        if (ind_sets[0] != set1 && ind_sets[1] != set1) {
+            return 1;
+        }
+        if (ind_sets[0] != set2 && ind_sets[1] != set2) {
+            return 1;
+        }
+    }
+    // a harder test case
+    {
+        vector<vector<size_t>> graph{
+            {1, 2},
+            {0, 2, 3},
+            {0, 1, 4},
+            {1, 4, 5},
+            {2, 3, 5},
+            {3, 4}
+        };
+        vector<size_t> index_translator(graph.size());
+        for (size_t i = 0; i < index_translator.size(); ++i) {
+            index_translator[i] = i;
+        }
+        
+        TestReducedDualGraph tester;
+        auto ind_sets = tester.maximal_independent_sets(graph, index_translator);
+        set<uint16_t> got(ind_sets.begin(), ind_sets.end());
+        set<uint16_t> truth{
+            ((1 << 0)|(1 << 3)),
+            ((1 << 0)|(1 << 4)),
+            ((1 << 0)|(1 << 5)),
+            ((1 << 1)|(1 << 4)),
+            ((1 << 1)|(1 << 5)),
+            ((1 << 2)|(1 << 3)),
+            ((1 << 2)|(1 << 5))
+        };
+        
+        if (got != truth) {
+            return 1;
+        }
+    }
+    
+    
+    // test the exact vertex cover algorithm
+    {
+        // prism of two tetrahedron, should have a 4-coloring
+        vector<vector<size_t>> graph{
+            {1, 2, 3, 4},
+            {0, 2, 3, 5},
+            {0, 1, 3, 6},
+            {0, 1, 2, 7},
+            {0, 5, 6, 7},
+            {1, 4, 6, 7},
+            {2, 4, 5, 7},
+            {3, 4, 5, 6}
+        };
+
+        TestReducedDualGraph tester;
+        auto coloring = tester.vertex_coloring_exact(graph);
+
+        if (coloring.size() != graph.size()) {
+            return 1;
+        }
+        // should be able to find a 4-coloring (colors start at 0)
+        if (*max_element(coloring.begin(), coloring.end()) != 3) {
+            return 1;
+        }
+        // is a vertex coloring
+        for (size_t i = 0; i < graph.size(); ++i) {
+            for (size_t j : graph[i]) {
+                if (coloring[i] == coloring[j]) {
+                    return 1;
+                }
+            }
+        }
+    }
+    
     
     cerr << "biclique cover tests successful" << endl;
     return 0;
