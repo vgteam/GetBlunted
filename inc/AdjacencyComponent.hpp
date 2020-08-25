@@ -64,6 +64,16 @@ public:
     
     AdjacencyComponent(AdjacencyComponent&&) = default;
     
+    // iterate through pairs of subgraphs that have the following properties:
+    // - each edge in this adjacency component occurs in exactly one subgraph
+    // - every subgraph is bipartite
+    // - every subgraph is connected
+    void decompose_into_bipartite_blocks(const function<void(const BipartiteGraph&)>& lambda) const;
+    
+    
+    
+    
+    
     // lambda returns true if iteration should continue. function returns
     // true if iteration was not stopped early by lambda.
     bool for_each_adjacent_side(const handle_t& side,
@@ -73,13 +83,6 @@ public:
     const_iterator end() const;
     size_t size() const;
     bool empty() const;
-    
-    // iterate through pairs of subgraphs and bipartitions that have the following properties:
-    // - each edge in this adjacency component occurs in exactly one subgraph
-    // - every subgraph is bipartite
-    void decompose_into_bipartite_blocks(const function<void(const BipartiteGraph&)>& lambda) const;
-    
-    
     
     bool is_bipartite() const;
     

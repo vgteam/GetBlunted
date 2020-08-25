@@ -12,6 +12,8 @@
 #include <unordered_set>
 #include <functional>
 #include <algorithm>
+#include <bitset>
+#include <cmath>
 
 #include "handlegraph/types.hpp"
 #include "BipartiteGraph.hpp"
@@ -39,7 +41,7 @@ public:
     // can no longer be meaningfully queried
     vector<bipartition> biclique_cover(bool& is_exact_out);
     
-private:
+protected:
     
     
     
@@ -66,13 +68,25 @@ private:
     
     vector<size_t> reduced_clique_partition(bool& is_exact_out);
     
-    // TODO: implement
-    // use Lawler's (1976) algorithm with Tsukiyama's, et al. (1977) to
-    // list maximal independent sets
-    vector<size_t> vertex_coloring_exact(vector<vector<size_t>>& complement_graph) const;
+    // use Lawler's (1976) algorithm
+    vector<size_t> vertex_coloring_exact(const vector<vector<size_t>>& complement_graph) const;
+    
+    // Tsukiyama's, et al. (1977) algorithm to list maximal independent sets, returns
+    // bitsets to represent each set (only for small graphs)
+    // note: requires adjacency lists to be ordered by index
+    vector<uint16_t> maximal_independent_sets(const vector<vector<size_t>>& graph,
+                                              const vector<size_t>& subgraph_trans) const;
+    
+    // Tsukiyama's, et al. (1977) backtrack procedure
+    void maximal_independent_sets_internal(const vector<vector<size_t>>& graph,
+                                           const vector<size_t>& subgraph_trans,
+                                           size_t max_node,
+                                           vector<uint16_t>& intersection_size,
+                                           vector<vector<uint16_t>>& reset_buckets,
+                                           vector<uint16_t>& maximal_ind_sets) const;
     
     // use greedy coloring
-    vector<size_t> vertex_coloring_apx(vector<vector<size_t>>& complement_graph) const;
+    vector<size_t> vertex_coloring_apx(const vector<vector<size_t>>& complement_graph) const;
     
     // TODO: include Mehrota & Trick's (1995) ILP formulation?
     
