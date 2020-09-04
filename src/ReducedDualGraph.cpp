@@ -332,12 +332,12 @@ vector<size_t> ReducedDualGraph::reduced_clique_partition(bool& is_exact_out) {
     // estimate the time usage of the exact algorithm (constant is 1 + 3^(1/3), see Lawler 1976)
     size_t num_edges = total_degree / 2;
     size_t num_nodes = complement_graph.size();
-    size_t cost = num_nodes * num_edges * size_t(ceil(pow(2.44225, num_nodes)));
+    size_t max_cost = num_nodes * num_edges * size_t(ceil(pow(2.44225, num_nodes)));
     
     // TODO: magic number
     // compute a vertex coloring of the complement graph (use a fairly generous bound
     // because in practice the optimizations seem to speed it up quite a bit)
-    if (cost <= (1 << 20)) {
+    if (max_cost <= (1 << 20) && num_nodes < 16) {
 #ifdef debug_dual_graph
         cerr << "computing exact vertex coloring" << endl;
 #endif
@@ -376,8 +376,8 @@ void ReducedDualGraph::maximal_independent_sets_internal(const vector<vector<siz
                                                          vector<uint16_t>& maximal_ind_sets) const {
     
     if (max_node + 1 == graph.size()) {
-        // we've reached the end, the nodes whose intersection doesn't have any
-        // nodes in common with the maximal indpendent set are its members
+        // we've reached the end, the nodes whose neighborhood doesn't have any
+        // nodes in common with the maximal independent set are its members
         uint16_t ind_set = 0;
         for (size_t i = 0; i < intersection_size.size(); ++i) {
             if (intersection_size[i] == 0) {
