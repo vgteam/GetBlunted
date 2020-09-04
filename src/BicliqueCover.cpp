@@ -166,6 +166,7 @@ vector<bipartition> BicliqueCover::biclique_cover_apx() const {
     // gather the edges and queue up the left side nodes based on their degree
     vector<unordered_set<handle_t>> left_uncovered_edges(graph.left_size());
     vector<unordered_set<handle_t>> right_uncovered_edges(graph.right_size());
+    // records of (num uncovered edges, index of side, is on left)
     priority_queue<tuple<size_t, size_t, bool>, vector<tuple<size_t, size_t, bool>>, greater<tuple<size_t, size_t, bool>>> queue;
     for (auto it = graph.left_begin(); it != graph.left_end(); ++it) {
         auto& left_edges = left_uncovered_edges[it - graph.left_begin()];
@@ -175,6 +176,7 @@ vector<bipartition> BicliqueCover::biclique_cover_apx() const {
         });
         queue.emplace(left_edges.size(), it - graph.left_begin(), true);
     }
+    // also queue up the right side nodes
     for (size_t i = 0; i < right_uncovered_edges.size(); ++i) {
         queue.emplace(right_uncovered_edges[i].size(), i, false);
     }
@@ -186,7 +188,7 @@ vector<bipartition> BicliqueCover::biclique_cover_apx() const {
         
     while (num_covered_left < graph.left_size()) {
         
-        // dequeue the record with the smallest degree
+        // dequeue the record with the smallest uncovered degree
         auto top = queue.top();
         queue.pop();
                 
@@ -202,12 +204,12 @@ vector<bipartition> BicliqueCover::biclique_cover_apx() const {
         
         handle_t pivot = std::get<2>(top) ? *(graph.left_begin() + std::get<1>(top)) : *(graph.right_begin() + std::get<1>(top));
         
-        // the right side consists of the neighbors of this node
+        // the other side consists of the neighbors of this node
         graph.for_each_adjacent_side(pivot, [&](handle_t other_side_node) {
             other_side.insert(other_side_node);
         });
         
-        // set the left side to be the intersection of the right side's neighborhoods
+        // set the same side to be the intersection of the other sides' neighborhoods
         auto it = other_side.begin();
         graph.for_each_adjacent_side(*it, [&](handle_t same_side_node) {
             same_side.insert(same_side_node);
@@ -248,7 +250,7 @@ vector<bipartition> BicliqueCover::biclique_cover_apx() const {
                 }
             }
             else {
-                queue.emplace(left_edges.size(), graph.left_iterator(left_side) - graph.left_begin());
+                queue.emplace(left_edges.size(), graph.left_iterator(left_side) - graph.left_begin(), true);
             }
         }
         for (auto right_side : biclique.second) {
@@ -259,7 +261,7 @@ vector<bipartition> BicliqueCover::biclique_cover_apx() const {
                 }
             }
             else {
-                queue.emplace(right_edges.size(), graph.right_iterator(right_side) - graph.right_begin());
+                queue.emplace(right_edges.size(), graph.right_iterator(right_side) - graph.right_begin(), false);
             }
         }
     }
