@@ -50,6 +50,7 @@ set(SOURCES
         src/SubtractiveHandleGraph.cpp
         src/topological_sort.cpp
         src/utility.cpp
+        src/VertexColoring.cpp
         )
 
 

@@ -14,6 +14,7 @@ using bluntifier::GaloisLattice;
 using bluntifier::CenteredGaloisTree;
 using bluntifier::BicliqueCover;
 using bluntifier::ReducedDualGraph;
+using bluntifier::VertexColoring;
 
 using bdsg::HashGraph;
 using handlegraph::handle_t;
@@ -34,12 +35,12 @@ public:
     using BicliqueCover::lattice_polish;
 };
 
-class TestReducedDualGraph : public ReducedDualGraph {
+class TestVertexColoring : public VertexColoring {
 public:
-    TestReducedDualGraph(const BipartiteGraph& graph) : ReducedDualGraph(graph) {}
-    TestReducedDualGraph() = default;
-    using ReducedDualGraph::maximal_independent_sets;
-    using ReducedDualGraph::vertex_coloring_exact;
+    TestVertexColoring(const vector<vector<size_t>>& graph) : VertexColoring(graph) {}
+    TestVertexColoring() = default;
+    using VertexColoring::maximal_independent_sets;
+    using VertexColoring::lawlers_algorithm;
 };
 
 bool verify_biclique_cover(const vector<bipartition>& cover,
@@ -737,7 +738,7 @@ int main(){
             index_translator[i] = i;
         }
         
-        TestReducedDualGraph tester;
+        TestVertexColoring tester;
         auto ind_sets = tester.maximal_independent_sets(graph, index_translator);
         
         // 1010
@@ -770,7 +771,7 @@ int main(){
             index_translator[i] = i;
         }
         
-        TestReducedDualGraph tester;
+        TestVertexColoring tester;
         auto ind_sets = tester.maximal_independent_sets(graph, index_translator);
         set<uint16_t> got(ind_sets.begin(), ind_sets.end());
         set<uint16_t> truth{
@@ -803,8 +804,8 @@ int main(){
             {3, 4, 5, 6}
         };
 
-        TestReducedDualGraph tester;
-        auto coloring = tester.vertex_coloring_exact(graph);
+        TestVertexColoring tester(graph);
+        auto coloring = tester.lawlers_algorithm();
 
         if (coloring.size() != graph.size()) {
             return 1;

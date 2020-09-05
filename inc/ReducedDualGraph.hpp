@@ -17,6 +17,7 @@
 
 #include "handlegraph/types.hpp"
 #include "BipartiteGraph.hpp"
+#include "VertexColoring.hpp"
 #include "utility.hpp"
 
 namespace bluntifier {
@@ -67,28 +68,6 @@ protected:
                               const function<void(const vector<size_t>&)>& lambda);
     
     vector<size_t> reduced_clique_partition(bool& is_exact_out);
-    
-    // use Lawler's (1976) algorithm
-    vector<size_t> vertex_coloring_exact(const vector<vector<size_t>>& complement_graph) const;
-    
-    // Tsukiyama's, et al. (1977) algorithm to list maximal independent sets, returns
-    // bitsets to represent each set (only for small graphs)
-    // note: requires adjacency lists to be ordered by index
-    vector<uint16_t> maximal_independent_sets(const vector<vector<size_t>>& graph,
-                                              const vector<size_t>& subgraph_trans) const;
-    
-    // Tsukiyama's, et al. (1977) backtrack procedure
-    void maximal_independent_sets_internal(const vector<vector<size_t>>& graph,
-                                           const vector<size_t>& subgraph_trans,
-                                           size_t max_node,
-                                           vector<uint16_t>& intersection_size,
-                                           vector<vector<uint16_t>>& reset_buckets,
-                                           vector<uint16_t>& maximal_ind_sets) const;
-    
-    // use greedy coloring
-    vector<size_t> vertex_coloring_apx(const vector<vector<size_t>>& complement_graph) const;
-    
-    // TODO: include Mehrota & Trick's (1995) ILP formulation?
     
     // undo the dual graph reduction operation while adding the dual nodes
     // into the partition
