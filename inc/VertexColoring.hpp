@@ -14,6 +14,7 @@
 #include <iostream>
 #include <cmath>
 #include <random>
+#include <deque>
 
 namespace bluntifier {
 
@@ -72,8 +73,12 @@ protected:
     // the seed)
     vector<size_t> random_ordering(uint64_t& seed) const;
     
+    vector<size_t> depth_first_order() const;
+    
+    vector<size_t> breadth_first_order() const;
     
     // TODO: Dsatur?
+    // TODO: greedy independent sets?
     // TODO: Mehrota & Trick's (1995) ILP formulation?
     
     vector<vector<size_t>> graph;

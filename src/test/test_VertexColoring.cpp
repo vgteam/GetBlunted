@@ -33,6 +33,17 @@ public:
     using VertexColoring::lower_bound;
 };
 
+bool is_valid_coloring(const vector<vector<size_t>>& graph, const vector<size_t>& coloring) {
+    for (size_t i = 0; i < graph.size(); ++i) {
+        for (auto j : graph[i]) {
+            if (coloring[i] == coloring[j]) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 int main(){
     
     
@@ -230,11 +241,11 @@ int main(){
         
         {
             vector<vector<size_t>> graph{
-                {1},
-                {0, 4},
-                {3, 4},
+                {1, 4},
+                {0},
                 {3},
-                {1, 2, 7},
+                {2, 4},
+                {0, 3, 7},
                 {6},
                 {5, 7},
                 {4, 6}
@@ -245,6 +256,9 @@ int main(){
             TestVertexColoring tester(graph);
             auto coloring = tester.interchange_greedy_coloring(order);
             if (*max_element(coloring.begin(), coloring.end()) != 1) {
+                return 1;
+            }
+            if (!is_valid_coloring(graph, coloring)) {
                 return 1;
             }
         }
