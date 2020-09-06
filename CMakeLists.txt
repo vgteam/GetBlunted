@@ -50,6 +50,7 @@ set(SOURCES
         src/SubtractiveHandleGraph.cpp
         src/topological_sort.cpp
         src/utility.cpp
+        src/VertexColoring.cpp
         )
 
 
@@ -236,13 +237,14 @@ find_package(Threads REQUIRED)
 set(TESTS
         test_AdjacencyComponent
         test_bdsg
+	test_BicliqueCover
         test_cigar
         test_gfak
         test_handlegraph
         test_IncrementalIdMap
         test_overlaps
         test_utility
-	test_BicliqueCover
+	test_VertexColoring
         )
 
 foreach(FILENAME_PREFIX ${TESTS})
