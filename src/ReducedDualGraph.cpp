@@ -6,8 +6,6 @@
 #include "ReducedDualGraph.hpp"
 
 //#define debug_dual_graph
-//#define debug_independent_sets
-//#define debug_vertex_cover
 
 namespace bluntifier {
 

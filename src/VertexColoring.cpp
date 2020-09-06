@@ -5,6 +5,10 @@
  */
 #include "VertexColoring.hpp"
  
+//#define debug_interchange
+//#define debug_independent_sets
+//#define debug_vertex_cover
+
 namespace bluntifier {
 
 using std::numeric_limits;
@@ -12,6 +16,9 @@ using std::cerr;
 using std::endl;
 using std::pair;
 using std::make_pair;
+using std::move;
+using std::linear_congruential_engine;
+using std::swap;
 
 VertexColoring::VertexColoring(const vector<vector<size_t>>& graph) {
     // create a local copy of the graph that is ordered by index in the
@@ -38,12 +45,13 @@ vector<size_t> VertexColoring::get(bool& is_exact) const {
     // estimate the time usage of the exact algorithm (constant is 1 + 3^(1/3), see Lawler 1976)
     size_t num_edges = total_degree / 2;
     size_t num_nodes = graph.size();
-    size_t max_cost = num_nodes * num_edges * size_t(ceil(pow(2.44225, num_nodes)));
+    size_t max_lawler_cost = num_nodes * num_edges * size_t(ceil(pow(2.44225, num_nodes)));
+    size_t max_interchange_cost = num_nodes * num_edges;
     
     // TODO: magic number
     // compute a vertex coloring of the complement graph (use a fairly generous bound
     // because in practice the optimizations seem to speed it up quite a bit)
-    if (max_cost <= (1 << 20) && num_nodes < 16) {
+    if (max_lawler_cost <= (1 << 20) && num_nodes < 16) {
 #ifdef debug_vertex_coloring
         cerr << "computing exact vertex coloring" << endl;
 #endif
@@ -54,9 +62,52 @@ vector<size_t> VertexColoring::get(bool& is_exact) const {
 #ifdef debug_vertex_coloring
         cerr << "computing approximate vertex coloring" << endl;
 #endif
-        auto order = degree_ordering();
-        coloring = greedy_coloring(order);
-        is_exact = false;
+        
+        size_t max_color = numeric_limits<size_t>::max();
+        
+        // use greedy and (maybe) interchange coloring algorithms on
+        auto attempt_greedy_coloring = [&](const vector<size_t>& order) {
+            auto candidate_coloring = greedy_coloring(order);
+            auto candidate_max_color = *max_element(candidate_coloring.begin(),
+                                                    candidate_coloring.end());
+            if (candidate_max_color < max_color) {
+                max_color = candidate_max_color;
+                coloring = move(candidate_coloring);
+            }
+            
+            // TODO: magic number
+            if (max_interchange_cost < (1 << 15)) {
+                // the size is small enough that we can use the interchange algorithm
+                // without too much cost
+                auto ix_candidate_coloring = interchange_greedy_coloring(order);
+                auto ix_candidate_max_color = *max_element(ix_candidate_coloring.begin(),
+                                                           ix_candidate_coloring.end());
+                if (ix_candidate_max_color < max_color) {
+                    max_color = ix_candidate_max_color;
+                    coloring = move(ix_candidate_coloring);
+                }
+            }
+        };
+        
+        // get a lower bound so we can check for optimality
+        size_t lower_bnd = lower_bound();
+        
+        // greedy coloring by least first ordering
+        attempt_greedy_coloring(least_first_ordering());
+        
+        // greedy coloring by degree first ordering
+        if (max_color != lower_bnd) {
+            attempt_greedy_coloring(degree_ordering());
+        }
+        
+        // greedy coloring by log(n) random orderings
+        size_t logn = ceil(log(graph.size()));
+        uint64_t seed = 14847024944434445584ull;
+        for (size_t i = 0; i < logn && max_color != lower_bnd; ++i) {
+            attempt_greedy_coloring(random_ordering(seed));
+        }
+        
+        is_exact = (max_color == lower_bnd);
     }
     
     return coloring;
@@ -83,6 +134,73 @@ vector<size_t> VertexColoring::degree_ordering() const {
         }
     }
     
+    return ordering;
+}
+
+vector<size_t> VertexColoring::least_first_ordering() const {
+    
+    // put the nodes into levels according to their degree
+    vector<vector<size_t>> degree_queue;
+    vector<size_t> degree_remaining(graph.size());
+    for (size_t i = 0; i < graph.size(); ++i) {
+        auto degree = graph[i].size();
+        degree_remaining[i] = degree;
+        while (degree_queue.size() <= degree) {
+            degree_queue.emplace_back();
+        }
+        degree_queue[degree].push_back(i);
+    }
+    
+    vector<size_t> ordering(graph.size());
+    size_t ordering_idx = graph.size();
+    vector<bool> ordered(graph.size(), false);
+    
+    size_t i = 0;
+    while (ordering_idx > 0) {
+        if (degree_queue[i].empty()) {
+            // this degree set is empty, go to higher degrees
+            ++i;
+        }
+        else {
+            // choose an arbitrary elemment of this degree set
+            auto& degree_level = degree_queue[i];
+            auto j = degree_level.back();
+            degree_level.pop_back();
+            if (!ordered[j]) {
+                // we haven't added this to the ordering yet, put it in
+                // the last available spot
+                ordering[--ordering_idx] = j;
+                ordered[j] = true;
+                // all of this nodes neighbors degree value reduces by 1
+                // (we don't worry about removing the other record because
+                // it will be filtered out)
+                for (auto k : graph[j]) {
+                    if (!ordered[k]) {
+                        degree_queue[--degree_remaining[k]].emplace_back(k);
+                    }
+                }
+                // the smallest non empty degree set may now be one spot lower
+                --i;
+            }
+        }
+    }
+    return ordering;
+}
+
+vector<size_t> VertexColoring::random_ordering(uint64_t& seed) const {
+    // m = largest prime less than 2^64-1
+    // a, b were generated by uniform random variables in [0, m)
+    linear_congruential_engine<uint64_t,
+                               14494735964225224815ull,
+                               11973402385035416413ull,
+                               18446744073709551557ull> gen(seed);
+    
+    vector<size_t> ordering(graph.size());
+    for (size_t i = 0; i < graph.size(); ++i) {
+        ordering[i] = i;
+        seed = gen();
+        std::swap(ordering[i], ordering[seed % (i + 1)]);
+    }
     return ordering;
 }
 
@@ -203,6 +321,9 @@ vector<size_t> VertexColoring::lawlers_algorithm() const {
     
     // base case
     dp[0].first = 0;
+    
+    // TODO: reverse the ordering (DP starting with full set as 0) so that it can be
+    // used for branch and bound as we go
     
     // stack records of (subset, parent set), we use the stack to explicitly do
     // recursion rather than filling out the whole DP table in hopes that the space
@@ -337,7 +458,7 @@ vector<size_t> VertexColoring::greedy_coloring(const vector<size_t>& order) cons
     }
     
 #ifdef debug_vertex_coloring
-    cerr << "degree ordering:" << endl;
+    cerr << "ordering:" << endl;
     for (auto i : order) {
         cerr << "\t" << i << endl;
     }
@@ -393,6 +514,219 @@ vector<size_t> VertexColoring::greedy_coloring(const vector<size_t>& order) cons
     }
     
     return coloring;
+}
+
+vector<size_t> VertexColoring::interchange_greedy_coloring(const vector<size_t>& order) const {
+        
+#ifdef debug_interchange
+    cerr << "graph:" << endl;
+    for (size_t i = 0; i < graph.size(); ++i) {
+        cerr << i << ":";
+        for (auto j : graph[i]) {
+            cerr << " " << j;
+        }
+        cerr << endl;
+    }
+    cerr << "ordering:" << endl;
+    for (auto i : order) {
+        cerr << "\t" << i << endl;
+    }
+#endif
+    
+    // TODO: reimplement using bank of records in a vector for better cache efficiency?
+    
+    // set up the linked list representation of the graph that we'll be manipulating
+    vector<InterchangeEdge*> interx_adj_list(graph.size(), nullptr);
+    for (size_t i = 0; i < graph.size(); ++i) {
+        const auto& adj = graph[i];
+        for (size_t j = 0; j < adj.size() && adj[j] < i; ++j) {
+            
+            auto dest = adj[j];
+            auto edge_to = new InterchangeEdge();
+            auto edge_from = new InterchangeEdge();
+            
+#ifdef debug_interchange
+            cerr << "edge pair between " << i << " " << dest << endl;
+            cerr << "\t" << edge_to << endl;
+            cerr << "\t" << edge_from << endl;
+#endif
+            
+            edge_from->vertex = dest;
+            edge_from->next = interx_adj_list[i];
+            interx_adj_list[i] = edge_from;
+            edge_from->mate = edge_to;
+            
+            edge_to->vertex = i;
+            edge_to->next = interx_adj_list[dest];
+            interx_adj_list[dest] = edge_to;
+            edge_to->mate = edge_from;
+        }
+    }
+    
+    vector<vector<InterchangeEdge*>> color_lists(graph.size());
+    
+    // convert the degree sets into an ordering and an index lookup
+    // descending by degree
+    vector<size_t> index(graph.size());
+    for (size_t i = 0; i < graph.size(); ++ i) {
+        index[order[i]] = i;
+    }
+    
+    vector<size_t> coloring(graph.size());
+    for (size_t i : order) {
+#ifdef debug_interchange
+        cerr << "coloring node " << i << endl;
+#endif
+        
+        auto& color_list = color_lists[i];
+        
+        // identify the edges that this node has in this iteration by color
+        for (auto edge = interx_adj_list[i]; edge != nullptr; edge = edge->next) {
+            if (index[edge->vertex] > index[i]) {
+                // we're only looking at nodes that are earlier in the ordering
+                continue;
+            }
+            auto nbr_color = coloring[edge->vertex];
+            
+            edge->color_next = color_list[nbr_color];
+            color_list[nbr_color] = edge;
+            
+        }
+        
+        // find the lowest valued unused color
+        size_t lowest_unused_color = numeric_limits<size_t>::max();
+        for (size_t j = 0; j < color_list.size(); ++j) {
+            if (!color_list[j]) {
+                lowest_unused_color = j;
+                break;
+            }
+        }
+        
+        if (lowest_unused_color != numeric_limits<size_t>::max()) {
+#ifdef debug_interchange
+            cerr << "colorable with " << lowest_unused_color << endl;
+#endif
+            // we can use an already-existing color
+            coloring[i] = lowest_unused_color;
+        }
+        else {
+#ifdef debug_interchange
+            cerr << "no available color, checking for interchange" << endl;
+#endif
+            
+            // init some structures that we'll reuse for traveresals
+            vector<bool> queued(graph.size(), false);
+            queued[i] = true;
+            vector<size_t> stack;
+            vector<size_t> this_traversal;
+            
+            // attempt to find a pair of colors that can do an interchange
+            size_t ix_color_1, ix_color_2;
+            bool found_swap = false;
+            for (ix_color_1 = 1; ix_color_1 < color_list.size() && !found_swap; ++ix_color_1) {
+                // provisionally color this node
+                coloring[i] = ix_color_1;
+                for (ix_color_2 = 0; ix_color_2 < ix_color_1 && !found_swap; ++ix_color_2) {
+                    // do an alternating-color DFS traversal with this color pair
+                    found_swap = true;
+                    stack.push_back(i);
+                    while (!stack.empty()) {
+                        size_t here = stack.back();
+                        stack.pop_back();
+                        size_t nbr_color = coloring[here] == ix_color_1 ? ix_color_2 : ix_color_1;
+                        for (auto edge = color_lists[here][nbr_color]; edge != nullptr; edge = edge->color_next) {
+                            if (edge->vertex == i && nbr_color != ix_color_1) {
+                                // i has neighbors from both colors, this pair cannot be swapped
+                                found_swap = false;
+                                stack.clear();
+                                break;
+                            }
+                            if (!queued[edge->vertex]) {
+                                queued[edge->vertex] = true;
+                                this_traversal.push_back(edge->vertex);
+                                stack.emplace_back(edge->vertex);
+                            }
+                        }
+                    }
+                    // reset the traversal marker
+                    for (auto j : this_traversal) {
+                        queued[j] = false;
+                    }
+                }
+            }
+            
+            if (found_swap) {
+#ifdef debug_interchange
+                cerr << "found swappable pair" << endl;
+#endif
+                // we found a pair of colors that can do an interchange
+                
+                // undo the increment that happened at the end of the for loop
+                --ix_color_1;
+                --ix_color_2;
+                
+                // do a DFS traversal of the 2-color component to swap the colors
+                stack.push_back(i);
+                while (!stack.empty()) {
+                    size_t here = stack.back();
+                    stack.pop_back();
+                    size_t new_color = coloring[here] == ix_color_1 ? ix_color_2 : ix_color_1;
+                    coloring[here] = new_color;
+                    for (auto edge = color_lists[here][new_color]; edge != nullptr; edge = edge->color_next) {
+                        if (!queued[edge->vertex]) {
+                            queued[edge->vertex] = true;
+                            stack.emplace_back(edge->vertex);
+                        }
+                    }
+                    // the color adjacency lists can have their heads swapped
+                    auto& color_list_here = color_lists[here];
+                    swap(color_list_here[ix_color_1], color_list_here[ix_color_2]);
+                }
+            }
+            else {
+#ifdef debug_interchange
+                cerr << "no swaps possible, adding a color: " << color_list.size() << endl;
+#endif
+                // no interchange is possible, choose the next color
+                coloring[i] = color_list.size();
+                // expand the color lists to accommodate the new color
+                for (auto& clist : color_lists) {
+                    clist.emplace_back(nullptr);
+                }
+            }
+        }
+        
+        // update this node's coloring in the color lists of its neighbors
+        auto color = coloring[i];
+        for (auto edge = interx_adj_list[i]; edge != nullptr; edge = edge->next) {
+            if (index[edge->vertex] > index[i]) {
+                // we're only looking at nodes that are earlier in the ordering
+                continue;
+            }
+            auto mate = edge->mate;
+            auto& nbr_color_list = color_lists[mate->vertex];
+            
+            mate->color_next = nbr_color_list[color];
+            nbr_color_list[color] = mate;
+        }
+    }
+    
+    // free the memory from the linked lists
+    for (auto list_node : interx_adj_list) {
+        while (list_node != nullptr) {
+            auto next_node = list_node->next;
+            delete list_node;
+            list_node = next_node;
+        }
+    }
+    
+    return coloring;
+    
+}
+
+size_t VertexColoring::lower_bound() const {
+    // TODO: any clique finding algorithm or Hoffman's bound
+    return 0;
 }
 
 vector<uint16_t> VertexColoring::maximal_independent_sets(const vector<vector<size_t>>& subgraph,
