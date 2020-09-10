@@ -73,6 +73,9 @@ public:
     // Return the sequence lengths of the {query,ref} in a pair
     void compute_lengths(pair<size_t,size_t>& lengths);
 
+    // Return the length in terms of non-inserts and non-deletes
+    uint64_t compute_common_length();
+
     // Given a pair of start indexes {query_start,ref_start} walk through the alignment, updating the indexes in the
     // pair to retrace the coordinates of the path in the alignment matrix that produces this cigar. Return true as long
     // as the iteration is still progressing

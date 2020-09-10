@@ -128,6 +128,23 @@ void Alignment::compute_lengths(pair<size_t,size_t>& lengths){
 }
 
 
+uint64_t Alignment::compute_common_length(){
+    uint64_t n_matches = 0;
+
+    // Count up the cigar operations
+    for (const auto& c: operations){
+        const uint8_t code = Alignment::cigar_code[c.type()];
+
+        // Assume the right side (sink) node is treated as the "reference" in the cigar
+        if (Alignment::is_ref_move[code] and Alignment::is_query_move[code]){
+            n_matches += c.length;
+        }
+    }
+
+    return n_matches;
+}
+
+
 bool Alignment::step_through_alignment(AlignmentIterator& iterator){
     // Don't do anything on the first step
     if (iterator.first_step){
