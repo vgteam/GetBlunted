@@ -23,16 +23,22 @@ namespace bluntifier {
 
 class BicliqueIterator {
 public:
-    /// Attributes ///
-    edge_t edge;
+    /// Node attributes ///
     handle_t node;
     unordered_set<handle_t> visited;
-    stack<handle_t> nodes;
+    stack<handle_t> node_stack;
     bool first_step;
+    bool is_left;
+
+    /// Edge attributes ///
+    edge_t edge;
+    handle_t prev_left_node;
+    handle_t prev_right_node;
+    bool prev_left_is_valid = false;
+    bool prev_right_is_valid = false;
 
     /// Methods ///
     BicliqueIterator();
-    void update(edge_t edge);
 };
 
 
@@ -47,17 +53,20 @@ public:
     // through each other, using an arbitrary subset of pairs
     void generate_from_bipartition(bipartition& partition, HandleGraph& graph, Pileup& pileup);
 
-    // A generator-style function which returns false when all nodes are visited via some edge.
-    // The goal is to walk along the bipartition such that each step fills in the "edge" object
-    // with an edge containing one sequence that was in a previous alignment.
-    // This allows a projected MSA to be built.
-    static bool traverse_bipartition(
+    // A generator-style DFS walk of the nodes in the partition
+    static bool traverse_bipartition_nodes(
             const HandleGraph& graph,
             const OverlapMap& overlaps,
             const BipartiteGraph& bipartite_graph,
             BicliqueIterator& iterator);
 
-
+    // A generator-style walk along the bipartition such that each step fills in the "edge" object with an edge
+    // containing one sequence that was in a previous alignment allowing a projected MSA to be built.
+    static bool traverse_bipartition_edges(
+            const HandleGraph& graph,
+            const OverlapMap& overlaps,
+            const BipartiteGraph& bipartite_graph,
+            BicliqueIterator& iterator);
 };
 
 

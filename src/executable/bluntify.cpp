@@ -34,8 +34,8 @@ void bluntify(string gfa_path){
     OverlapMap overlaps;
 
     pair<size_t,size_t> lengths;
-    edge_t edge;
     size_t start;
+    edge_t edge;
 
     gfa_to_handle_graph(gfa_path, graph, id_map, overlaps);
 
@@ -77,12 +77,28 @@ void bluntify(string gfa_path){
         adjacency_component.decompose_into_bipartite_blocks([&](const BipartiteGraph& bipartite_graph){
             // Iterate all alignments and build a set of alleles for each coordinate
             Pileup pileup;
-            BicliqueIterator iterator;
 
-            while (PileupGenerator::traverse_bipartition(graph, overlaps, bipartite_graph, iterator)){
-                cout << id_map.get_name(graph.get_id(iterator.node)) << '\n';
-                cout << graph.get_sequence(iterator.node) << '\n';
+            {
+                BicliqueIterator iterator;
+                while (PileupGenerator::traverse_bipartition_edges(graph, overlaps, bipartite_graph, iterator)) {
+                    edge = overlaps.canonicalize_and_find(iterator.edge, graph)->first;
+
+                    cout << id_map.get_name(graph.get_id(edge.first)) << "->";
+                    cout << id_map.get_name(graph.get_id(edge.second)) << '\n';
+
+                    auto iter = overlaps.canonicalize_and_find(edge, graph);
+
+                    iter->second.compute_lengths(lengths);
+
+                    start = graph.get_length(edge.first) - lengths.first;
+
+                    cout << lengths.first << " " << lengths.second << '\n';
+                    cout << start << " " << graph.get_length(edge.first) << " " << lengths.first << '\n';
+                    cout << iter->second.create_formatted_alignment_string(graph, edge, start, 0) << '\n';
+                }
             }
+
+
 
             // Construct a new graph containing the correct alleles
 
