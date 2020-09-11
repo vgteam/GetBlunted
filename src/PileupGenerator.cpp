@@ -4,70 +4,77 @@
 namespace bluntifier {
 
 
-void BicliqueIterator::update(edge_t edge){
-    this->visited.insert(edge.first);
-    this->visited.insert(edge.second);
-    this->edge = edge;
-}
+BicliqueIterator::BicliqueIterator():
+    first_step(true)
+{}
+
+
+//void BicliqueIterator::update(edge_t edge){
+//    this->visited.insert(edge.first);
+//    this->visited.insert(edge.second);
+//    this->edge = edge;
+//}
+
+
+PileupGenerator::PileupGenerator()=default;
 
 
 bool PileupGenerator::traverse_bipartition(
-        HandleGraph& graph,
-        OverlapMap& overlaps,
-        bipartition& partition,
+        const HandleGraph& graph,
+        const OverlapMap& overlaps,
+        const BipartiteGraph& bipartite_graph,
         BicliqueIterator& iterator){
-
-    bool done = false;
 
     if (iterator.first_step){
         // Pick an arbitrary node to start with
         handle_t start;
 
-        if (partition.first.size() > partition.second.size()) {
-            start = *partition.first.begin();
+        // Choose one from the bigger set, if possible
+        if (bipartite_graph.left_size() > bipartite_graph.right_size()) {
+            start = *bipartite_graph.left_begin();
         }
         else{
-            start = graph.flip(*partition.second.begin());
+            start = graph.flip(*bipartite_graph.right_begin());
         }
 
         iterator.nodes.push(start);
-        iterator.visited.insert(start);
+        iterator.first_step = false;
     }
 
-    // Emulate DFS
-    handle_t node = iterator.nodes.top();
-    if (iterator.visited.count(node) == 0){
-        iterator.visited.insert(node);
+    while (iterator.visited.size() < bipartite_graph.left_size() + bipartite_graph.right_size()) {
+        // Emulate DFS
+        handle_t node = iterator.nodes.top();
+        iterator.nodes.pop();
+        if (iterator.visited.count(node) == 0) {
+            iterator.node = node;
+            iterator.visited.insert(node);
 
-        // Just search the other side of the partition
-        if (partition.first.count(node) > 0){
-            for (auto& neighbor: partition.second){
-                iterator.nodes.push(neighbor);
+            // Just search the other side of the partition
+            if (bipartite_graph.is_left_side(node)) {
+                for (auto it = bipartite_graph.right_begin(); it != bipartite_graph.right_end(); ++it) {
+                    iterator.nodes.push(*it);
+                }
+            } else {
+                for (auto it = bipartite_graph.left_begin(); it != bipartite_graph.left_end(); ++it) {
+                    iterator.nodes.push(*it);
+                }
             }
-        }
-        if (partition.second.count(node) > 0){
-            for (auto& neighbor: partition.first){
-                iterator.nodes.push(neighbor);
-            }
+
+            return true;
         }
     }
 
-
-    if (iterator.visited.size() == partition.first.size() + partition.second.size()) {
-        done = true;
-    }
-
-    return not done;
+    return false;
 }
 
 
-void PileupGenerator::generate_from_bipartition(
-        bipartition& partition,
-        OverlapMap& overlaps,
-        HandleGraph& graph,
-        Pileup& pileup) {
-
-}
+//void PileupGenerator::generate_from_bipartition(
+//        bipartition& partition,
+//        OverlapMap& overlaps,
+//        HandleGraph& graph,
+//        Pileup& pileup) {
+//
+//}
 
 
 

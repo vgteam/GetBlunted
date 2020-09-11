@@ -1,4 +1,5 @@
 #include "AdjacencyComponent.hpp"
+#include "PileupGenerator.hpp"
 #include "BicliqueCover.hpp"
 #include "OverlapMap.hpp"
 #include "gfa_to_handle.hpp"
@@ -12,14 +13,14 @@ using bluntifier::gfa_to_handle_graph;
 using bluntifier::parent_path;
 using bluntifier::join_paths;
 using bluntifier::IncrementalIdMap;
+using bluntifier::BicliqueIterator;
+using bluntifier::PileupGenerator;
+using bluntifier::Pileup;
 using bluntifier::OverlapMap;
 using bluntifier::Alignment;
-using bluntifier::adjacency_components;
+using bluntifier::for_each_adjacency_component;
 using bluntifier::AdjacencyComponent;
-using bluntifier::bipartition;
-using bluntifier::ordered_bipartition;
 using bluntifier::BipartiteGraph;
-using bluntifier::GaloisLattice;
 
 using handlegraph::handle_t;
 using bdsg::HashGraph;
@@ -38,39 +39,16 @@ void bluntify(string gfa_path){
 
     gfa_to_handle_graph(gfa_path, graph, id_map, overlaps);
 
-    for (auto& adj_comp : adjacency_components(graph)) {
-        if (adj_comp.size() == 1) {
-            // TODO: The trivial case is already safe to convert overlap to a graph
-            continue;
-        }
-
-        auto partition = adj_comp.exhaustive_maximum_bipartite_partition();
-
-        BipartiteGraph bigraph(graph, partition);
-        GaloisLattice lattice(bigraph);
-        vector<bipartition> separator = lattice.biclique_separator();
-
-
-        // Iterate all alignments and build a set of alleles for each coordinate
-
-
-        // Construct a new graph containing the correct alleles
-
-
-
-
-
-
-
-
-
-
-
-//        for (auto& biclique : separator) {
-//            for (auto& a: biclique.first){
-//                for (auto& b: biclique.second){
-//                    edge.first = a;
-//                    edge.second = graph.flip(b);
+//    for_each_adjacency_component(graph, [&](AdjacencyComponent& adjacency_component) {
+//        if (adjacency_component.size() == 1) {
+//            return true;
+//        }
+//
+//        adjacency_component.decompose_into_bipartite_blocks([&](const BipartiteGraph& bipartite_graph) {
+//            for (auto a = bipartite_graph.left_begin(); a != bipartite_graph.left_end(); ++a) {
+//                for (auto b = bipartite_graph.right_begin(); b != bipartite_graph.right_end(); ++b) {
+//                    edge.first = *a;
+//                    edge.second = graph.flip(*b);
 //
 //                    auto iter = overlaps.canonicalize_and_find(edge, graph);
 //
@@ -84,10 +62,32 @@ void bluntify(string gfa_path){
 //                    cout << lengths.first << " " << lengths.second << '\n';
 //                    cout << start << " " << graph.get_length(edge.first) << " " << lengths.first << '\n';
 //                    cout << iter->second.create_formatted_alignment_string(graph, edge, start, 0) << '\n';
+//
 //                }
 //            }
-//        }
-    }
+//        });
+//    });
+
+
+    for_each_adjacency_component(graph, [&](AdjacencyComponent& adjacency_component){
+        if (adjacency_component.size() == 1) {
+            return true;
+        }
+
+        adjacency_component.decompose_into_bipartite_blocks([&](const BipartiteGraph& bipartite_graph){
+            // Iterate all alignments and build a set of alleles for each coordinate
+            Pileup pileup;
+            BicliqueIterator iterator;
+
+            while (PileupGenerator::traverse_bipartition(graph, overlaps, bipartite_graph, iterator)){
+                cout << id_map.get_name(graph.get_id(iterator.node)) << '\n';
+                cout << graph.get_sequence(iterator.node) << '\n';
+            }
+
+            // Construct a new graph containing the correct alleles
+
+        });
+    });
 }
 
 

@@ -6,6 +6,7 @@
 #include "Pileup.hpp"
 #include <vector>
 #include <deque>
+#include <stack>
 
 using bluntifier::bipartition;
 using handlegraph::handle_t;
@@ -23,14 +24,15 @@ namespace bluntifier {
 class BicliqueIterator {
 public:
     /// Attributes ///
-    edge_t& edge;
+    edge_t edge;
+    handle_t node;
     unordered_set<handle_t> visited;
     stack<handle_t> nodes;
     bool first_step;
 
     /// Methods ///
+    BicliqueIterator();
     void update(edge_t edge);
-    void next();
 };
 
 
@@ -49,7 +51,11 @@ public:
     // The goal is to walk along the bipartition such that each step fills in the "edge" object
     // with an edge containing one sequence that was in a previous alignment.
     // This allows a projected MSA to be built.
-    bool traverse_bipartition(HandleGraph& graph, bipartition& partition, BicliqueIterator& iterator);
+    static bool traverse_bipartition(
+            const HandleGraph& graph,
+            const OverlapMap& overlaps,
+            const BipartiteGraph& bipartite_graph,
+            BicliqueIterator& iterator);
 
 
 };

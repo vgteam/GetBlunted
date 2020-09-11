@@ -19,8 +19,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #set(CMAKE_CXX_FLAGS "-fexceptions -fno-new-ttp-matching")
 set(CMAKE_CXX_FLAGS "-fexceptions")
 
-#add_definitions(-ggdb3 -O0 -Wall)       # Debugging + No optimization
-add_definitions(-O3 -Wall)              # Much optimization
+add_definitions(-ggdb3 -O0 -Wall)       # Debugging + No optimization
+#add_definitions(-O3 -Wall)              # Much optimization
 
 #########################################
 # ------------------------------------- #

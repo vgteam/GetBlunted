@@ -1,6 +1,7 @@
 #ifndef BLUNTIFIER_PILEUP_HPP
 #define BLUNTIFIER_PILEUP_HPP
 
+#include <handlegraph/handle_graph.hpp>
 #include <vector>
 #include <deque>
 
@@ -9,7 +10,7 @@ using std::vector;
 using std::deque;
 
 
-namespace {
+namespace bluntifier{
 
 
 class Pileup {
