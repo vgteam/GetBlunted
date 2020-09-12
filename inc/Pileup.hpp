@@ -4,16 +4,19 @@
 #include <handlegraph/handle_graph.hpp>
 #include <vector>
 #include <deque>
+#include <string>
 
 using handlegraph::handle_t;
 using std::vector;
 using std::deque;
+using std::string;
 
 
 namespace bluntifier{
 
 
 class Pileup {
+public:
     /// Attributes ///
 
     // The data structure containing the multiple sequence alignment. Columns (arrays) correspond to coordinates in
@@ -29,8 +32,11 @@ class Pileup {
     // Has this path been invalidated since it was created (inserts added)? If so it needs to be recomputed
     bool path_valid;
 
-    /// Methods ///
+    // Filler character
+    static const char space;
 
+    /// Methods ///
+    void to_string(string& s);
 
 };
 

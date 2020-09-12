@@ -32,8 +32,8 @@ public:
     int64_t insert(const string& s);
 
     // Find the original node ID from its integer ID
-    string get_name(int64_t id);
-    int64_t get_id(const string& name);
+    string get_name(int64_t id) const;
+    int64_t get_id(const string& name) const;
 
     // Check if key/value has been added already, returns true if it exists
     bool exists(const string& name);

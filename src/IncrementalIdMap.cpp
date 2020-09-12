@@ -39,12 +39,12 @@ bool IncrementalIdMap::exists(int64_t id){
 }
 
 
-int64_t IncrementalIdMap::get_id(const string& name){
+int64_t IncrementalIdMap::get_id(const string& name) const{
     return ids.at(name);
 }
 
 
-string IncrementalIdMap::get_name(int64_t id){
+string IncrementalIdMap::get_name(int64_t id) const{
     return *names[id-1];
 }
 

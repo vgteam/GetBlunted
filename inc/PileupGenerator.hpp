@@ -1,6 +1,7 @@
 #ifndef BLUNTIFIER_PILEUPGENERATOR_HPP
 #define BLUNTIFIER_PILEUPGENERATOR_HPP
 
+#include "IncrementalIdMap.hpp"
 #include "BicliqueCover.hpp"
 #include "OverlapMap.hpp"
 #include "Pileup.hpp"
@@ -51,7 +52,12 @@ public:
 
     // Given a bipartition, build a multiple sequence alignment by projecting a set of pairwise alignments
     // through each other, using an arbitrary subset of pairs
-    void generate_from_bipartition(bipartition& partition, HandleGraph& graph, Pileup& pileup);
+    static void generate_from_bipartition(
+            const BipartiteGraph& bipartite_graph,
+            const IncrementalIdMap& id_map,
+            OverlapMap& overlaps,
+            HandleGraph& graph,
+            Pileup& pileup);
 
     // A generator-style DFS walk of the nodes in the partition
     static bool traverse_bipartition_nodes(
@@ -67,6 +73,13 @@ public:
             const OverlapMap& overlaps,
             const BipartiteGraph& bipartite_graph,
             BicliqueIterator& iterator);
+
+private:
+    static void debug_print(
+            const IncrementalIdMap& id_map,
+            HandleGraph& graph,
+            OverlapMap& overlaps,
+            BicliqueIterator& biclique_iterator);
 };
 
 

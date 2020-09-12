@@ -102,14 +102,143 @@ bool PileupGenerator::traverse_bipartition_nodes(
 }
 
 
-//void PileupGenerator::generate_from_bipartition(
-//        bipartition& partition,
-//        OverlapMap& overlaps,
-//        HandleGraph& graph,
-//        Pileup& pileup) {
-//
-//}
+void PileupGenerator::debug_print(const IncrementalIdMap& id_map,
+                                  HandleGraph& graph,
+                                  OverlapMap& overlaps,
+                                  BicliqueIterator& biclique_iterator){
+
+    auto iter = overlaps.canonicalize_and_find(biclique_iterator.edge, graph);
+    const edge_t& edge = iter->first;
+    Alignment& alignment = iter->second;
+    pair<size_t, size_t> lengths;
+    size_t start;
+
+    std::cout << id_map.get_name(graph.get_id(edge.first)) << "->";
+    std::cout << id_map.get_name(graph.get_id(edge.second)) << '\n';
+
+    iter->second.compute_lengths(lengths);
+
+    start = graph.get_length(edge.first) - lengths.first;
+
+    std::cout << "Is left: " << biclique_iterator.is_left << '\n';
+    std::cout << lengths.first << " " << lengths.second << '\n';
+    std::cout << iter->second.create_formatted_alignment_string(graph, edge, start, 0) << '\n';
+}
+
+
+void PileupGenerator::generate_from_bipartition(
+        const BipartiteGraph& bipartite_graph,
+        const IncrementalIdMap& id_map,
+        OverlapMap& overlaps,
+        HandleGraph& graph,
+        Pileup& pileup) {
+
+    BicliqueIterator biclique_iterator;
+    bool first_step = true;
+    size_t depth = bipartite_graph.left_size() + bipartite_graph.right_size();
+    size_t depth_index = 0;
+
+    while (PileupGenerator::traverse_bipartition_edges(graph, overlaps, bipartite_graph, biclique_iterator)) {
+        debug_print(id_map, graph, overlaps, biclique_iterator);
+        std::cout << '\n';
+
+        auto iter = overlaps.canonicalize_and_find(biclique_iterator.edge, graph);
+        const edge_t& edge = iter->first;
+        Alignment& alignment = iter->second;
+        pair<size_t, size_t> lengths;
+
+        alignment.compute_lengths(lengths);
+        size_t left_start = graph.get_length(edge.first) - lengths.first;
+        size_t right_start = 0;
+
+        if (first_step){
+            AlignmentIterator alignment_iterator(left_start, right_start);
+            size_t index = 0;
+
+            while (alignment.step_through_alignment(alignment_iterator)){
+                char base;
+                bool is_move;
+                uint8_t code = alignment.operations[alignment_iterator.cigar_index].code;
+
+                // Is the traversal starting backwards? If so pick the initialization sequence accordingly
+                if (biclique_iterator.is_left) {
+                    base = graph.get_base(edge.second, alignment_iterator.ref_index);
+                    is_move = Alignment::is_ref_move[code];
+                }else{
+                    base = graph.get_base(edge.first, alignment_iterator.query_index);
+                    is_move = Alignment::is_query_move[code];
+                }
+
+                if (pileup.matrix.size() < index + 1){
+                    pileup.matrix.emplace_back(depth,Pileup::space);
+                }
+
+                if (is_move) {
+                    pileup.matrix[index][depth_index] = base;
+                }
+
+                index++;
+            }
+            depth_index++;
+
+            string s;
+            pileup.to_string(s);
+            std::cout << s << '\n';
+        }
+
+        AlignmentIterator alignment_iterator(left_start, right_start);
+        size_t index = 0;
+
+        while (alignment.step_through_alignment(alignment_iterator)){
+            char base;
+            bool is_move;
+            uint8_t code = alignment.operations[alignment_iterator.cigar_index].code;
+
+            // Is the traversal walking backwards? If so pick the sequence accordingly
+            if (biclique_iterator.is_left) {
+                base = graph.get_base(edge.first, alignment_iterator.query_index);
+                is_move = Alignment::is_query_move[code];
+            }else{
+                base = graph.get_base(edge.second, alignment_iterator.ref_index);
+                is_move = Alignment::is_ref_move[code];
+            }
+
+            if (pileup.matrix.size() < index + 1){
+                pileup.matrix.emplace_back(depth, Pileup::space);
+            }
+
+            if (is_move) {
+                pileup.matrix[index][depth_index] = base;
+            }
+
+            index++;
+        }
+        first_step = false;
+        depth_index++;
+
+        string s;
+        pileup.to_string(s);
+        std::cout << s << '\n';
+    }
+}
 
 
 
 }
+
+/**
+
+        pair<size_t, size_t> lengths;
+        size_t start;
+
+        std::cout << id_map.get_name(graph.get_id(edge.first)) << "->";
+        std::cout << id_map.get_name(graph.get_id(edge.second)) << '\n';
+
+        iter->second.compute_lengths(lengths);
+
+        start = graph.get_length(edge.first) - lengths.first;
+
+        std::cout << "Is left: " << biclique_iterator.is_left << '\n';
+        std::cout << lengths.first << " " << lengths.second << '\n';
+        std::cout << iter->second.create_formatted_alignment_string(graph, edge, start, 0) << '\n';
+**/
