@@ -1,12 +1,14 @@
 #ifndef BLUNTIFIER_PILEUP_HPP
 #define BLUNTIFIER_PILEUP_HPP
 
-#include <handlegraph/handle_graph.hpp>
+#include "handlegraph/handle_graph.hpp"
+#include "bdsg/packed_graph.hpp"
 #include <vector>
 #include <deque>
 #include <string>
 
 using handlegraph::handle_t;
+using bdsg::PackedGraph;
 using std::vector;
 using std::deque;
 using std::string;
@@ -23,14 +25,13 @@ public:
     // alignment. Rows correspond to a single sequence's path through the alignment when adjusted for inserts/deletes
     deque <vector <char> > matrix;
 
-    // In terms of column coordinates in the matrix, what path did the last/current alignment take?
-    vector<size_t> path;
+    //
+    PackedGraph graph;
 
-    // What was the last/current sequence that was added to the alignment pileup?
-    handle_t sequence_id;
+    // In terms of column coordinates in the matrix, what path each alignment take?
+    vector <deque <handle_t> > paths;
 
-    // Has this path been invalidated since it was created (inserts added)? If so it needs to be recomputed
-    bool path_valid;
+    vector <handle_t> nodes;
 
     // Filler character
     static const char space;

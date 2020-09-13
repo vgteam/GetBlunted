@@ -102,7 +102,7 @@ bool PileupGenerator::traverse_bipartition_nodes(
 }
 
 
-void PileupGenerator::debug_print(const IncrementalIdMap& id_map,
+void PileupGenerator::debug_print(const IncrementalIdMap<string>& id_map,
                                   HandleGraph& graph,
                                   OverlapMap& overlaps,
                                   BicliqueIterator& biclique_iterator){
@@ -128,7 +128,7 @@ void PileupGenerator::debug_print(const IncrementalIdMap& id_map,
 
 void PileupGenerator::generate_from_bipartition(
         const BipartiteGraph& bipartite_graph,
-        const IncrementalIdMap& id_map,
+        const IncrementalIdMap<string>& id_map,
         OverlapMap& overlaps,
         HandleGraph& graph,
         Pileup& pileup) {

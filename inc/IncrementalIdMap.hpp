@@ -13,32 +13,77 @@ using std::vector;
 using std::unordered_map;
 using handlegraph::nid_t;
 using std::unique_ptr;
+using std::runtime_error;
+using std::unique_ptr;
+using std::make_unique;
+
 
 namespace bluntifier{
 
-class IncrementalIdMap {
+template <class T> class IncrementalIdMap {
 public:
     /// Attributes ///
 
-    vector <unique_ptr <string> > names;
-    unordered_map <string, int64_t> ids;
+    vector <unique_ptr <T> > names;
+    unordered_map <T, int64_t> ids;
 
     /// Methods ///
 
-    IncrementalIdMap();
+    IncrementalIdMap<T>();
 
     // Add a node ID to the running list, do whatever needs to be done to make sure the mapping is reversible, and then
     // return its incremental ID, based on the number of nodes added so far
-    int64_t insert(const string& s);
+    int64_t insert(const T& s);
 
     // Find the original node ID from its integer ID
-    string get_name(int64_t id) const;
-    int64_t get_id(const string& name) const;
+    T get_name(int64_t id) const;
+    int64_t get_id(const T& name) const;
 
     // Check if key/value has been added already, returns true if it exists
-    bool exists(const string& name);
+    bool exists(const T& name);
     bool exists(int64_t id);
 };
+
+
+template<class T> IncrementalIdMap<T>::IncrementalIdMap()=default;
+
+template <class T> int64_t IncrementalIdMap<T>::insert(const T& s) {
+    if (exists(s)){
+        throw runtime_error("Error: attempted to insert duplicate key: " + s);
+    }
+
+    // Make a copy of the node name string, and allocate a pointer to it
+    names.push_back(make_unique<T>(s));
+
+    // Create an integer node ID (starting from 1)
+    int64_t id = names.size();
+
+    // Create a reverse mapping by dereferencing the pointer
+    ids.insert({*names.back(),id});
+
+    // For convenience, return the ID number that was generated
+    return id;
+}
+
+
+template<class T> bool IncrementalIdMap<T>::exists(const T& name){
+    return (ids.find(name) != ids.end());
+}
+
+
+template<class T> bool IncrementalIdMap<T>::exists(int64_t id){
+    return (id >= 0 and id <= names.size());
+}
+
+
+template<class T> int64_t IncrementalIdMap<T>::get_id(const T& name) const{
+    return ids.at(name);
+}
+
+
+template<class T> T IncrementalIdMap<T>::get_name(int64_t id) const{
+    return *names[id-1];
+}
 
 
 }

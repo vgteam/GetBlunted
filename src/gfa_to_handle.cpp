@@ -8,7 +8,7 @@ using bdsg::HandleGraph;
 namespace bluntifier {
 
 
-nid_t parse_gfa_sequence_id(const string& s, IncrementalIdMap& id_map) {
+nid_t parse_gfa_sequence_id(const string& s, IncrementalIdMap<string>& id_map) {
     nid_t id;
 
     if (id_map.exists(s)){
@@ -45,7 +45,7 @@ void gfa_to_handle_graph_in_memory(
         istream& in,
         MutableHandleGraph& graph,
         gfak::GFAKluge& gg,
-        IncrementalIdMap& id_map,
+        IncrementalIdMap<string>& id_map,
         OverlapMap& overlaps) {
 
     if (!in) {
@@ -83,7 +83,7 @@ void gfa_to_handle_graph_on_disk(
         MutableHandleGraph& graph,
         bool try_id_increment_hint,
         gfak::GFAKluge& gg,
-        IncrementalIdMap& id_map,
+        IncrementalIdMap<string>& id_map,
         OverlapMap& overlaps) {
 
     // adapted from
@@ -136,7 +136,7 @@ void gfa_to_handle_graph_load_graph(
         MutableHandleGraph& graph,
         bool try_id_increment_hint,
         gfak::GFAKluge& gg,
-        IncrementalIdMap& id_map,
+        IncrementalIdMap<string>& id_map,
         OverlapMap& overlaps) {
 
     if (graph.get_node_count() > 0) {
@@ -166,7 +166,7 @@ void gfa_to_handle_graph_load_graph(
 /// If the input is a seekable file, filename will be filled in and unseekable will be nullptr.
 /// If the input is not a seekable file, filename may be filled in, and unseekable will be set to a stream to read from.
 void gfa_to_handle_graph_add_paths(const string& filename, istream* unseekable, MutablePathHandleGraph& graph,
-                                   gfak::GFAKluge& gg, IncrementalIdMap& id_map) {
+                                   gfak::GFAKluge& gg, IncrementalIdMap<string>& id_map) {
 
 
     if (!unseekable) {
@@ -223,7 +223,7 @@ void gfa_to_handle_graph_add_paths(const string& filename, istream* unseekable, 
 void gfa_to_handle_graph(
         const string& filename,
         MutableHandleGraph& graph,
-        IncrementalIdMap& id_map,
+        IncrementalIdMap<string>& id_map,
         OverlapMap& overlaps,
         bool try_from_disk,
         bool try_id_increment_hint) {
@@ -255,7 +255,7 @@ void gfa_to_handle_graph(
 void gfa_to_path_handle_graph(
         const string& filename,
         MutablePathMutableHandleGraph& graph,
-        IncrementalIdMap& id_map,
+        IncrementalIdMap<string>& id_map,
         OverlapMap& overlaps,
         bool try_from_disk,
         bool try_id_increment_hint) {
@@ -291,7 +291,7 @@ void gfa_to_path_handle_graph(
 void gfa_to_path_handle_graph_in_memory(
         istream& in,
         MutablePathMutableHandleGraph& graph,
-        IncrementalIdMap& id_map,
+        IncrementalIdMap<string>& id_map,
         OverlapMap& overlaps) {
     gfak::GFAKluge gg;
     gfa_to_handle_graph_load_graph("", &in, graph, false, gg, id_map, overlaps);

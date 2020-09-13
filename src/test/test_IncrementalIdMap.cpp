@@ -17,7 +17,7 @@ int main(){
     vector <string> names = {"a", "b", "c" , "d"};
     vector <nid_t> ids = {1, 2, 3, 4};
 
-    IncrementalIdMap id_map;
+    IncrementalIdMap<string> id_map;
 
     string name;
     nid_t id = -1;

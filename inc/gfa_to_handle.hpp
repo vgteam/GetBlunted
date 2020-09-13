@@ -49,7 +49,7 @@ public:
 /// otherwise misused.
 void gfa_to_handle_graph(const string& filename,
                          MutableHandleGraph& graph,
-                         IncrementalIdMap& id_map,
+                         IncrementalIdMap<string>& id_map,
                          OverlapMap& overlaps,
                          bool try_from_disk = true,
                          bool try_id_increment_hint = false);
@@ -57,7 +57,7 @@ void gfa_to_handle_graph(const string& filename,
 /// Same as gfa_to_handle_graph but also adds path elements from the GFA to the graph
 void gfa_to_path_handle_graph(const string& filename,
                               MutablePathMutableHandleGraph& graph,
-                              IncrementalIdMap& id_map,
+                              IncrementalIdMap<string>& id_map,
                               bool try_from_disk = true,
                               bool try_id_increment_hint = false);
 
@@ -65,7 +65,7 @@ void gfa_to_path_handle_graph(const string& filename,
 /// Always streaming. Doesn't support ID increment hints.
 void gfa_to_path_handle_graph_in_memory(istream& in,
                                         MutablePathMutableHandleGraph& graph,
-                                        IncrementalIdMap& id_map,
+                                        IncrementalIdMap<string>& id_map,
                                         OverlapMap& overlaps);
 
 

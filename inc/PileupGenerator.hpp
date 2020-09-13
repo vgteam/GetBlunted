@@ -54,7 +54,7 @@ public:
     // through each other, using an arbitrary subset of pairs
     static void generate_from_bipartition(
             const BipartiteGraph& bipartite_graph,
-            const IncrementalIdMap& id_map,
+            const IncrementalIdMap<string>& id_map,
             OverlapMap& overlaps,
             HandleGraph& graph,
             Pileup& pileup);
@@ -76,7 +76,7 @@ public:
 
 private:
     static void debug_print(
-            const IncrementalIdMap& id_map,
+            const IncrementalIdMap<string>& id_map,
             HandleGraph& graph,
             OverlapMap& overlaps,
             BicliqueIterator& biclique_iterator);

@@ -33,7 +33,7 @@ int main(){
     ifstream file(absolute_gfa_path);
 
     PackedGraph g;
-    IncrementalIdMap id_map;
+    IncrementalIdMap<string> id_map;
     OverlapMap overlaps;
 
     gfa_to_handle_graph(absolute_gfa_path, g, id_map, overlaps);
