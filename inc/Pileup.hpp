@@ -25,13 +25,17 @@ public:
     // alignment. Rows correspond to a single sequence's path through the alignment when adjusted for inserts/deletes
     deque <vector <char> > matrix;
 
-    //
+    // A new graph to represent the multiple sequence alignment
     PackedGraph graph;
 
-    // In terms of column coordinates in the matrix, what path each alignment take?
+    // In terms of nodes in the graph, what path does each alignment take?
     vector <deque <handle_t> > paths;
 
-    vector <handle_t> nodes;
+    // Coverage in terms of sequences that contributed to each node in the alignment graph
+    unordered_map <handle_t, unordered_set <handle_t> > coverage;
+
+    // Convert nodes to integer IDs
+    IncrementalIdMap<handle_t> id_map;
 
     // Filler character
     static const char space;

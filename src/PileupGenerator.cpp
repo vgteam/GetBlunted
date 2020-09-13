@@ -135,8 +135,7 @@ void PileupGenerator::generate_from_bipartition(
 
     BicliqueIterator biclique_iterator;
     bool first_step = true;
-    size_t depth = bipartite_graph.left_size() + bipartite_graph.right_size();
-    size_t depth_index = 0;
+    pileup.paths.resize(bipartite_graph.left_size() + bipartite_graph.right_size());
 
     while (PileupGenerator::traverse_bipartition_edges(graph, overlaps, bipartite_graph, biclique_iterator)) {
         debug_print(id_map, graph, overlaps, biclique_iterator);
@@ -151,40 +150,84 @@ void PileupGenerator::generate_from_bipartition(
         size_t left_start = graph.get_length(edge.first) - lengths.first;
         size_t right_start = 0;
 
-        if (first_step){
-            AlignmentIterator alignment_iterator(left_start, right_start);
-            size_t index = 0;
+        handle_t pseudo_reference;
+        int64_t pseudo_ref_id;
+        size_t pseudo_ref_length;
+        size_t prev_pseudo_ref_length;
 
-            while (alignment.step_through_alignment(alignment_iterator)){
-                char base;
-                bool is_move;
-                uint8_t code = alignment.operations[alignment_iterator.cigar_index].code;
-
-                // Is the traversal starting backwards? If so pick the initialization sequence accordingly
-                if (biclique_iterator.is_left) {
-                    base = graph.get_base(edge.second, alignment_iterator.ref_index);
-                    is_move = Alignment::is_ref_move[code];
-                }else{
-                    base = graph.get_base(edge.first, alignment_iterator.query_index);
-                    is_move = Alignment::is_query_move[code];
-                }
-
-                if (pileup.matrix.size() < index + 1){
-                    pileup.matrix.emplace_back(depth,Pileup::space);
-                }
-
-                if (is_move) {
-                    pileup.matrix[index][depth_index] = base;
-                }
-
-                index++;
-            }
-            depth_index++;
-
-            string s;
-            pileup.to_string(s);
-            std::cout << s << '\n';
+        // Figure out which sequence is being treated as the "ref" in the overlap, call it pseudo_ref
+        if (biclique_iterator.is_left) {
+            pseudo_reference = edge.second;
+            pseudo_ref_length = lengths.second;
         }
+        else{
+            pseudo_reference = edge.first;
+            pseudo_ref_length = lengths.first;
+        }
+
+        // Find out whether the pseudo ref has been added to the graph and what its length was
+        if (not pileup.id_map.exists(pseudo_reference)){
+            prev_pseudo_ref_length = 0;
+        }
+        else{
+            pseudo_ref_id = pileup.id_map.get_id(pseudo_reference);
+            prev_pseudo_ref_length = pileup.paths[pseudo_ref_id].size();
+        }
+
+        // If the previous alignment that used this pseudo ref did not span enough bases, the graph will need updating
+        if (prev_pseudo_ref_length < pseudo_ref_length){
+            // Seq of interest ("pseudoref") is on the RIGHT of the overlap
+            if (biclique_iterator.is_left){
+                // If this pseudoref is not in the pileup graph at all, it must be the first sequence
+                // In this case, just initialize the graph with it.
+                if (not pileup.id_map.exists(pseudo_reference)){
+                    pseudo_ref_id = pileup.id_map.insert(pseudo_reference);
+
+                    for (size_t i=0; i<pseudo_ref_length; i++){
+                        auto h = pileup.graph.create_handle(string(1,graph.get_base(pseudo_reference,i)));
+                        if (i > 0){
+                            pileup.graph.create_edge(pileup.paths[pseudo_ref_id][i-1], h);
+                        }
+                        pileup.paths[pseudo_ref_id].push_back(h);
+                    }
+                }
+                // If the current pseudoref is longer than the previous one, then stitch the correct side
+                else{
+                    for (size_t i=prev_pseudo_ref_length; i<pseudo_ref_length; i++){
+                        auto h = pileup.graph.create_handle(string(1,graph.get_base(pseudo_reference,i)));
+                        pileup.graph.create_edge(pileup.paths[pseudo_ref_id][i-1], h);
+                        pileup.paths[pseudo_ref_id].push_back(h);
+                    }
+                }
+            }
+            // Seq of interest ("pseudoref") is on the LEFT of the overlap
+            else{
+                // If this pseudoref is not in the pileup graph at all, it must be the first sequence
+                // In this case, just initialize the graph with it.
+                if (not pileup.id_map.exists(pseudo_reference)){
+                    pseudo_ref_id = pileup.id_map.insert(pseudo_reference);
+
+                    for (size_t i=0; i<pseudo_ref_length; i++){
+                        auto h = pileup.graph.create_handle(string(1,graph.get_base(pseudo_reference,i)));
+                        if (i > 0){
+                            pileup.graph.create_edge(pileup.paths[pseudo_ref_id][i-1], h);
+                        }
+                        pileup.paths[pseudo_ref_id].push_back(h);
+                    }
+                }
+                // If the current pseudoref is longer than the previous one, then stitch the correct side
+                else{
+//                    size_t start = graph.get_length(edge.first) - prev_pseudo_ref_length - 1;
+//                    size_t stop = graph.get_length(edge.first) - pseudo_ref_length;
+//                    for (int64_t i=start; i>=stop; i--){
+//                        auto h = pileup.graph.create_handle(string(1,graph.get_base(pseudo_reference,i)));
+//                        pileup.graph.create_edge(h, pileup.paths[pseudo_ref_id][i+1]);
+//                        pileup.paths[pseudo_ref_id].push_back(h);
+                    }
+                }
+            }
+        }
+
 
         AlignmentIterator alignment_iterator(left_start, right_start);
         size_t index = 0;
@@ -203,18 +246,12 @@ void PileupGenerator::generate_from_bipartition(
                 is_move = Alignment::is_ref_move[code];
             }
 
-            if (pileup.matrix.size() < index + 1){
-                pileup.matrix.emplace_back(depth, Pileup::space);
-            }
-
             if (is_move) {
-                pileup.matrix[index][depth_index] = base;
             }
 
             index++;
         }
         first_step = false;
-        depth_index++;
 
         string s;
         pileup.to_string(s);

@@ -87,7 +87,7 @@ int main(){
         id = id_map.insert("a");
     }
     catch (exception& e){
-        cerr << e.what() << '\n';
+        cerr << "Caught expected error: " << e.what() << '\n';
         pass = true;
     }
 
