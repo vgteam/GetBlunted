@@ -43,6 +43,7 @@ set(SOURCES
         src/find_tips.cpp
 	src/GaloisLattice.cpp
         src/gfa_to_handle.cpp
+        src/handle_to_gfa.cpp
         src/IncrementalIdMap.cpp
         src/is_single_stranded.cpp
         src/OverlapMap.cpp
@@ -245,6 +246,7 @@ set(TESTS
         test_cigar
         test_gfak
         test_handlegraph
+        test_handle_to_gfa
         test_IncrementalIdMap
         test_overlaps
         test_utility
