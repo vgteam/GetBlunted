@@ -6,6 +6,12 @@ namespace bluntifier{
 
 const char Pileup::space = '_';
 
+
+Pileup::Pileup():
+        id_map(true)
+{}
+
+
 void Pileup::to_string(string& s){
     s.clear();
 

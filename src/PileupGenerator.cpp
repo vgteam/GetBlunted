@@ -195,14 +195,22 @@ void PileupGenerator::generate_from_bipartition(
         size_t pseudo_ref_length;
         size_t prev_pseudo_ref_length;
 
-        // Figure out which sequence is being treated as the "ref" in the overlap, call it pseudo_ref
+        handle_t pseudo_query;
+        int64_t pseudo_query_id;
+        size_t pseudo_query_length;
+
+        // Figure out which sequence is being treated as the "ref" in the overlap, call it pseudo reference
         if (biclique_iterator.is_left) {
             pseudo_reference = edge.second;
+            pseudo_query = edge.first;
             pseudo_ref_length = lengths.second;
+            pseudo_query_length = lengths.first;
         }
         else{
             pseudo_reference = edge.first;
+            pseudo_query = edge.second;
             pseudo_ref_length = lengths.first;
+            pseudo_query_length = lengths.second;
         }
 
         // Find out whether the pseudo ref has been added to the graph and what its length was
@@ -240,35 +248,81 @@ void PileupGenerator::generate_from_bipartition(
         }
 
         AlignmentIterator alignment_iterator(left_start, right_start);
-        size_t index = 0;
+        pseudo_query_id = pileup.id_map.insert(pseudo_query);
+        size_t pseudo_ref_index = 0;
+        size_t pseudo_query_index = 0;
 
         while (alignment.step_through_alignment(alignment_iterator)){
-            char base;
-            bool is_move;
+            char pseudo_query_base;
+            char pseudo_ref_base;
+            bool is_pseudo_query_move;
+            bool is_pseudo_ref_move;
             uint8_t code = alignment.operations[alignment_iterator.cigar_index].code;
+            auto pseudo_ref_node = pileup.paths[pseudo_ref_id][pseudo_ref_index];
 
-            // Is the traversal walking forwards or backwards? Pick the sequence accordingly
+            // Is the traversal walking forwards or backwards? Reassign the relevant flags/data accordingly
             if (biclique_iterator.is_left) {
-                base = graph.get_base(edge.first, alignment_iterator.query_index);
-                is_move = Alignment::is_query_move[code];
+                pseudo_query_base = graph.get_base(edge.first, alignment_iterator.query_index);
+                pseudo_ref_base = graph.get_base(edge.second, alignment_iterator.ref_index);
+                is_pseudo_query_move = Alignment::is_query_move[code];
+                is_pseudo_ref_move = Alignment::is_ref_move[code];
             }
             else{
-                base = graph.get_base(edge.second, alignment_iterator.ref_index);
-                is_move = Alignment::is_ref_move[code];
+                pseudo_query_base = graph.get_base(edge.second, alignment_iterator.ref_index);
+                pseudo_ref_base = graph.get_base(edge.first, alignment_iterator.query_index);
+                is_pseudo_query_move = Alignment::is_ref_move[code];
+                is_pseudo_ref_move = Alignment::is_query_move[code];
             }
 
-            if (is_move) {
+            // Match or mismatch
+            if (is_pseudo_query_move and is_pseudo_ref_move) {
+                if (pseudo_ref_base == pseudo_query_base){
+                    // Simply update the path for this sequence to follow the ref
+                    pileup.paths[pseudo_query_id].push_back(pseudo_ref_node);
+                }
+                else {
+                    // Create a new node and splice into the graph
+                    auto node = pileup.graph.create_handle(string(1,pseudo_query_base));
+
+                    if (not pileup.paths[pseudo_query_id].empty()){
+                        auto prev_node = pileup.paths[pseudo_query_id].back();
+                        pileup.graph.create_edge(prev_node, node);
+                    }
+
+                    pileup.paths[pseudo_query_id].push_back(node);
+                }
+                pseudo_query_index++;
+                pseudo_ref_index++;
+            }
+            // Delete-like operation (relative to the pseudoref)
+            else if (not is_pseudo_query_move and is_pseudo_ref_move) {
+
+                pseudo_ref_index++;
+            }
+            // Insert-like operation (relative to the pseudoref)
+            else if (is_pseudo_query_move and not is_pseudo_ref_move) {
+
+                pseudo_query_index++;
+            }
+            // Should never happen?
+            else{
 
             }
-
-            index++;
         }
+
         first_step = false;
 
         string s;
         pileup.to_string(s);
         std::cout << s << '\n';
     }
+
+    {
+        string test_path = "test_alignment_graph_" + std::to_string(i) + ".gfa";
+        handle_graph_to_gfa(pileup.graph, test_path);
+        i++;
+    }
+
 }
 
 

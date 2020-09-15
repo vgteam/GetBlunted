@@ -47,6 +47,7 @@ public:
     static const char space;
 
     /// Methods ///
+    Pileup();
     void to_string(string& s);
 
 };
