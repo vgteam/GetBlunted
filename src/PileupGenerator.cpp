@@ -250,6 +250,7 @@ void PileupGenerator::generate_from_bipartition(
         AlignmentIterator alignment_iterator(left_start, right_start);
         pseudo_query_id = pileup.id_map.insert(pseudo_query);
         size_t pseudo_ref_index = 0;
+        size_t offset = 0;
         size_t pseudo_query_index = 0;
 
         while (alignment.step_through_alignment(alignment_iterator)){
@@ -258,7 +259,6 @@ void PileupGenerator::generate_from_bipartition(
             bool is_pseudo_query_move;
             bool is_pseudo_ref_move;
             uint8_t code = alignment.operations[alignment_iterator.cigar_index].code;
-            auto pseudo_ref_node = pileup.paths[pseudo_ref_id][pseudo_ref_index];
 
             // Is the traversal walking forwards or backwards? Reassign the relevant flags/data accordingly
             if (biclique_iterator.is_left) {
@@ -272,14 +272,27 @@ void PileupGenerator::generate_from_bipartition(
                 pseudo_ref_base = graph.get_base(edge.first, alignment_iterator.query_index);
                 is_pseudo_query_move = Alignment::is_ref_move[code];
                 is_pseudo_ref_move = Alignment::is_query_move[code];
+                offset = prev_pseudo_ref_length - pseudo_ref_length;
             }
+
+            auto pseudo_ref_node = pileup.paths[pseudo_ref_id][pseudo_ref_index+offset];
 
             // Match or mismatch
             if (is_pseudo_query_move and is_pseudo_ref_move) {
+                /// Match
                 if (pseudo_ref_base == pseudo_query_base){
+
+                    // Connect it to whatever the previous node in this path was (which may already be connected)
+                    if (not pileup.paths[pseudo_query_id].empty()) {
+                        auto prev_node = pileup.paths[pseudo_query_id].back();
+                        pileup.graph.create_edge(prev_node, pseudo_ref_node);
+                    }
+
                     // Simply update the path for this sequence to follow the ref
                     pileup.paths[pseudo_query_id].push_back(pseudo_ref_node);
+
                 }
+                /// Mismatch
                 else {
                     // Create a new node and splice into the graph
                     auto node = pileup.graph.create_handle(string(1,pseudo_query_base));
