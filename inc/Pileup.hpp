@@ -3,15 +3,21 @@
 
 #include "handlegraph/handle_graph.hpp"
 #include "bdsg/packed_graph.hpp"
+#include "IncrementalIdMap.hpp"
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <deque>
 #include <string>
 
+using bluntifier::IncrementalIdMap;
 using handlegraph::handle_t;
 using bdsg::PackedGraph;
+using std::unordered_map;
+using std::unordered_set;
 using std::vector;
-using std::deque;
 using std::string;
+using std::deque;
 
 
 namespace bluntifier{

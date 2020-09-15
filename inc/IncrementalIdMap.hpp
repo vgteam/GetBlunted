@@ -49,7 +49,7 @@ template<class T> IncrementalIdMap<T>::IncrementalIdMap()=default;
 
 template <class T> int64_t IncrementalIdMap<T>::insert(const T& s) {
     if (exists(s)){
-        throw runtime_error("Error: attempted to insert duplicate key: " + s);
+        throw runtime_error("Error: attempted to insert duplicate key");
     }
 
     // Make a copy of the node name string, and allocate a pointer to it

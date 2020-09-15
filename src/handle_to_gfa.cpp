@@ -36,6 +36,8 @@ void handle_graph_to_gfa(const HandleGraph& graph, const string& output_path){
         throw runtime_error("ERROR: output file could not be written: " + output_path);
     }
 
+    output_gfa << "H\tHVN:Z:1.0\n";
+
     graph.for_each_handle([&](const handle_t& node){
         write_node_to_gfa(graph, node, output_gfa);
     });

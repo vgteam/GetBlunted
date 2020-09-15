@@ -1,0 +1,7 @@
+S	A	CGTACA
+S	C	ATACAGAT
+S	D	TACAAAT
+S	B	TAGAAAT
+L	A	+	C	+	5M
+L	A	+	D	+	4M
+L	A	+	B	+	4M

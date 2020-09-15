@@ -74,6 +74,15 @@ public:
             const BipartiteGraph& bipartite_graph,
             BicliqueIterator& iterator);
 
+    static void update_pseudoref(
+            Pileup& pileup,
+            HandleGraph& graph,
+            handle_t pseudo_reference,
+            size_t pseudo_ref_length,
+            size_t prev_pseudo_ref_length,
+            int64_t pseudo_ref_id,
+            bool is_left);
+
 private:
     static void debug_print(
             const IncrementalIdMap<string>& id_map,

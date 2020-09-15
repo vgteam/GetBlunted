@@ -1,4 +1,5 @@
 #include "PileupGenerator.hpp"
+#include "handle_to_gfa.hpp"
 
 
 namespace bluntifier {
@@ -126,6 +127,44 @@ void PileupGenerator::debug_print(const IncrementalIdMap<string>& id_map,
 }
 
 
+void PileupGenerator::update_pseudoref(
+        Pileup& pileup,
+        HandleGraph& graph,
+        handle_t pseudo_reference,
+        size_t pseudo_ref_length,
+        size_t prev_pseudo_ref_length,
+        int64_t pseudo_ref_id,
+        bool is_left) {
+
+    // Walk from the last index of the prev pseudoref up to the current index
+    if (is_left) {
+        for (size_t i = prev_pseudo_ref_length; i < pseudo_ref_length; i++) {
+            auto h = pileup.graph.create_handle(string(1, graph.get_base(pseudo_reference, i)));
+
+            if (not pileup.paths[pseudo_ref_id].empty()) {
+                pileup.graph.create_edge(pileup.paths[pseudo_ref_id].back(), h);
+            }
+            pileup.paths[pseudo_ref_id].push_back(h);
+        }
+    }
+    // Walk BACKWARDS from the last index of the prev pseudoref down to the current index
+    else {
+        size_t start = graph.get_length(pseudo_reference) - prev_pseudo_ref_length - 1;
+        size_t stop = graph.get_length(pseudo_reference) - pseudo_ref_length - 1;
+
+        std::cout <<  graph.get_length(pseudo_reference) << " " << pileup.paths[pseudo_ref_id].size() << " " << start << " " << stop << '\n';
+
+        for (int64_t i = start; i >= stop; i--) {
+            auto h = pileup.graph.create_handle(string(1, graph.get_base(pseudo_reference, i)));
+            if (not pileup.paths[pseudo_ref_id].empty()) {
+                pileup.graph.create_edge(h, pileup.paths[pseudo_ref_id].front());
+            }
+            pileup.paths[pseudo_ref_id].push_front(h);
+        }
+    }
+}
+
+
 void PileupGenerator::generate_from_bipartition(
         const BipartiteGraph& bipartite_graph,
         const IncrementalIdMap<string>& id_map,
@@ -137,6 +176,7 @@ void PileupGenerator::generate_from_bipartition(
     bool first_step = true;
     pileup.paths.resize(bipartite_graph.left_size() + bipartite_graph.right_size());
 
+    int i = 0;
     while (PileupGenerator::traverse_bipartition_edges(graph, overlaps, bipartite_graph, biclique_iterator)) {
         debug_print(id_map, graph, overlaps, biclique_iterator);
         std::cout << '\n';
@@ -174,60 +214,30 @@ void PileupGenerator::generate_from_bipartition(
             prev_pseudo_ref_length = pileup.paths[pseudo_ref_id].size();
         }
 
-        // If the previous alignment that used this pseudo ref did not span enough bases, the graph will need updating
+        // If the previous alignment that used this pseudo ref did not span enough bases, the graph will need updating.
+        // This also happens for the first alignment in the biclique, because no "ref" exists yet.
         if (prev_pseudo_ref_length < pseudo_ref_length){
-            // Seq of interest ("pseudoref") is on the RIGHT of the overlap
-            if (biclique_iterator.is_left){
-                // If this pseudoref is not in the pileup graph at all, it must be the first sequence
-                // In this case, just initialize the graph with it.
-                if (not pileup.id_map.exists(pseudo_reference)){
-                    pseudo_ref_id = pileup.id_map.insert(pseudo_reference);
+            // This is the first sequence in the graph
+            std::cout << "No existing pseudoref in graph\n";
+            pseudo_ref_id = pileup.id_map.insert(pseudo_reference);
+            update_pseudoref(
+                    pileup,
+                    graph,
+                    pseudo_reference,
+                    pseudo_ref_length,
+                    prev_pseudo_ref_length,
+                    pseudo_ref_id,
+                    biclique_iterator.is_left);
 
-                    for (size_t i=0; i<pseudo_ref_length; i++){
-                        auto h = pileup.graph.create_handle(string(1,graph.get_base(pseudo_reference,i)));
-                        if (i > 0){
-                            pileup.graph.create_edge(pileup.paths[pseudo_ref_id][i-1], h);
-                        }
-                        pileup.paths[pseudo_ref_id].push_back(h);
-                    }
-                }
-                // If the current pseudoref is longer than the previous one, then stitch the correct side
-                else{
-                    for (size_t i=prev_pseudo_ref_length; i<pseudo_ref_length; i++){
-                        auto h = pileup.graph.create_handle(string(1,graph.get_base(pseudo_reference,i)));
-                        pileup.graph.create_edge(pileup.paths[pseudo_ref_id][i-1], h);
-                        pileup.paths[pseudo_ref_id].push_back(h);
-                    }
-                }
-            }
-            // Seq of interest ("pseudoref") is on the LEFT of the overlap
-            else{
-                // If this pseudoref is not in the pileup graph at all, it must be the first sequence
-                // In this case, just initialize the graph with it.
-                if (not pileup.id_map.exists(pseudo_reference)){
-                    pseudo_ref_id = pileup.id_map.insert(pseudo_reference);
-
-                    for (size_t i=0; i<pseudo_ref_length; i++){
-                        auto h = pileup.graph.create_handle(string(1,graph.get_base(pseudo_reference,i)));
-                        if (i > 0){
-                            pileup.graph.create_edge(pileup.paths[pseudo_ref_id][i-1], h);
-                        }
-                        pileup.paths[pseudo_ref_id].push_back(h);
-                    }
-                }
-                // If the current pseudoref is longer than the previous one, then stitch the correct side
-                else{
-//                    size_t start = graph.get_length(edge.first) - prev_pseudo_ref_length - 1;
-//                    size_t stop = graph.get_length(edge.first) - pseudo_ref_length;
-//                    for (int64_t i=start; i>=stop; i--){
-//                        auto h = pileup.graph.create_handle(string(1,graph.get_base(pseudo_reference,i)));
-//                        pileup.graph.create_edge(h, pileup.paths[pseudo_ref_id][i+1]);
-//                        pileup.paths[pseudo_ref_id].push_back(h);
-                    }
-                }
-            }
         }
 
+        {
+            std::cout << "pseudoref id:\t" << graph.get_id(pseudo_reference) << '\n';
+            std::cout << "pseudoref sequence:\t" << graph.get_sequence(pseudo_reference) << '\n';
+            string test_path = "test_alignment_graph_" + std::to_string(i) + ".gfa";
+            handle_graph_to_gfa(pileup.graph, test_path);
+            i++;
+        }
 
         AlignmentIterator alignment_iterator(left_start, right_start);
         size_t index = 0;
@@ -237,16 +247,18 @@ void PileupGenerator::generate_from_bipartition(
             bool is_move;
             uint8_t code = alignment.operations[alignment_iterator.cigar_index].code;
 
-            // Is the traversal walking backwards? If so pick the sequence accordingly
+            // Is the traversal walking forwards or backwards? Pick the sequence accordingly
             if (biclique_iterator.is_left) {
                 base = graph.get_base(edge.first, alignment_iterator.query_index);
                 is_move = Alignment::is_query_move[code];
-            }else{
+            }
+            else{
                 base = graph.get_base(edge.second, alignment_iterator.ref_index);
                 is_move = Alignment::is_ref_move[code];
             }
 
             if (is_move) {
+
             }
 
             index++;
