@@ -66,7 +66,7 @@ char Cigar::type() const{
     return Alignment::cigar_type[code];
 }
 
-AlignmentIterator::AlignmentIterator(uint64_t query_index, uint64_t ref_index):
+AlignmentIterator::AlignmentIterator(uint64_t ref_index, uint64_t query_index):
     query_index(query_index),
     ref_index(ref_index),
     cigar_index(0),
@@ -113,16 +113,16 @@ void Alignment::compute_lengths(pair<size_t,size_t>& lengths){
     for (const auto& c: operations){
         const uint8_t code = Alignment::cigar_code[c.type()];
 
-        // Assume the right side (sink) node is treated as the "reference" in the cigar
+        // Assume the left side (source) node is treated as the "reference" in the cigar
         if (Alignment::is_ref_move[code]){
             // Increment by the length of the cigar operation
-            lengths.second += c.length;
+            lengths.first += c.length;
         }
 
-        // Assume the left side (source) node is treated as the "query" in the cigar
+        // Assume the right side (sink) node is treated as the "query" in the cigar
         if (Alignment::is_query_move[code]){
             // Increment by the length of the cigar operation
-            lengths.first += c.length;
+            lengths.second += c.length;
         }
     }
 }
@@ -135,7 +135,6 @@ uint64_t Alignment::compute_common_length(){
     for (const auto& c: operations){
         const uint8_t code = Alignment::cigar_code[c.type()];
 
-        // Assume the right side (sink) node is treated as the "reference" in the cigar
         if (Alignment::is_ref_move[code] and Alignment::is_query_move[code]){
             n_matches += c.length;
         }
@@ -248,8 +247,8 @@ void Alignment::explicitize_mismatches(
 
     while (step_through_alignment(iterator)) {
         if (operations[iterator.cigar_index].type() == 'M'){
-            char query_base = graph.get_base(edge.first, iterator.query_index);
-            char ref_base = graph.get_base(edge.second, iterator.ref_index);
+            char query_base = graph.get_base(edge.second, iterator.query_index);
+            char ref_base = graph.get_base(edge.first, iterator.ref_index);
 
             if (ref_base == query_base){
                 // If the last operation was already a Match (=), then extend its length
@@ -288,18 +287,19 @@ void Alignment::explicitize_mismatches(
 string Alignment::create_formatted_alignment_string(
         const HandleGraph& graph,
         const edge_t& edge,
-        uint64_t query_start_index,
-        uint64_t ref_start_index) {
+        uint64_t ref_start_index,
+        uint64_t query_start_index
+        ) {
 
-    AlignmentIterator iterator(query_start_index, ref_start_index);
+    AlignmentIterator iterator(ref_start_index, query_start_index);
 
     string aligned_ref;
     string aligned_query;
     string alignment_symbols;
 
     while (step_through_alignment(iterator)) {
-        char ref_base = graph.get_base(edge.first, iterator.query_index);
-        char query_base = graph.get_base(edge.second, iterator.ref_index);
+        char ref_base = graph.get_base(edge.first, iterator.ref_index);
+        char query_base = graph.get_base(edge.second, iterator.query_index);
 
         uint8_t code = operations[iterator.cigar_index].code;
 
@@ -328,12 +328,13 @@ string Alignment::create_formatted_alignment_string(
 
 
 string Alignment::create_formatted_alignment_string(
-        const string& query_sequence,
         const string& ref_sequence,
-        uint64_t query_start_index,
-        uint64_t ref_start_index) {
+        const string& query_sequence,
+        uint64_t ref_start_index,
+        uint64_t query_start_index
+        ) {
 
-    AlignmentIterator iterator(query_start_index, ref_start_index);
+    AlignmentIterator iterator(ref_start_index, query_start_index);
 
     string aligned_ref;
     string aligned_query;

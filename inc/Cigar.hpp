@@ -90,32 +90,32 @@ public:
 
     // Use the ref and query sequences to find mismatches and convert all M operations to = or X
     void explicitize_mismatches(
-            const string& query_sequence,
             const string& ref_sequence,
-            uint64_t query_start_index = 0,
-            uint64_t ref_start_index = 0);
+            const string& query_sequence,
+            uint64_t ref_start_index = 0,
+            uint64_t query_start_index = 0);
 
     // Use the ref and query sequences to find mismatches and convert all M operations to = or X
     // Access the handlegraph sequences directly instead of expecting a string
     void explicitize_mismatches(
             const HandleGraph& graph,
             const edge_t& edge,
-            uint64_t query_start_index = 0,
-            uint64_t ref_start_index = 0);
+            uint64_t ref_start_index = 0,
+            uint64_t query_start_index = 0);
 
     // Make a cool looking alignment string
     string create_formatted_alignment_string(
-            const string& query_sequence,
             const string& ref_sequence,
-            uint64_t query_start_index = 0,
-            uint64_t ref_start_index = 0);
+            const string& query_sequence,
+            uint64_t ref_start_index = 0,
+            uint64_t query_start_index = 0);
 
     // Make a cool looking alignment string without requiring strings (use the handlegraph DS)
     string create_formatted_alignment_string(
             const HandleGraph& graph,
             const edge_t& edge,
-            uint64_t query_start_index = 0,
-            uint64_t ref_start_index = 0);
+            uint64_t ref_start_index = 0,
+            uint64_t query_start_index = 0);
 };
 
 

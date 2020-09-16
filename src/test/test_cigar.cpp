@@ -160,14 +160,14 @@ int main(){
 
         Alignment alignment(cigar_strings[i]);
 
-        cerr << alignment.create_formatted_alignment_string(query_sequences[i], ref) << '\n';
+        cerr << alignment.create_formatted_alignment_string(ref, query_sequences[i]) << '\n';
     }
 
     cerr << '\n';
 
     Alignment non_explicit(mismatch_vs_ref);
     cerr << non_explicit << '\n';
-    non_explicit.explicitize_mismatches(mismatch, ref);
+    non_explicit.explicitize_mismatches(ref, mismatch);
     cerr << non_explicit << '\n';
 
     for (size_t i=0; i<cigar_mismatch_vs_ref_explicit.size(); i++){
