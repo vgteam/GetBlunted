@@ -140,9 +140,14 @@ void PileupGenerator::update_pseudoref(
     if (is_left) {
         for (size_t i = prev_pseudo_ref_length; i < pseudo_ref_length; i++) {
             auto h = pileup.graph.create_handle(string(1, graph.get_base(pseudo_reference, i)));
+            std::cout << "created node:\t" << graph.get_id(h) << " " << graph.has_node(graph.get_id(h)) << '\n';
 
             if (not pileup.paths[pseudo_ref_id].empty()) {
                 pileup.graph.create_edge(pileup.paths[pseudo_ref_id].back(), h);
+                std::cout << "created edge:\t"
+                          << pileup.graph.get_id(pileup.paths[pseudo_ref_id].back()) << "->"
+                          << pileup.graph.get_id(h) << " "
+                          << pileup.graph.has_edge(pileup.paths[pseudo_ref_id].back(), h) << '\n';
             }
             pileup.paths[pseudo_ref_id].push_back(h);
 
@@ -159,9 +164,15 @@ void PileupGenerator::update_pseudoref(
 
         for (int64_t i = start; i > stop; i--) {
             auto h = pileup.graph.create_handle(string(1, graph.get_base(pseudo_reference, i)));
+            std::cout << "created node:\t" << graph.get_id(h) << " " << graph.has_node(graph.get_id(h)) << '\n';
 
             if (not pileup.paths[pseudo_ref_id].empty()) {
                 pileup.graph.create_edge(h, pileup.paths[pseudo_ref_id].front());
+                std::cout << "created edge:\t"
+                          << pileup.graph.get_id(h) << "->"
+                          << pileup.graph.get_id(pileup.paths[pseudo_ref_id].front()) << " "
+                          << pileup.graph.has_edge(h, pileup.paths[pseudo_ref_id].front()) << '\n';
+
             }
             pileup.paths[pseudo_ref_id].push_front(h);
         }
@@ -256,7 +267,7 @@ void PileupGenerator::generate_from_bipartition(
             pseudo_query_id = pileup.id_map.insert(pseudo_query);
         }
         size_t pseudo_ref_index = 0;
-        size_t offset = 0;
+        int64_t offset = 0;
         size_t pseudo_query_index = 0;
 
         while (alignment.step_through_alignment(alignment_iterator)) {
@@ -270,34 +281,38 @@ void PileupGenerator::generate_from_bipartition(
             if (biclique_iterator.is_left) {
                 pseudo_query_base = graph.get_base(edge.first, alignment_iterator.ref_index);
                 pseudo_ref_base = graph.get_base(edge.second, alignment_iterator.query_index);
-                is_pseudo_query_move = Alignment::is_query_move[code];
-                is_pseudo_ref_move = Alignment::is_ref_move[code];
+                is_pseudo_query_move = Alignment::is_ref_move[code];
+                is_pseudo_ref_move = Alignment::is_query_move[code];
             } else {
                 pseudo_query_base = graph.get_base(edge.second, alignment_iterator.query_index);
                 pseudo_ref_base = graph.get_base(edge.first, alignment_iterator.ref_index);
-                is_pseudo_query_move = Alignment::is_ref_move[code];
-                is_pseudo_ref_move = Alignment::is_query_move[code];
+                is_pseudo_query_move = Alignment::is_query_move[code];
+                is_pseudo_ref_move = Alignment::is_ref_move[code];
                 offset = prev_pseudo_ref_length - pseudo_ref_length;
             }
 
-            auto pseudo_ref_node = pileup.paths[pseudo_ref_id][pseudo_ref_index + offset];
+            auto pseudo_ref_node = pileup.paths[pseudo_ref_id][pseudo_ref_index];
 
-            std::cout <<
-                      "query_base:\t" << pseudo_query_base << '\n' <<
-                      "query_index:\t" << alignment_iterator.query_index << '\n' <<
-                      "ref nid:\t" << graph.get_id(pseudo_ref_node) << '\n' <<
-                      "ref_base:\t" << pseudo_ref_base << '\n' <<
-                      "ref_index:\t" << alignment_iterator.ref_index << '\n' <<
-                      "query_move:\t" << is_pseudo_query_move << '\n' <<
-                      "ref_move:\t" << is_pseudo_ref_move << '\n' << '\n';
-
-            std::cout << "Pseudoref node ids:\n";
-            for (auto& item: pileup.paths[pseudo_ref_id]) {
-                std::cout << graph.get_id(item) << ",";
-            }
-            std::cout << '\n' << '\n';
 
             {
+                std::cout << "offset:\t" << offset << '\n';
+                std::cout << "pseudo_ref_index:\t" << pseudo_ref_index << '\n';
+
+                std::cout <<
+                          "query_base:\t" << pseudo_query_base << '\n' <<
+                          "query_index:\t" << alignment_iterator.query_index << '\n' <<
+                          "ref nid:\t" << graph.get_id(pseudo_ref_node) << '\n' <<
+                          "ref_base:\t" << pseudo_ref_base << '\n' <<
+                          "ref_index:\t" << alignment_iterator.ref_index << '\n' <<
+                          "query_move:\t" << is_pseudo_query_move << '\n' <<
+                          "ref_move:\t" << is_pseudo_ref_move << '\n' << '\n';
+
+                std::cout << "Pseudoref node ids:\n";
+                for (auto& item: pileup.paths[pseudo_ref_id]) {
+                    std::cout << graph.get_id(item) << ",";
+                }
+                std::cout << '\n' << '\n';
+
                 string test_path = "test_alignment_graph_" + std::to_string(i) + ".gfa";
                 handle_graph_to_gfa(pileup.graph, test_path);
             }
@@ -306,24 +321,28 @@ void PileupGenerator::generate_from_bipartition(
             if (is_pseudo_query_move and is_pseudo_ref_move) {
                 /// Match
                 if (pseudo_ref_base == pseudo_query_base) {
-
+                    std::cout << "MATCH\n";
                     // Connect it to whatever the previous node in this path was (which may already be connected)
                     if (not pileup.paths[pseudo_query_id].empty()) {
                         auto prev_node = pileup.paths[pseudo_query_id].back();
 
                         std::cout << "Pseudoquery node ids:\n";
                         for (auto& item: pileup.paths[pseudo_query_id]){
-                            std::cout << graph.get_id(item) << ",";
+                            std::cout << pileup.graph.get_id(item) << ",";
                         }
                         std::cout << '\n' << '\n';
 
-                        auto prev_id = graph.get_id(prev_node);
-                        auto pseudo_ref_id = graph.get_id(pseudo_ref_node);
-                        std::cout << prev_id << " " << graph.has_node(prev_id) << '\n';
-                        std::cout << pseudo_ref_id << " " << graph.has_node(pseudo_ref_id) << '\n';
+                        auto prev_id = pileup.graph.get_id(prev_node);
+                        auto pseudo_ref_id = pileup.graph.get_id(pseudo_ref_node);
+                        std::cout << prev_id << " " << pileup.graph.has_node(prev_id) << '\n';
+                        std::cout << pseudo_ref_id << " " << pileup.graph.has_node(pseudo_ref_id) << '\n';
 
-                        if (not graph.has_edge(prev_node, pseudo_ref_node)) {
+                        if (not pileup.graph.has_edge(prev_node, pseudo_ref_node)) {
                             pileup.graph.create_edge(prev_node, pseudo_ref_node);
+                            std::cout << "created edge:\t"
+                                      << pileup.graph.get_id(prev_node) << "->"
+                                      << pileup.graph.get_id(pseudo_ref_node) << " "
+                                      << pileup.graph.has_edge(prev_node, pseudo_ref_node) << '\n';
                         }
                     }
 
@@ -333,33 +352,55 @@ void PileupGenerator::generate_from_bipartition(
                 }
                 /// Mismatch
                 else {
+                    std::cout << "MISMATCH\n";
+
                     // Create a new node and splice into the graph
                     auto node = pileup.graph.create_handle(string(1,pseudo_query_base));
+                    std::cout << "created node:\t" << pileup.graph.get_id(node) << " " << pileup.graph.has_node(graph.get_id(node)) << '\n';
 
                     if (not pileup.paths[pseudo_query_id].empty()){
                         auto prev_node = pileup.paths[pseudo_query_id].back();
                         pileup.graph.create_edge(prev_node, node);
+                        std::cout << "created edge:\t"
+                                  << pileup.graph.get_id(prev_node) << "->"
+                                  << pileup.graph.get_id(node) << " "
+                                  << pileup.graph.has_edge(prev_node, node) << '\n';
                     }
 
                     pileup.paths[pseudo_query_id].push_back(node);
+                    std::cout << "Pseudoquery node ids:\n";
+                    for (auto& item: pileup.paths[pseudo_query_id]){
+                        std::cout << pileup.graph.get_id(item) << ",";
+                    }
+                    std::cout << '\n' << '\n';
+
+                    std::cout << "created node:\t" << pileup.graph.get_id(pileup.paths[pseudo_query_id].back()) << " " << pileup.graph.has_node(graph.get_id(pileup.paths[pseudo_query_id].back())) << '\n';
                 }
                 pseudo_query_index++;
                 pseudo_ref_index++;
             }
             // Delete-like operation (relative to the pseudoref)
             else if (not is_pseudo_query_move and is_pseudo_ref_move) {
+                std::cout << "DELETE\n";
                 // Don't need to do anything in this situation
                 pseudo_ref_index++;
             }
             // Insert-like operation (relative to the pseudoref)
             else if (is_pseudo_query_move and not is_pseudo_ref_move) {
+                std::cout << "INSERT\n";
+
                 // Similar to a mismatch
                 // Create a new node and splice into the graph
                 auto node = pileup.graph.create_handle(string(1,pseudo_query_base));
+                std::cout << "created node:\t" << graph.get_id(node) << " " << graph.has_node(graph.get_id(node)) << '\n';
 
                 if (not pileup.paths[pseudo_query_id].empty()){
                     auto prev_node = pileup.paths[pseudo_query_id].back();
                     pileup.graph.create_edge(prev_node, node);
+                    std::cout << "created edge:\t"
+                              << pileup.graph.get_id(prev_node) << "->"
+                              << pileup.graph.get_id(node) << " "
+                              << pileup.graph.has_edge(prev_node, node) << '\n';
                 }
 
                 pileup.paths[pseudo_query_id].push_back(node);
