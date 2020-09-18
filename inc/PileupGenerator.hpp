@@ -89,6 +89,11 @@ private:
             HandleGraph& graph,
             OverlapMap& overlaps,
             BicliqueIterator& biclique_iterator);
+
+    static bool pseudoref_is_reversed(
+            const Pileup& pileup,
+            const edge_t& canonical_edge,
+            const BicliqueIterator& biclique_iterator);
 };
 
 

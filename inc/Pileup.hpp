@@ -12,6 +12,7 @@
 
 using bluntifier::IncrementalIdMap;
 using handlegraph::handle_t;
+using handlegraph::edge_t;
 using bdsg::PackedGraph;
 using std::unordered_map;
 using std::unordered_set;
@@ -38,7 +39,11 @@ public:
     vector <deque <handle_t> > paths;
 
     // Coverage in terms of sequences that contributed to each node in the alignment graph
-    unordered_map <handle_t, unordered_set <handle_t> > coverage;
+    // TODO: replace with proper paths from bdsg
+//    unordered_map <handle_t, unordered_set <handle_t> > coverage;
+
+    // List of edges that have been traversed in order of traversal
+    vector <edge_t> edges_traversed;
 
     // Convert nodes to integer IDs
     IncrementalIdMap<handle_t> id_map;

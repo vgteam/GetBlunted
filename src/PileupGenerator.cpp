@@ -1,6 +1,7 @@
 #include "PileupGenerator.hpp"
 #include "handle_to_gfa.hpp"
 
+using std::max;
 
 namespace bluntifier {
 
@@ -64,12 +65,16 @@ bool PileupGenerator::traverse_bipartition_nodes(
         // Pick an arbitrary node to start with
         handle_t start;
 
+        std::cout << "LEFT size:\t" << bipartite_graph.left_size() << '\n';
+        std::cout << "RIGHT size:\t" << bipartite_graph.right_size() << '\n';
         // Choose one from the bigger set, if possible
         if (bipartite_graph.left_size() > bipartite_graph.right_size()) {
+            std::cout << "STARTING traversal from LEFT side\n";
             start = *bipartite_graph.left_begin();
         }
         else{
             start = *bipartite_graph.right_begin();
+            std::cout << "STARTING traversal from RIGHT side\n";
         }
 
         iterator.node_stack.push(start);
@@ -180,6 +185,43 @@ void PileupGenerator::update_pseudoref(
 }
 
 
+/// If the pseudoref is on the right side of the current edge, then everything
+/// that depends on the expected relationship between ref/query must be flipped.
+/// This method tells whether that is the case
+bool PileupGenerator::pseudoref_is_reversed(
+        const Pileup& pileup,
+        const edge_t& canonical_edge,
+        const BicliqueIterator& biclique_iterator){
+
+    // If this is the first edge in the traversal, just use the directionality of the
+    // traversal to pick the pseudoref. The "node" field in bicliqueIterator tells which
+    // is the sink node
+    if (pileup.edges_traversed.empty()){
+        if (biclique_iterator.node == canonical_edge.second){
+            return false;
+        }
+        else{
+            return true;
+        }
+    }
+
+    // Walk backward through the traversed edges and stop when a previously added node
+    // matches one of the current nodes in the edge. That node is the pseudoref.
+    for (int64_t i=pileup.edges_traversed.size()-1; i >= 0; i--){
+        auto prev_edge = pileup.edges_traversed[i];
+        if (prev_edge.first == canonical_edge.first or prev_edge.second == canonical_edge.first){
+            return false;
+        }
+        else if (prev_edge.first == canonical_edge.second or prev_edge.second == canonical_edge.second){
+            return true;
+        }
+        else{
+            throw runtime_error("ERROR: no previously traversed node matches current nodes in edge");
+        }
+    }
+}
+
+
 void PileupGenerator::generate_from_bipartition(
         const BipartiteGraph& bipartite_graph,
         const IncrementalIdMap<string>& id_map,
@@ -196,12 +238,12 @@ void PileupGenerator::generate_from_bipartition(
         std::cout << '\n';
 
         auto iter = overlaps.canonicalize_and_find(biclique_iterator.edge, graph);
-        const edge_t& edge = iter->first;
+        const edge_t& canonical_edge = iter->first;
         Alignment& alignment = iter->second;
         pair<size_t, size_t> lengths;
 
         alignment.compute_lengths(lengths);
-        size_t left_start = graph.get_length(edge.first) - lengths.first;
+        size_t left_start = graph.get_length(canonical_edge.first) - lengths.first;
         size_t right_start = 0;
 
         handle_t pseudo_reference;
@@ -212,15 +254,17 @@ void PileupGenerator::generate_from_bipartition(
         handle_t pseudo_query;
         int64_t pseudo_query_id;
 
+        bool pseudoref_is_reversed = PileupGenerator::pseudoref_is_reversed(pileup, canonical_edge, biclique_iterator);
+
         // Figure out which sequence is being treated as the "ref" in the overlap, call it pseudo reference
-        if (biclique_iterator.is_left) {
-            pseudo_reference = edge.second;
-            pseudo_query = edge.first;
+        if (pseudoref_is_reversed) {
+            pseudo_reference = canonical_edge.second;
+            pseudo_query = canonical_edge.first;
             pseudo_ref_length = lengths.second;
         }
         else{
-            pseudo_reference = edge.first;
-            pseudo_query = edge.second;
+            pseudo_reference = canonical_edge.first;
+            pseudo_query = canonical_edge.second;
             pseudo_ref_length = lengths.first;
         }
 
@@ -247,7 +291,7 @@ void PileupGenerator::generate_from_bipartition(
                     pseudo_ref_length,
                     prev_pseudo_ref_length,
                     pseudo_ref_id,
-                    biclique_iterator.is_left);
+                    pseudoref_is_reversed);
 
         }
 
@@ -259,8 +303,8 @@ void PileupGenerator::generate_from_bipartition(
             i++;
         }
 
-        std::cout << graph.get_length(edge.first) << " " <<  lengths.first << " " << left_start << " "
-                  << graph.get_length(edge.second) << " " <<  lengths.second << " " << right_start << '\n';
+        std::cout << graph.get_length(canonical_edge.first) << " " <<  lengths.first << " " << left_start << " "
+                  << graph.get_length(canonical_edge.second) << " " <<  lengths.second << " " << right_start << '\n';
         AlignmentIterator alignment_iterator(left_start, right_start);
 
         if (not pileup.id_map.exists(pseudo_query)) {
@@ -278,20 +322,20 @@ void PileupGenerator::generate_from_bipartition(
             uint8_t code = alignment.operations[alignment_iterator.cigar_index].code;
 
             // Is the traversal walking forwards or backwards? Reassign the relevant flags/data accordingly
-            if (biclique_iterator.is_left) {
-                pseudo_query_base = graph.get_base(edge.first, alignment_iterator.ref_index);
-                pseudo_ref_base = graph.get_base(edge.second, alignment_iterator.query_index);
+            if (pseudoref_is_reversed) {
+                pseudo_query_base = graph.get_base(canonical_edge.first, alignment_iterator.ref_index);
+                pseudo_ref_base = graph.get_base(canonical_edge.second, alignment_iterator.query_index);
                 is_pseudo_query_move = Alignment::is_ref_move[code];
                 is_pseudo_ref_move = Alignment::is_query_move[code];
             } else {
-                pseudo_query_base = graph.get_base(edge.second, alignment_iterator.query_index);
-                pseudo_ref_base = graph.get_base(edge.first, alignment_iterator.ref_index);
+                pseudo_query_base = graph.get_base(canonical_edge.second, alignment_iterator.query_index);
+                pseudo_ref_base = graph.get_base(canonical_edge.first, alignment_iterator.ref_index);
                 is_pseudo_query_move = Alignment::is_query_move[code];
                 is_pseudo_ref_move = Alignment::is_ref_move[code];
                 offset = prev_pseudo_ref_length - pseudo_ref_length;
             }
 
-            auto pseudo_ref_node = pileup.paths[pseudo_ref_id][pseudo_ref_index];
+            auto pseudo_ref_node = pileup.paths[pseudo_ref_id][pseudo_ref_index + max(int64_t(0), offset)];
 
 
             {
@@ -413,9 +457,7 @@ void PileupGenerator::generate_from_bipartition(
             }
         }
 
-        string s;
-        pileup.to_string(s);
-        std::cout << s << '\n';
+        pileup.edges_traversed.push_back(biclique_iterator.edge);
     }
 
     {
