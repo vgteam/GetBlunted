@@ -15,12 +15,12 @@ message(STATUS "CMAKE_CXX_COMPILER_VERSION: ${CMAKE_CXX_COMPILER_VERSION}")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_CXX_FLAGS "-fexceptions -fsanitize=address")
+#set(CMAKE_CXX_FLAGS "-fexceptions -fsanitize=address")
 set(ASAN_OPTIONS=check_initialization_order=1)
 set(ASAN_OPTIONS=detect_leaks=1)
 
 #set(CMAKE_CXX_FLAGS "-fexceptions -fno-new-ttp-matching")
-#set(CMAKE_CXX_FLAGS "-fexceptions")
+set(CMAKE_CXX_FLAGS "-fexceptions")
 
 add_definitions(-ggdb3 -O0 -Wall)       # Debugging + No optimization
 #add_definitions(-O3 -Wall)              # Much optimization
@@ -134,11 +134,11 @@ ExternalProject_Add(project_gfak
         GIT_REPOSITORY https://github.com/edawson/gfakluge.git
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
         CONFIGURE_COMMAND ""
+#	    DOWNLOAD_COMMAND ""
+#        UPDATE_COMMAND ""
         BUILD_IN_SOURCE True
         INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/gfak/
         INSTALL_COMMAND make PREFIX=${CMAKE_SOURCE_DIR}/external/gfak/ install
-	    DOWNLOAD_COMMAND ""
-        UPDATE_COMMAND ""
         )
 
 # Define INSTALL_DIR as the install directory for external library
@@ -184,8 +184,8 @@ ExternalProject_Add(project_bdsg
         GIT_REPOSITORY https://github.com/vgteam/libbdsg-easy.git
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
         CONFIGURE_COMMAND ""
-        DOWNLOAD_COMMAND ""
-        UPDATE_COMMAND ""
+#        DOWNLOAD_COMMAND ""
+#        UPDATE_COMMAND ""
         BUILD_IN_SOURCE True
         INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/bdsg/
         INSTALL_COMMAND make INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/bdsg/ install
@@ -244,8 +244,8 @@ include(ExternalProject)
 ExternalProject_Add(project_spoa
         GIT_REPOSITORY https://github.com/rvaser/spoa.git
         GIT_SUBMODULES vendor/bioparser vendor/cereal vendor/cpu_features vendor/simde
-        DOWNLOAD_COMMAND ""
-        UPDATE_COMMAND ""
+#        DOWNLOAD_COMMAND ""
+#        UPDATE_COMMAND ""
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/spoa/
         BUILD_IN_SOURCE True
