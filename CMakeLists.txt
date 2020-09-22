@@ -230,6 +230,59 @@ include_directories(external/bdsg/include/)
 message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 
 
+##############################################
+# ------------------------------------------ #
+# -------- LINKING EXTERNAL LIBRARY -------- #
+# ------------------ spoa ------------------ #
+# ------------------------------------------ #
+##############################################
+
+# Need to explicitly enable ExternalProject functionality
+include(ExternalProject)
+
+# Download or update library as an external project
+ExternalProject_Add(project_spoa
+        GIT_REPOSITORY https://github.com/rvaser/spoa.git
+        GIT_SUBMODULES vendor/bioparser vendor/cereal vendor/cpu_features vendor/simde
+        DOWNLOAD_COMMAND ""
+        UPDATE_COMMAND ""
+        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/spoa/
+        BUILD_IN_SOURCE True
+        INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/spoa/
+        INSTALL_COMMAND make install
+        )
+
+# Define INSTALL_DIR as the install directory for external library
+ExternalProject_Get_Property(project_spoa INSTALL_DIR)
+
+# Create new library for external project (so it can be linked with main library)
+add_library(spoa STATIC IMPORTED)
+set_property(TARGET spoa
+        PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/libspoa.a)
+
+# Define library as dependent on the downloaded project
+add_dependencies(spoa
+        project_spoa
+        )
+
+# Define main library as dependent on the downloaded project (transitively)
+add_dependencies(Bluntifier spoa)
+
+# Ensure that main library has access to primary dependencies' and secondary dependencies' headers
+include_directories(external/spoa/include/
+        ${CMAKE_CURRENT_BINARY_DIR}/external/src/project_spoa/vendor/cereal/include/
+        ${CMAKE_CURRENT_BINARY_DIR}/external/src/project_spoa/vendor/cpu_features/include/
+        ${CMAKE_CURRENT_BINARY_DIR}/external/src/project_spoa/vendor/simde/simde/
+        ${CMAKE_CURRENT_BINARY_DIR}/external/src/project_spoa/vendor/simde/arm/
+        ${CMAKE_CURRENT_BINARY_DIR}/external/src/project_spoa/vendor/simde/arm/neon/
+        )
+
+# Add runtime path for main library so it can access external library
+#set_property(TARGET Bluntifier PROPERTY INSTALL_RPATH "$ORIGIN" "${INSTALL_DIR}/bin/spoa")
+
+message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
+
 ############################################
 # ---------------------------------------- #
 # -------- Generating executables -------- #
@@ -252,6 +305,7 @@ set(TESTS
         test_handle_to_gfa
         test_IncrementalIdMap
         test_overlaps
+        test_spoa
         test_utility
         )
 
@@ -262,6 +316,7 @@ foreach(FILENAME_PREFIX ${TESTS})
             Bluntifier
             Threads::Threads
             bdsg
+            spoa
             divsufsort
             libhandlegraph
             libsdsl)
@@ -286,6 +341,7 @@ foreach(FILENAME_PREFIX ${EXECUTABLES})
             Bluntifier
             Threads::Threads
             bdsg
+            spoa
             divsufsort
             libhandlegraph
             libsdsl)
