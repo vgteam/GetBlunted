@@ -468,6 +468,120 @@ void PileupGenerator::generate_from_bipartition(
 }
 
 
+void PileupGenerator::generate_spoa_graph_from_bipartition(
+        const BipartiteGraph& bipartite_graph,
+        const IncrementalIdMap<string>& id_map,
+        OverlapMap& overlaps,
+        HandleGraph& graph,
+        Pileup& pileup) {
+
+    BicliqueIterator biclique_iterator;
+
+    // For each input sequence, what are the points at which the alignment starts/ends (may be multiple)
+//    vector <vector <uint64_t> > subsequence_lengths;
+//    vector <vector <uint64_t> > subsequence_starts;
+//    vector <vector <uint64_t> > subsequence_stops;
+//    sequence_splice_positions.resize(bipartite_graph.left_size() + bipartite_graph.right_size());
+//    sequence_splice_positions.resize(bipartite_graph.left_size() + bipartite_graph.right_size());
+//    sequence_splice_positions.resize(bipartite_graph.left_size() + bipartite_graph.right_size());
+
+    uint16_t i=0;
+    while (PileupGenerator::traverse_bipartition_edges(graph, overlaps, bipartite_graph, biclique_iterator)) {
+        debug_print(id_map, graph, overlaps, biclique_iterator);
+        std::cout << '\n';
+
+        auto iter = overlaps.canonicalize_and_find(biclique_iterator.edge, graph);
+        const edge_t& canonical_edge = iter->first;
+        Alignment& alignment = iter->second;
+        pair<size_t, size_t> lengths;
+
+        alignment.compute_lengths(lengths);
+        size_t left_start = graph.get_length(canonical_edge.first) - lengths.first;
+        size_t right_start = 0;
+
+        handle_t pseudo_reference;
+        int64_t pseudo_ref_id;
+        size_t pseudo_ref_length;
+        size_t pseudo_ref_start;
+        size_t pseudo_ref_stop;
+
+        handle_t pseudo_query;
+        int64_t pseudo_query_id;
+        size_t pseudo_query_length;
+        size_t pseudo_query_start;
+        size_t pseudo_query_stop;
+
+        if (not pileup.id_map.exists(pseudo_reference)) {
+            pseudo_ref_id = pileup.id_map.insert(pseudo_reference);
+        }
+        else{
+            pseudo_ref_id = pileup.id_map.get_id(pseudo_reference);
+        }
+
+        if (not pileup.id_map.exists(pseudo_query)) {
+            pseudo_query_id = pileup.id_map.insert(pseudo_query);
+        }
+        else{
+            pseudo_query_id = pileup.id_map.get_id(pseudo_query);
+        }
+
+        bool pseudoref_is_reversed = PileupGenerator::pseudoref_is_reversed(pileup, canonical_edge, biclique_iterator);
+
+        // Figure out which sequence is being treated as the "query" in the overlap
+        if (pseudoref_is_reversed) {
+            pseudo_reference = canonical_edge.second;
+            pseudo_query = canonical_edge.first;
+
+            pseudo_ref_length = lengths.second;
+            pseudo_query_length = lengths.first;
+
+            pseudo_ref_start = right_start;
+            pseudo_ref_stop = pseudo_ref_length - 1;
+
+            pseudo_query_start = left_start;
+            pseudo_query_stop = graph.get_length(pseudo_query) - 1;
+        }
+        else{
+            pseudo_reference = canonical_edge.first;
+            pseudo_query = canonical_edge.second;
+
+            pseudo_ref_length = lengths.first;
+            pseudo_query_length = lengths.second;
+
+            pseudo_ref_start = left_start;
+            pseudo_ref_stop = graph.get_length(pseudo_reference) - 1;
+
+            pseudo_query_start = right_start;
+            pseudo_query_stop = pseudo_query_length - 1;
+        }
+
+
+        {
+            std::cout << "pseudoref id:\t" << graph.get_id(pseudo_reference) << '\n';
+            std::cout << "pseudoref sequence:\t" << graph.get_sequence(pseudo_reference) << '\n';
+            std::cout << "pseudoquery sequence:\t" << graph.get_sequence(pseudo_query) << '\n';
+            std::cout <<
+                "ref_length\t" << pseudo_ref_length << '\n' <<
+                "query_length\t" << pseudo_query_length << '\n' <<
+                "ref_start\t" << pseudo_ref_start << '\n' <<
+                "ref_stop\t" << pseudo_ref_stop << '\n' <<
+                "query_start\t" << pseudo_query_start << '\n' <<
+                "query_stop\t" << pseudo_query_stop << '\n' << '\n';
+        }
+
+
+//        std::cout << pseudo_ref_id << " " << sequence_splice_positions.size();
+//        if (i == 0){
+//            sequence_splice_positions[pseudo_ref_id].push_back({pseudo_ref_start, pseudo_ref_stop});
+//        }
+//        sequence_splice_positions[pseudo_query_id].push_back({pseudo_query_start, pseudo_query_stop});
+
+        pileup.edges_traversed.push_back(biclique_iterator.edge);
+        i++;
+    }
+}
+
+
 
 }
 

@@ -59,6 +59,14 @@ public:
             HandleGraph& graph,
             Pileup& pileup);
 
+    // Basically just throw all the sequences into a POA alignment and see what happens
+    static void generate_spoa_graph_from_bipartition(
+            const BipartiteGraph& bipartite_graph,
+            const IncrementalIdMap<string>& id_map,
+            OverlapMap& overlaps,
+            HandleGraph& graph,
+            Pileup& pileup);
+
     // A generator-style DFS walk of the nodes in the partition
     static bool traverse_bipartition_nodes(
             const HandleGraph& graph,

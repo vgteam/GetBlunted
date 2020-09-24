@@ -44,7 +44,12 @@ void bluntify(string gfa_path){
             // Iterate all alignments and build a set of alleles for each coordinate
             Pileup pileup;
             BicliqueIterator iterator;
-            PileupGenerator::generate_from_bipartition(bipartite_graph, id_map, overlaps, graph, pileup);
+            PileupGenerator::generate_spoa_graph_from_bipartition(
+                    bipartite_graph,
+                    id_map,
+                    overlaps,
+                    graph,
+                    pileup);
 
 
             // Construct a new graph containing the correct alleles
@@ -59,7 +64,7 @@ int main(){
     string project_directory = parent_path(script_path, 3);
 
     // Get test GFA path
-    string relative_gfa_path = "/data/unbalanced_bipartition.gfa";
+    string relative_gfa_path = "/data/staggered_overlap.gfa";
     const string absolute_gfa_path = join_paths(project_directory, relative_gfa_path);
 
     bluntify(absolute_gfa_path);
