@@ -14,6 +14,12 @@ BicliqueIterator::BicliqueIterator():
 PileupGenerator::PileupGenerator()=default;
 
 
+AlignmentData::AlignmentData(uint64_t start, uint64_t stop):
+    start(start),
+    stop(stop)
+{}
+
+
 bool PileupGenerator::traverse_bipartition_edges(
         const HandleGraph& graph,
         const OverlapMap& overlaps,
@@ -478,12 +484,8 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
     BicliqueIterator biclique_iterator;
 
     // For each input sequence, what are the points at which the alignment starts/ends (may be multiple)
-//    vector <vector <uint64_t> > subsequence_lengths;
-//    vector <vector <uint64_t> > subsequence_starts;
-//    vector <vector <uint64_t> > subsequence_stops;
-//    sequence_splice_positions.resize(bipartite_graph.left_size() + bipartite_graph.right_size());
-//    sequence_splice_positions.resize(bipartite_graph.left_size() + bipartite_graph.right_size());
-//    sequence_splice_positions.resize(bipartite_graph.left_size() + bipartite_graph.right_size());
+    vector <vector <AlignmentData> > alignment_data_per_node;
+    alignment_data_per_node.resize(bipartite_graph.left_size() + bipartite_graph.right_size());
 
     uint16_t i=0;
     while (PileupGenerator::traverse_bipartition_edges(graph, overlaps, bipartite_graph, biclique_iterator)) {
@@ -510,20 +512,6 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
         size_t pseudo_query_length;
         size_t pseudo_query_start;
         size_t pseudo_query_stop;
-
-        if (not pileup.id_map.exists(pseudo_reference)) {
-            pseudo_ref_id = pileup.id_map.insert(pseudo_reference);
-        }
-        else{
-            pseudo_ref_id = pileup.id_map.get_id(pseudo_reference);
-        }
-
-        if (not pileup.id_map.exists(pseudo_query)) {
-            pseudo_query_id = pileup.id_map.insert(pseudo_query);
-        }
-        else{
-            pseudo_query_id = pileup.id_map.get_id(pseudo_query);
-        }
 
         bool pseudoref_is_reversed = PileupGenerator::pseudoref_is_reversed(pileup, canonical_edge, biclique_iterator);
 
@@ -555,6 +543,19 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
             pseudo_query_stop = pseudo_query_length - 1;
         }
 
+        if (not pileup.id_map.exists(pseudo_reference)) {
+            pseudo_ref_id = pileup.id_map.insert(pseudo_reference);
+        }
+        else{
+            pseudo_ref_id = pileup.id_map.get_id(pseudo_reference);
+        }
+
+        if (not pileup.id_map.exists(pseudo_query)) {
+            pseudo_query_id = pileup.id_map.insert(pseudo_query);
+        }
+        else{
+            pseudo_query_id = pileup.id_map.get_id(pseudo_query);
+        }
 
         {
             std::cout << "pseudoref id:\t" << graph.get_id(pseudo_reference) << '\n';
@@ -570,15 +571,37 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
         }
 
 
-//        std::cout << pseudo_ref_id << " " << sequence_splice_positions.size();
-//        if (i == 0){
-//            sequence_splice_positions[pseudo_ref_id].push_back({pseudo_ref_start, pseudo_ref_stop});
-//        }
-//        sequence_splice_positions[pseudo_query_id].push_back({pseudo_query_start, pseudo_query_stop});
+        alignment_data_per_node[pseudo_ref_id].emplace_back(pseudo_ref_start, pseudo_ref_stop);
+        alignment_data_per_node[pseudo_query_id].emplace_back(pseudo_query_start, pseudo_query_stop);
 
         pileup.edges_traversed.push_back(biclique_iterator.edge);
         i++;
     }
+
+    // Find maximum alignment length for each node sequence involved in the bipartition
+    vector <size_t> maximum_alignment_indexes;
+    maximum_alignment_indexes.resize(bipartite_graph.left_size() + bipartite_graph.right_size(), 0);
+
+    uint64_t max_length;
+    uint64_t length;
+
+    for (size_t pileup_id=0; pileup_id<alignment_data_per_node.size(); pileup_id++){
+        std::cout << id_map.get_name(graph.get_id(pileup.id_map.get_name(pileup_id))) << '\n';
+        max_length = 0;
+
+        for (size_t index = 0; index<alignment_data_per_node[pileup_id].size(); index++){
+            auto item = alignment_data_per_node[pileup_id][index];
+            length = item.stop - item.start;
+
+            if (length > max_length){
+                maximum_alignment_indexes[pileup_id] = index;
+            }
+
+            std::cout << item.start << " " << item.stop << " " << length << '\n';
+        }
+    }
+
+
 }
 
 

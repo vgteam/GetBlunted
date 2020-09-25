@@ -43,6 +43,16 @@ public:
 };
 
 
+
+class AlignmentData{
+public:
+    uint64_t start;
+    uint64_t stop;
+
+    AlignmentData(uint64_t start, uint64_t stop);
+};
+
+
 class PileupGenerator {
 public:
     /// Attributes ///
