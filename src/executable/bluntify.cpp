@@ -64,8 +64,8 @@ int main(){
     string project_directory = parent_path(script_path, 3);
 
     // Get test GFA path
-    string relative_gfa_path = "/data/unbalanced_bipartition.gfa";
-//    string relative_gfa_path = "/data/staggered_overlap.gfa";
+//    string relative_gfa_path = "/data/unbalanced_bipartition.gfa";
+    string relative_gfa_path = "/data/staggered_overlap.gfa";
     const string absolute_gfa_path = join_paths(project_directory, relative_gfa_path);
 
     bluntify(absolute_gfa_path);

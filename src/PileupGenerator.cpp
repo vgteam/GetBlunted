@@ -1,12 +1,7 @@
 #include "PileupGenerator.hpp"
 #include "handle_to_gfa.hpp"
-#include "spoa/alignment_engine.hpp"
-#include "spoa/graph.hpp"
 
 using std::max;
-using spoa::AlignmentEngine;
-using spoa::AlignmentType;
-using spoa::Graph;
 
 
 namespace bluntifier {
@@ -127,7 +122,6 @@ void PileupGenerator::debug_print(const IncrementalIdMap<string>& id_map,
 
     auto iter = overlaps.canonicalize_and_find(biclique_iterator.edge, graph);
     const edge_t& edge = iter->first;
-    Alignment& alignment = iter->second;
     pair<size_t, size_t> lengths;
     size_t start;
 
@@ -179,7 +173,7 @@ void PileupGenerator::update_pseudoref(
 
         std::cout <<  graph.get_length(pseudo_reference) << " " << pileup.paths[pseudo_ref_id].size() << " " << start << " " << stop << '\n';
 
-        for (int64_t i = start; i > stop; i--) {
+        for (int64_t i = start; i > int64_t(stop); i--) {
             auto h = pileup.graph.create_handle(string(1, graph.get_base(pseudo_reference, i)));
             std::cout << "created node:\t" << graph.get_id(h) << " " << graph.has_node(graph.get_id(h)) << '\n';
 
@@ -480,6 +474,58 @@ void PileupGenerator::generate_from_bipartition(
 }
 
 
+void PileupGenerator::add_alignments_to_poa(
+        vector <vector <AlignmentData> >& alignment_data_per_node,
+        vector <size_t>& longest_alignment_indexes,
+        HandleGraph& graph,
+        Pileup& pileup,
+        Graph& spoa_graph,
+        unique_ptr<AlignmentEngine>& alignment_engine){
+
+    for (uint64_t pileup_id=0; pileup_id<alignment_data_per_node.size(); pileup_id++) {
+        auto index = longest_alignment_indexes[pileup_id];
+        auto alignment_data = alignment_data_per_node[pileup_id][index];
+        auto node_handle = pileup.id_map.get_name(pileup_id);
+
+        string subsequence = graph.get_subsequence(node_handle, alignment_data.start, alignment_data.stop - alignment_data.start + 1);
+        std::cout << subsequence << '\n';
+
+        auto alignment = alignment_engine->Align(subsequence, spoa_graph);
+        spoa_graph.AddAlignment(alignment, subsequence);
+    }
+}
+
+
+void PileupGenerator::convert_spoa_to_bdsg(
+        Graph& spoa_graph,
+        Pileup& pileup,
+        HandleGraph& gfa_handle_graph,
+        vector <vector <AlignmentData> >& alignment_data_per_node,
+        vector <size_t>& longest_alignment_indexes){
+
+    auto paths = spoa_graph.sequences();
+
+    for (uint32_t id=0; id < paths.size(); id++){
+        auto node = paths[id];
+        uint64_t gfa_start_index = alignment_data_per_node[id][longest_alignment_indexes[id]].start;
+        uint64_t base_index = 0;
+
+        std::cout << node->code << " " << node->id << " " << node->Coverage() << " " << '\n';
+
+//        pileup.splice_nodes[id].push_back()
+
+        base_index++;
+        while ((node = node->Successor(id))){
+
+            std::cout << node->code << " " << node->id << " " << node->Coverage() << " " << '\n';
+
+            base_index++;
+        }
+        std::cout << '\n';
+    }
+}
+
+
 void PileupGenerator::generate_spoa_graph_from_bipartition(
         const BipartiteGraph& bipartite_graph,
         const IncrementalIdMap<string>& id_map,
@@ -502,16 +548,16 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
             pair<size_t, size_t> lengths;
             size_t start;
 
-            std::cout << id_map.get_name(graph.get_id(edge.first)) << "->";
-            std::cout << id_map.get_name(graph.get_id(edge.second)) << '\n';
+//            std::cout << id_map.get_name(graph.get_id(edge.first)) << "->";
+//            std::cout << id_map.get_name(graph.get_id(edge.second)) << '\n';
 
             iter->second.compute_lengths(lengths);
 
             start = graph.get_length(edge.first) - lengths.first;
 
-            std::cout << lengths.first << " " << lengths.second << '\n';
-            std::cout << iter->second.create_formatted_alignment_string(graph, edge, start, 0) << '\n';
-            std::cout << '\n';
+//            std::cout << lengths.first << " " << lengths.second << '\n';
+//            std::cout << iter->second.create_formatted_alignment_string(graph, edge, start, 0) << '\n';
+//            std::cout << '\n';
 
             alignment.compute_lengths(lengths);
             size_t left_start = graph.get_length(edge.first) - lengths.first;
@@ -550,18 +596,18 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
                 query_id = pileup.id_map.get_id(query);
             }
 
-            {
-                std::cout << "pseudoref id:\t" << graph.get_id(reference) << '\n';
-                std::cout << "pseudoref sequence:\t" << graph.get_sequence(reference) << '\n';
-                std::cout << "pseudoquery sequence:\t" << graph.get_sequence(query) << '\n';
-                std::cout <<
-                          "ref_length\t" << ref_length << '\n' <<
-                          "query_length\t" << query_length << '\n' <<
-                          "ref_start\t" << ref_start << '\n' <<
-                          "ref_stop\t" << ref_stop << '\n' <<
-                          "query_start\t" << query_start << '\n' <<
-                          "query_stop\t" << query_stop << '\n' << '\n';
-            }
+//            {
+//                std::cout << "pseudoref id:\t" << graph.get_id(reference) << '\n';
+//                std::cout << "pseudoref sequence:\t" << graph.get_sequence(reference) << '\n';
+//                std::cout << "pseudoquery sequence:\t" << graph.get_sequence(query) << '\n';
+//                std::cout <<
+//                          "ref_length\t" << ref_length << '\n' <<
+//                          "query_length\t" << query_length << '\n' <<
+//                          "ref_start\t" << ref_start << '\n' <<
+//                          "ref_stop\t" << ref_stop << '\n' <<
+//                          "query_start\t" << query_start << '\n' <<
+//                          "query_stop\t" << query_stop << '\n' << '\n';
+//            }
 
 
             alignment_data_per_node[ref_id].emplace_back(ref_start, ref_stop);
@@ -594,28 +640,65 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
     }
 
 
-    auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 5, -3, -7, -3);
+    auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 5, -3, -3, -1);
 
     spoa::Graph spoa_graph{};
 
-    for (uint64_t pileup_id=0; pileup_id<alignment_data_per_node.size(); pileup_id++) {
-        auto index = longest_alignment_indexes[pileup_id];
-        auto alignment_data = alignment_data_per_node[pileup_id][index];
-        auto node_handle = pileup.id_map.get_name(pileup_id);
+    add_alignments_to_poa(
+        alignment_data_per_node,
+        longest_alignment_indexes,
+        graph,
+        pileup,
+        spoa_graph,
+        alignment_engine);
 
-        string subsequence = graph.get_subsequence(node_handle, alignment_data.start, alignment_data.stop - alignment_data.start + 1);
-        std::cout << subsequence << '\n';
+//    {
+//        spoa_graph.PrintDot("spoa_overlap.dot");
+//        auto msa = spoa_graph.GenerateMultipleSequenceAlignment();
+//
+//        for (const auto& it : msa) {
+//            std::cerr << it << std::endl;
+//        }
+//    }
 
-        auto alignment = alignment_engine->Align(subsequence, spoa_graph);
-        spoa_graph.AddAlignment(alignment, subsequence);
+    auto consensus = spoa_graph.GenerateConsensus();
+
+    std::cerr << ">Consensus: " << consensus << std::endl;
+
+    spoa::Graph seeded_spoa_graph{};
+
+    auto seeded_alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 6, -2, -4, -1);
+
+    auto alignment = seeded_alignment_engine->Align(consensus, seeded_spoa_graph);
+    seeded_spoa_graph.AddAlignment(alignment, consensus);
+
+    add_alignments_to_poa(
+            alignment_data_per_node,
+            longest_alignment_indexes,
+            graph,
+            pileup,
+            seeded_spoa_graph,
+            seeded_alignment_engine);
+
+    {
+        auto seeded_consensus = seeded_spoa_graph.GenerateConsensus();
+
+        seeded_spoa_graph.PrintDot("spoa_overlap.dot");
+        auto msa = seeded_spoa_graph.GenerateMultipleSequenceAlignment();
+
+        for (const auto& it : msa) {
+            std::cerr << it << std::endl;
+        }
+
+        std::cerr << ">Consensus: " << consensus << std::endl;
     }
 
-    spoa_graph.PrintDot("spoa_overlap.dot");
-    auto msa = spoa_graph.GenerateMultipleSequenceAlignment();
-
-    for (const auto& it : msa) {
-        std::cerr << it << std::endl;
-    }
+    convert_spoa_to_bdsg(
+            seeded_spoa_graph,
+            pileup,
+            graph,
+            alignment_data_per_node,
+            longest_alignment_indexes);
 }
 
 

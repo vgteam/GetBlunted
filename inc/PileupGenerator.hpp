@@ -9,6 +9,13 @@
 #include <deque>
 #include <stack>
 
+#include "spoa/alignment_engine.hpp"
+#include "spoa/graph.hpp"
+
+using spoa::AlignmentEngine;
+using spoa::AlignmentType;
+using spoa::Graph;
+
 using bluntifier::bipartition;
 using handlegraph::handle_t;
 using handlegraph::edge_t;
@@ -112,6 +119,21 @@ private:
             const Pileup& pileup,
             const edge_t& canonical_edge,
             const BicliqueIterator& biclique_iterator);
+
+    static void add_alignments_to_poa(
+            vector <vector <AlignmentData> >& alignment_data_per_node,
+            vector <size_t>& longest_alignment_indexes,
+            HandleGraph& graph,
+            Pileup& pileup,
+            Graph& spoa_graph,
+            unique_ptr<AlignmentEngine>& alignment_engine);
+
+    static void convert_spoa_to_bdsg(
+            Graph& spoa_graph,
+            Pileup& pileup,
+            HandleGraph& gfa_handle_graph,
+            vector <vector <AlignmentData> >& alignment_data_per_node,
+            vector <size_t>& longest_alignment_indexes);
 };
 
 

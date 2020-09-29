@@ -38,15 +38,15 @@ public:
     // In terms of nodes in the graph, what path does each alignment take?
     vector <deque <handle_t> > paths;
 
-    // Coverage in terms of sequences that contributed to each node in the alignment graph
-    // TODO: replace with proper paths from bdsg
-//    unordered_map <handle_t, unordered_set <handle_t> > coverage;
-
     // List of edges that have been traversed in order of traversal
     vector <edge_t> edges_traversed;
 
     // Convert nodes to integer IDs
     IncrementalIdMap<handle_t> id_map;
+
+    // For each node in the original gfa graph (stored here in order of their appearance) what are the nodes in the
+    // pileup graph (from left to right) that will be spliced back into the gfa
+    vector <vector <handle_t> > splice_nodes;
 
     // Filler character
     static const char space;
