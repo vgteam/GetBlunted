@@ -6,6 +6,7 @@
 #include "IncrementalIdMap.hpp"
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 #include <deque>
 #include <string>
@@ -19,6 +20,7 @@ using std::unordered_set;
 using std::vector;
 using std::string;
 using std::deque;
+using std::pair;
 
 
 namespace bluntifier{
@@ -46,7 +48,7 @@ public:
 
     // For each node in the original gfa graph (stored here in order of their appearance) what are the nodes in the
     // pileup graph (from left to right) that will be spliced back into the gfa
-    vector <vector <handle_t> > splice_nodes;
+    vector <vector <pair <uint64_t, handle_t> > > splice_nodes;
 
     // Filler character
     static const char space;
