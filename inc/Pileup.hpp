@@ -10,6 +10,7 @@
 #include <vector>
 #include <deque>
 #include <string>
+#include <array>
 
 using bluntifier::IncrementalIdMap;
 using handlegraph::handle_t;
@@ -21,18 +22,52 @@ using std::vector;
 using std::string;
 using std::deque;
 using std::pair;
+using std::array;
 
 
 namespace bluntifier{
+
+class AlignmentData{
+public:
+    uint64_t sequence_start_index;
+    uint64_t sequence_stop_index;
+    handle_t pileup_node;
+    uint32_t spoa_id;
+
+    AlignmentData(uint64_t start, uint64_t stop);
+    bool operator<(const AlignmentData& other) const;
+};
+
+
+class PoaPileup {
+public:
+    /// Attributes ///
+
+    // A new graph to represent the multiple sequence alignment
+    PackedGraph graph;
+
+    // Convert nodes to integer IDs
+    array <IncrementalIdMap<handle_t>, 2> id_map;
+
+    // For each node in the original gfa graph (stored here in order of their appearance) what are the nodes in the
+    // pileup graph (from left to right) that will be spliced back into the gfa
+    array <vector <vector <AlignmentData> >, 2> alignment_data;
+
+    /// Methods ///
+    void sort_alignment_data_by_length();
+    void update_alignment_data(bool is_left, handle_t node, uint64_t start_index, uint64_t stop_index);
+
+    PoaPileup();
+
+private:
+    const size_t LEFT = 0;
+    const size_t RIGHT = 1;
+};
 
 
 class Pileup {
 public:
     /// Attributes ///
-
-    // The data structure containing the multiple sequence alignment. Columns (arrays) correspond to coordinates in
-    // alignment. Rows correspond to a single sequence's path through the alignment when adjusted for inserts/deletes
-    deque <vector <char> > matrix;
 
     // A new graph to represent the multiple sequence alignment
     PackedGraph graph;
@@ -46,17 +81,8 @@ public:
     // Convert nodes to integer IDs
     IncrementalIdMap<handle_t> id_map;
 
-    // For each node in the original gfa graph (stored here in order of their appearance) what are the nodes in the
-    // pileup graph (from left to right) that will be spliced back into the gfa
-    vector <vector <pair <uint64_t, handle_t> > > splice_nodes;
-
-    // Filler character
-    static const char space;
-
     /// Methods ///
     Pileup();
-    void to_string(string& s);
-
 };
 
 }

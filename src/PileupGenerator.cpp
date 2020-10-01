@@ -16,8 +16,8 @@ PileupGenerator::PileupGenerator()=default;
 
 
 AlignmentData::AlignmentData(uint64_t start, uint64_t stop):
-    start(start),
-    stop(stop)
+    sequence_start_index(start),
+    sequence_stop_index(stop)
 {}
 
 
@@ -475,102 +475,125 @@ void PileupGenerator::generate_from_bipartition(
 
 
 void PileupGenerator::add_alignments_to_poa(
-        vector <vector <AlignmentData> >& alignment_data_per_node,
-        vector <size_t>& longest_alignment_indexes,
         HandleGraph& graph,
-        Pileup& pileup,
+        PoaPileup& pileup,
         Graph& spoa_graph,
         unique_ptr<AlignmentEngine>& alignment_engine){
 
-    for (uint64_t pileup_id=0; pileup_id<alignment_data_per_node.size(); pileup_id++) {
-        auto index = longest_alignment_indexes[pileup_id];
-        auto alignment_data = alignment_data_per_node[pileup_id][index];
-        auto node_handle = pileup.id_map.get_name(pileup_id);
+    // If the graph already has some sequences in it, then start the id at that number
+    uint32_t spoa_id = spoa_graph.sequences().size() - 1;
 
-        string subsequence = graph.get_subsequence(node_handle, alignment_data.start, alignment_data.stop - alignment_data.start + 1);
-//        std::cout << subsequence << '\n';
+    for (bool is_left: {false, true}){
 
-        auto alignment = alignment_engine->Align(subsequence, spoa_graph);
-        spoa_graph.AddAlignment(alignment, subsequence);
+        for (uint64_t id=0; id < pileup.alignment_data[!is_left].size(); id++) {
+
+            for (size_t i = 0; i < pileup.alignment_data[!is_left][id].size(); i++) {
+                auto& data = pileup.alignment_data[!is_left][id][i];
+
+                if (i == 0) {
+                    // Assume the alignment data is reverse sorted by length at this point (not totally safe, but safe enough)
+                    auto node_handle = pileup.id_map[!is_left].get_name(id);
+
+                    auto length = data.sequence_stop_index - data.sequence_start_index + 1;
+
+                    string subsequence = graph.get_subsequence(node_handle, data.sequence_start_index, length);
+
+                    std::cout << subsequence << '\n';
+
+                    auto alignment = alignment_engine->Align(subsequence, spoa_graph);
+                    spoa_graph.AddAlignment(alignment, subsequence);
+
+                    data.spoa_id = ++spoa_id;
+                }
+                else{
+                    data.spoa_id = spoa_id;
+                }
+            }
+        }
     }
 }
 
 
 void PileupGenerator::convert_spoa_to_bdsg(
         Graph& spoa_graph,
-        Pileup& pileup,
-        HandleGraph& gfa_handle_graph,
-        vector <vector <AlignmentData> >& alignment_data_per_node,
-        vector <size_t>& longest_alignment_indexes){
+        PoaPileup& pileup,
+        HandleGraph& gfa_handle_graph){
 
     auto paths = spoa_graph.sequences();
     unordered_map <uint32_t, handle_t> nodes_created;
     handle_t previous_pileup_node;
 
-    for (uint32_t i=1; i < paths.size(); i++){
-        auto id = i - 1;
-        auto node = paths[i];
-        auto index = longest_alignment_indexes[id];
-        auto alignment_data = alignment_data_per_node[id][index];
-        uint64_t gfa_start_index = alignment_data.start;
-        uint64_t base_index = 0;
+    for (bool is_left: {false, true}){
 
-        while (true){
-//            std::cout << node->code << " " << node->id << " " << node->Coverage() << " " << '\n';
+        for (uint64_t id=0; id < pileup.alignment_data[!is_left].size(); id++) {
 
-            auto iter = nodes_created.find(node->id);
+            for (size_t i = 0; i < pileup.alignment_data[!is_left][id].size(); i++) {
+                auto id = i - 1;
+                auto node = paths[i];
+                auto index = longest_alignment_indexes[id];
+                auto alignment_data = alignment_data_per_node[id][index];
+                uint64_t gfa_start_index = alignment_data.start;
+                uint64_t base_index = 0;
 
-            if (iter == nodes_created.end()){
-                auto gfa_handle = pileup.id_map.get_name(id);
-                char base = gfa_handle_graph.get_base(gfa_handle, gfa_start_index + base_index);
+                while (true) {
+                    //            std::cout << node->code << " " << node->id << " " << node->Coverage() << " " << '\n';
 
-//                std::cout << base << '\n';
+                    auto iter = nodes_created.find(node->id);
 
-                auto new_pileup_node = pileup.graph.create_handle(string(1,base));
-                nodes_created.emplace(node->id, new_pileup_node);
+                    if (iter == nodes_created.end()) {
+                        auto gfa_handle = pileup.id_map.get_name(id);
+                        char base = gfa_handle_graph.get_base(gfa_handle, gfa_start_index + base_index);
 
-                if (base_index > 0) {
-                    pileup.graph.create_edge(previous_pileup_node, new_pileup_node);
-                }
+                        //                std::cout << base << '\n';
 
-                previous_pileup_node = new_pileup_node;
-            }
-            else{
-                if (base_index > 0) {
-                    pileup.graph.create_edge(previous_pileup_node, iter->second);
-                }
+                        auto new_pileup_node = pileup.graph.create_handle(string(1, base));
+                        nodes_created.emplace(node->id, new_pileup_node);
 
-                previous_pileup_node = iter->second;
-            }
+                        if (base_index > 0) {
+                            pileup.graph.create_edge(previous_pileup_node, new_pileup_node);
+                        }
 
-            for (auto& item: alignment_data_per_node[id]){
-                // Is a right side node
-                if (item.start == 0){
-                    if (gfa_start_index + base_index == item.stop){
-                        pileup.splice_nodes[id].emplace_back(gfa_start_index + base_index, previous_pileup_node);
-//                        std::cout << id << " " << gfa_start_index + base_index << '\n';
+                        previous_pileup_node = new_pileup_node;
+                    } else {
+                        if (base_index > 0) {
+                            pileup.graph.create_edge(previous_pileup_node, iter->second);
+                        }
+
+                        previous_pileup_node = iter->second;
+                    }
+
+                    for (auto& item: alignment_data_per_node[id]) {
+                        // Is a right side node
+                        if (item.start == 0) {
+                            if (gfa_start_index + base_index == item.stop) {
+                                pileup.splice_nodes[id].emplace_back(gfa_start_index + base_index,
+                                                                     previous_pileup_node);
+                                //                        std::cout << id << " " << gfa_start_index + base_index << '\n';
+                            }
+                        }
+                            // Is a left side node
+                        else {
+                            if (gfa_start_index + base_index == item.start) {
+                                pileup.splice_nodes[id].emplace_back(gfa_start_index + base_index,
+                                                                     previous_pileup_node);
+                                //                        std::cout << id << " " << gfa_start_index + base_index << '\n';
+                            }
+                        }
+                    }
+
+                    base_index++;
+
+                    if (!(node = node->Successor(i))) {
+                        break;
                     }
                 }
-                // Is a left side node
-                else{
-                    if (gfa_start_index + base_index == item.start){
-                        pileup.splice_nodes[id].emplace_back(gfa_start_index + base_index, previous_pileup_node);
-//                        std::cout << id << " " << gfa_start_index + base_index << '\n';
-                    }
+                //        std::cout << '\n';
+
+                {
+                    string test_path = "test_alignment_graph_" + std::to_string(id) + ".gfa";
+                    handle_graph_to_gfa(pileup.graph, test_path);
                 }
             }
-
-            base_index++;
-
-            if (!(node = node->Successor(i))){
-                break;
-            }
-        }
-//        std::cout << '\n';
-
-        {
-            string test_path = "test_alignment_graph_" + std::to_string(id) + ".gfa";
-            handle_graph_to_gfa(pileup.graph, test_path);
         }
     }
 }
@@ -581,12 +604,9 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
         const IncrementalIdMap<string>& id_map,
         OverlapMap& overlaps,
         HandleGraph& graph,
-        Pileup& pileup) {
+        PoaPileup& pileup) {
 
-    // For each input sequence, what are the points at which the alignment starts/ends (may be multiple)
-    vector <vector <AlignmentData> > alignment_data_per_node;
-    alignment_data_per_node.resize(bipartite_graph.left_size() + bipartite_graph.right_size());
-    pileup.splice_nodes.resize(bipartite_graph.left_size() + bipartite_graph.right_size());
+    auto bipartition_size = bipartite_graph.left_size() + bipartite_graph.right_size();
 
     for (auto left_iter = bipartite_graph.left_begin(); left_iter != bipartite_graph.left_end(); ++left_iter) {
         for (auto right_iter = bipartite_graph.right_begin(); right_iter != bipartite_graph.right_end(); ++right_iter) {
@@ -636,22 +656,14 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
             query_stop =  query_length - 1;
 
             if (reference == query){
-                std::cerr << "WARNING: Reference and query node identical in overlap, omitting loop from analysis: "
+                std::cerr << "WARNING: your GFA is loopy: "
                           << id_map.get_name(graph.get_id(reference)) << '\n';
                 return;
             }
 
-            if (not pileup.id_map.exists(reference)) {
-                ref_id = pileup.id_map.insert(reference);
-            } else {
-                ref_id = pileup.id_map.get_id(reference);
-            }
+            pileup.update_alignment_data(true, reference, ref_start, ref_stop);
+            pileup.update_alignment_data(false, query, query_start, query_stop);
 
-            if (not pileup.id_map.exists(query)) {
-                query_id = pileup.id_map.insert(query);
-            } else {
-                query_id = pileup.id_map.get_id(query);
-            }
 
 //            {
 //                std::cout << "pseudoref id:\t" << graph.get_id(reference) << '\n';
@@ -665,52 +677,17 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
 //                          "query_start\t" << query_start << '\n' <<
 //                          "query_stop\t" << query_stop << '\n' << '\n';
 //            }
-
-
-            alignment_data_per_node[ref_id].emplace_back(ref_start, ref_stop);
-            alignment_data_per_node[query_id].emplace_back(query_start, query_stop);
         }
     }
 
-    // Find maximum alignment length for each node sequence involved in the bipartition
-    vector <size_t> longest_alignment_indexes;
-    longest_alignment_indexes.resize(bipartite_graph.left_size() + bipartite_graph.right_size(), 0);
-
-    uint64_t max_length;
-    uint64_t length;
-
-    for (size_t pileup_id=0; pileup_id<alignment_data_per_node.size(); pileup_id++) {
-
-//        {
-//            auto a = pileup.id_map.get_name(pileup_id);
-//            auto b = graph.get_id(a);
-//            std::cout << id_map.get_name(b) << '\n';
-//            std::cout << pileup_id << '\n';
-//        }
-
-        max_length = 0;
-
-        for (size_t index = 0; index<alignment_data_per_node[pileup_id].size(); index++){
-            auto item = alignment_data_per_node[pileup_id][index];
-            length = item.stop - item.start + 1;
-
-            if (length > max_length){
-                max_length = length;
-                longest_alignment_indexes[pileup_id] = index;
-            }
-
-//            std::cout << item.start << " " << item.stop << " " << length << '\n';
-        }
-    }
-
+    pileup.sort_alignment_data_by_length();
 
     auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 5, -3, -3, -1);
+
 
     spoa::Graph spoa_graph{};
 
     add_alignments_to_poa(
-        alignment_data_per_node,
-        longest_alignment_indexes,
         graph,
         pileup,
         spoa_graph,
@@ -738,8 +715,6 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
 
     // Iterate a second time on alignment, this time with consensus as the seed
     add_alignments_to_poa(
-            alignment_data_per_node,
-            longest_alignment_indexes,
             graph,
             pileup,
             seeded_spoa_graph,

@@ -51,15 +51,6 @@ public:
 
 
 
-class AlignmentData{
-public:
-    uint64_t start;
-    uint64_t stop;
-
-    AlignmentData(uint64_t start, uint64_t stop);
-};
-
-
 class PileupGenerator {
 public:
     /// Attributes ///
@@ -79,10 +70,9 @@ public:
     // Basically just throw all the sequences into a POA alignment and see what happens
     static void generate_spoa_graph_from_bipartition(
             const BipartiteGraph& bipartite_graph,
-            const IncrementalIdMap<string>& id_map,
             OverlapMap& overlaps,
             HandleGraph& graph,
-            Pileup& pileup);
+            PoaPileup& pileup);
 
     // A generator-style DFS walk of the nodes in the partition
     static bool traverse_bipartition_nodes(
@@ -121,19 +111,15 @@ private:
             const BicliqueIterator& biclique_iterator);
 
     static void add_alignments_to_poa(
-            vector <vector <AlignmentData> >& alignment_data_per_node,
-            vector <size_t>& longest_alignment_indexes,
             HandleGraph& graph,
-            Pileup& pileup,
+            PoaPileup& pileup,
             Graph& spoa_graph,
             unique_ptr<AlignmentEngine>& alignment_engine);
 
     static void convert_spoa_to_bdsg(
             Graph& spoa_graph,
-            Pileup& pileup,
-            HandleGraph& gfa_handle_graph,
-            vector <vector <AlignmentData> >& alignment_data_per_node,
-            vector <size_t>& longest_alignment_indexes);
+            PoaPileup& pileup,
+            HandleGraph& gfa_handle_graph);
 };
 
 
