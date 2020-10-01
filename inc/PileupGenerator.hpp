@@ -70,6 +70,7 @@ public:
     // Basically just throw all the sequences into a POA alignment and see what happens
     static void generate_spoa_graph_from_bipartition(
             const BipartiteGraph& bipartite_graph,
+            const IncrementalIdMap<string>& id_map,
             OverlapMap& overlaps,
             HandleGraph& graph,
             PoaPileup& pileup);

@@ -15,7 +15,7 @@ using bluntifier::join_paths;
 using bluntifier::IncrementalIdMap;
 using bluntifier::BicliqueIterator;
 using bluntifier::PileupGenerator;
-using bluntifier::Pileup;
+using bluntifier::PoaPileup;
 using bluntifier::OverlapMap;
 using bluntifier::Alignment;
 using bluntifier::for_each_adjacency_component;
@@ -42,7 +42,7 @@ void bluntify(string gfa_path){
 
         adjacency_component.decompose_into_bipartite_blocks([&](const BipartiteGraph& bipartite_graph){
             // Iterate all alignments and build a set of alleles for each coordinate
-            Pileup pileup;
+            PoaPileup pileup;
             BicliqueIterator iterator;
             PileupGenerator::generate_spoa_graph_from_bipartition(
                     bipartite_graph,
@@ -65,8 +65,9 @@ int main(){
 
     // Get test GFA path
 //    string relative_gfa_path = "/data/unbalanced_bipartition.gfa";
-//    string relative_gfa_path = "/data/staggered_overlap.gfa";
-    string relative_gfa_path = "/data/guppy_360_hg002_messy_small.gfa";
+    string relative_gfa_path = "/data/staggered_overlap.gfa";
+//    string relative_gfa_path = "/data/guppy_360_hg002_messy_small.gfa";
+
     const string absolute_gfa_path = join_paths(project_directory, relative_gfa_path);
 
     bluntify(absolute_gfa_path);

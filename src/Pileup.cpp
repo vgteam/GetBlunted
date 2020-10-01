@@ -32,7 +32,9 @@ void PoaPileup::update_alignment_data(bool is_left, handle_t node, uint64_t star
 
 void PoaPileup::sort_alignment_data_by_length(){
     for (auto& side: alignment_data){
-        sort(side.rbegin(), side.rend());
+        for (auto& data: side) {
+            sort(data.rbegin(), data.rend());
+        }
     }
 }
 
