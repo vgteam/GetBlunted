@@ -148,7 +148,14 @@ bool Alignment::step_through_alignment(AlignmentIterator& iterator){
     // Don't do anything on the first step
     if (iterator.first_step){
         iterator.first_step = false;
-        return true;
+
+        // Do a quick check to see if this is actually a non-overlap (0M). If so, don't iterate
+        if (operations.empty() or (operations.size() == 1 and operations[0].length == 0)){
+            return false;
+        }
+        else {
+            return true;
+        }
     }
 
     bool is_last_cigar = (iterator.cigar_index >= operations.size() - 1);
