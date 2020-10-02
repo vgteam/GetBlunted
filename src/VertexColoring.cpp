@@ -4,7 +4,8 @@
  * Implements algorithm for computing vertex coloring
  */
 #include "VertexColoring.hpp"
- 
+#include <algorithm>
+
 //#define debug_interchange
 //#define debug_independent_sets
 //#define debug_vertex_cover
@@ -20,6 +21,7 @@ using std::move;
 using std::linear_congruential_engine;
 using std::swap;
 using std::deque;
+using std::max_element;
 
 VertexColoring::VertexColoring(const vector<vector<size_t>>& graph) {
     // create a local copy of the graph that is ordered by index in the
@@ -36,9 +38,9 @@ VertexColoring::VertexColoring(const vector<vector<size_t>>& graph) {
 }
 
 vector<size_t> VertexColoring::get(bool& is_exact) const {
-    
+
     vector<size_t> coloring;
-    
+
     size_t total_degree = 0;
     for (size_t i = 0; i < graph.size(); ++i) {
         total_degree += graph[i].size();
@@ -48,7 +50,7 @@ vector<size_t> VertexColoring::get(bool& is_exact) const {
     size_t n = graph.size();
     size_t max_lawler_cost = m * n * size_t(round(pow(2.44225, n)));
     size_t max_interchange_cost = m * n;
-    
+
     // TODO: magic number
     // compute a vertex coloring of the complement graph (use a fairly generous bound
     // because in practice the optimizations seem to speed it up quite a bit)
@@ -63,7 +65,7 @@ vector<size_t> VertexColoring::get(bool& is_exact) const {
 #ifdef debug_vertex_coloring
         cerr << "computing approximate vertex coloring" << endl;
 #endif
-        
+
         size_t max_color = numeric_limits<size_t>::max();
         
         // use greedy and (maybe) interchange coloring algorithms on
@@ -118,7 +120,7 @@ vector<size_t> VertexColoring::get(bool& is_exact) const {
         
         is_exact = (max_color == lower_bnd);
     }
-    
+
     return coloring;
 }
 

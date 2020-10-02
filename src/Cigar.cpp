@@ -66,7 +66,7 @@ char Cigar::type() const{
     return Alignment::cigar_type[code];
 }
 
-AlignmentIterator::AlignmentIterator(uint64_t query_index, uint64_t ref_index):
+AlignmentIterator::AlignmentIterator(uint64_t ref_index, uint64_t query_index):
     query_index(query_index),
     ref_index(ref_index),
     cigar_index(0),
@@ -113,18 +113,34 @@ void Alignment::compute_lengths(pair<size_t,size_t>& lengths){
     for (const auto& c: operations){
         const uint8_t code = Alignment::cigar_code[c.type()];
 
-        // Assume the right side (sink) node is treated as the "reference" in the cigar
+        // Assume the left side (source) node is treated as the "reference" in the cigar
         if (Alignment::is_ref_move[code]){
-            // Increment by the length of the cigar operation
-            lengths.second += c.length;
-        }
-
-        // Assume the left side (source) node is treated as the "query" in the cigar
-        if (Alignment::is_query_move[code]){
             // Increment by the length of the cigar operation
             lengths.first += c.length;
         }
+
+        // Assume the right side (sink) node is treated as the "query" in the cigar
+        if (Alignment::is_query_move[code]){
+            // Increment by the length of the cigar operation
+            lengths.second += c.length;
+        }
     }
+}
+
+
+uint64_t Alignment::compute_common_length(){
+    uint64_t n_matches = 0;
+
+    // Count up the cigar operations
+    for (const auto& c: operations){
+        const uint8_t code = Alignment::cigar_code[c.type()];
+
+        if (Alignment::is_ref_move[code] and Alignment::is_query_move[code]){
+            n_matches += c.length;
+        }
+    }
+
+    return n_matches;
 }
 
 
@@ -132,7 +148,14 @@ bool Alignment::step_through_alignment(AlignmentIterator& iterator){
     // Don't do anything on the first step
     if (iterator.first_step){
         iterator.first_step = false;
-        return true;
+
+        // Do a quick check to see if this is actually a non-overlap (0M). If so, don't iterate
+        if (operations.empty() or (operations.size() == 1 and operations[0].length == 0)){
+            return false;
+        }
+        else {
+            return true;
+        }
     }
 
     bool is_last_cigar = (iterator.cigar_index >= operations.size() - 1);
@@ -231,8 +254,8 @@ void Alignment::explicitize_mismatches(
 
     while (step_through_alignment(iterator)) {
         if (operations[iterator.cigar_index].type() == 'M'){
-            char query_base = graph.get_base(edge.first, iterator.query_index);
-            char ref_base = graph.get_base(edge.second, iterator.ref_index);
+            char query_base = graph.get_base(edge.second, iterator.query_index);
+            char ref_base = graph.get_base(edge.first, iterator.ref_index);
 
             if (ref_base == query_base){
                 // If the last operation was already a Match (=), then extend its length
@@ -271,18 +294,19 @@ void Alignment::explicitize_mismatches(
 string Alignment::create_formatted_alignment_string(
         const HandleGraph& graph,
         const edge_t& edge,
-        uint64_t query_start_index,
-        uint64_t ref_start_index) {
+        uint64_t ref_start_index,
+        uint64_t query_start_index
+        ) {
 
-    AlignmentIterator iterator(query_start_index, ref_start_index);
+    AlignmentIterator iterator(ref_start_index, query_start_index);
 
     string aligned_ref;
     string aligned_query;
     string alignment_symbols;
 
     while (step_through_alignment(iterator)) {
-        char ref_base = graph.get_base(edge.first, iterator.query_index);
-        char query_base = graph.get_base(edge.second, iterator.ref_index);
+        char ref_base = graph.get_base(edge.first, iterator.ref_index);
+        char query_base = graph.get_base(edge.second, iterator.query_index);
 
         uint8_t code = operations[iterator.cigar_index].code;
 
@@ -311,12 +335,13 @@ string Alignment::create_formatted_alignment_string(
 
 
 string Alignment::create_formatted_alignment_string(
-        const string& query_sequence,
         const string& ref_sequence,
-        uint64_t query_start_index,
-        uint64_t ref_start_index) {
+        const string& query_sequence,
+        uint64_t ref_start_index,
+        uint64_t query_start_index
+        ) {
 
-    AlignmentIterator iterator(query_start_index, ref_start_index);
+    AlignmentIterator iterator(ref_start_index, query_start_index);
 
     string aligned_ref;
     string aligned_query;

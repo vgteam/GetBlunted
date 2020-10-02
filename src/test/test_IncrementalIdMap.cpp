@@ -17,7 +17,7 @@ int main(){
     vector <string> names = {"a", "b", "c" , "d"};
     vector <nid_t> ids = {1, 2, 3, 4};
 
-    IncrementalIdMap id_map;
+    IncrementalIdMap<string> id_map;
 
     string name;
     nid_t id = -1;
@@ -87,7 +87,7 @@ int main(){
         id = id_map.insert("a");
     }
     catch (exception& e){
-        cerr << e.what() << '\n';
+        cerr << "Caught expected error: " << e.what() << '\n';
         pass = true;
     }
 

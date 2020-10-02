@@ -16,11 +16,14 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 #set(CMAKE_CXX_FLAGS "-fexceptions -fsanitize=address")
+set(ASAN_OPTIONS=check_initialization_order=1)
+set(ASAN_OPTIONS=detect_leaks=1)
+
 #set(CMAKE_CXX_FLAGS "-fexceptions -fno-new-ttp-matching")
 set(CMAKE_CXX_FLAGS "-fexceptions")
 
-#add_definitions(-ggdb3 -O0 -Wall)       # Debugging + No optimization
-add_definitions(-O3 -Wall)              # Much optimization
+add_definitions(-ggdb3 -O0 -Wall)       # Debugging + No optimization
+#add_definitions(-O3 -Wall)              # Much optimization
 
 #########################################
 # ------------------------------------- #
@@ -43,12 +46,16 @@ set(SOURCES
         src/find_tips.cpp
 	src/GaloisLattice.cpp
         src/gfa_to_handle.cpp
+        src/handle_to_gfa.cpp
         src/IncrementalIdMap.cpp
         src/is_single_stranded.cpp
         src/OverlapMap.cpp
+        src/PileupGenerator.cpp
+        src/Pileup.cpp
 	src/ReducedDualGraph.cpp
         src/SubtractiveHandleGraph.cpp
         src/topological_sort.cpp
+        src/unchop.cpp
         src/utility.cpp
         src/VertexColoring.cpp
         )
@@ -128,11 +135,11 @@ ExternalProject_Add(project_gfak
         GIT_REPOSITORY https://github.com/edawson/gfakluge.git
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
         CONFIGURE_COMMAND ""
+#	    DOWNLOAD_COMMAND ""
+#        UPDATE_COMMAND ""
         BUILD_IN_SOURCE True
         INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/gfak/
         INSTALL_COMMAND make PREFIX=${CMAKE_SOURCE_DIR}/external/gfak/ install
-	DOWNLOAD_COMMAND ""
-        UPDATE_COMMAND ""
         )
 
 # Define INSTALL_DIR as the install directory for external library
@@ -178,6 +185,8 @@ ExternalProject_Add(project_bdsg
         GIT_REPOSITORY https://github.com/vgteam/libbdsg-easy.git
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
         CONFIGURE_COMMAND ""
+#        DOWNLOAD_COMMAND ""
+#        UPDATE_COMMAND ""
         BUILD_IN_SOURCE True
         INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/bdsg/
         INSTALL_COMMAND make INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/bdsg/ install
@@ -222,6 +231,59 @@ include_directories(external/bdsg/include/)
 message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 
 
+##############################################
+# ------------------------------------------ #
+# -------- LINKING EXTERNAL LIBRARY -------- #
+# ------------------ spoa ------------------ #
+# ------------------------------------------ #
+##############################################
+
+# Need to explicitly enable ExternalProject functionality
+include(ExternalProject)
+
+# Download or update library as an external project
+ExternalProject_Add(project_spoa
+        GIT_REPOSITORY https://github.com/rvaser/spoa.git
+        GIT_SUBMODULES vendor/bioparser vendor/cereal vendor/cpu_features vendor/simde
+#        DOWNLOAD_COMMAND ""
+#        UPDATE_COMMAND ""
+        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/spoa/
+        BUILD_IN_SOURCE True
+        INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/spoa/
+        INSTALL_COMMAND make install
+        )
+
+# Define INSTALL_DIR as the install directory for external library
+ExternalProject_Get_Property(project_spoa INSTALL_DIR)
+
+# Create new library for external project (so it can be linked with main library)
+add_library(spoa STATIC IMPORTED)
+set_property(TARGET spoa
+        PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/libspoa.a)
+
+# Define library as dependent on the downloaded project
+add_dependencies(spoa
+        project_spoa
+        )
+
+# Define main library as dependent on the downloaded project (transitively)
+add_dependencies(Bluntifier spoa)
+
+# Ensure that main library has access to primary dependencies' and secondary dependencies' headers
+include_directories(external/spoa/include/
+        ${CMAKE_CURRENT_BINARY_DIR}/external/src/project_spoa/vendor/cereal/include/
+        ${CMAKE_CURRENT_BINARY_DIR}/external/src/project_spoa/vendor/cpu_features/include/
+        ${CMAKE_CURRENT_BINARY_DIR}/external/src/project_spoa/vendor/simde/simde/
+        ${CMAKE_CURRENT_BINARY_DIR}/external/src/project_spoa/vendor/simde/arm/
+        ${CMAKE_CURRENT_BINARY_DIR}/external/src/project_spoa/vendor/simde/arm/neon/
+        )
+
+# Add runtime path for main library so it can access external library
+#set_property(TARGET Bluntifier PROPERTY INSTALL_RPATH "$ORIGIN" "${INSTALL_DIR}/bin/spoa")
+
+message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
+
 ############################################
 # ---------------------------------------- #
 # -------- Generating executables -------- #
@@ -241,10 +303,11 @@ set(TESTS
         test_cigar
         test_gfak
         test_handlegraph
+        test_handle_to_gfa
         test_IncrementalIdMap
         test_overlaps
+        test_spoa
         test_utility
-	test_VertexColoring
         )
 
 foreach(FILENAME_PREFIX ${TESTS})
@@ -254,6 +317,7 @@ foreach(FILENAME_PREFIX ${TESTS})
             Bluntifier
             Threads::Threads
             bdsg
+            spoa
             divsufsort
             libhandlegraph
             libsdsl)
@@ -267,27 +331,27 @@ endforeach()
 
 # -------- EXECUTABLES --------
 
-#set(EXECUTABLES
-#        a
-#        b
-#        )
-#
-#foreach(FILENAME_PREFIX ${EXECUTABLES})
-#    add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
-#    set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
-#    target_link_libraries(${FILENAME_PREFIX}
-#            Bluntifier
-#            Threads::Threads
-#            bdsg
-#            divsufsort
-#            libhandlegraph
-#            libsdsl)
-#
-#    if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-#        target_link_libraries(${FILENAME_PREFIX}
-#                OpenMP::OpenMP_CXX)
-#    endif()
-#endforeach()
+set(EXECUTABLES
+        bluntify
+        )
+
+foreach(FILENAME_PREFIX ${EXECUTABLES})
+    add_executable(${FILENAME_PREFIX} src/executable/${FILENAME_PREFIX}.cpp)
+    set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
+    target_link_libraries(${FILENAME_PREFIX}
+            Bluntifier
+            Threads::Threads
+            bdsg
+            spoa
+            divsufsort
+            libhandlegraph
+            libsdsl)
+
+    if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+        target_link_libraries(${FILENAME_PREFIX}
+                OpenMP::OpenMP_CXX)
+    endif()
+endforeach()
 
 # -------- final steps --------
 
