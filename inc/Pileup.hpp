@@ -13,6 +13,8 @@
 #include <array>
 
 using bluntifier::IncrementalIdMap;
+using handlegraph::path_handle_t;
+using handlegraph::step_handle_t;
 using handlegraph::handle_t;
 using handlegraph::edge_t;
 using bdsg::PackedGraph;
@@ -27,14 +29,16 @@ using std::array;
 
 namespace bluntifier{
 
+
+
 class AlignmentData{
 public:
     uint64_t sequence_start_index;
     uint64_t sequence_stop_index;
-    handle_t pileup_node;
+    path_handle_t path_handle;
     uint32_t spoa_id;
 
-    AlignmentData(uint64_t start, uint64_t stop);
+    AlignmentData(uint64_t start, uint64_t stop, path_handle_t& path_handle);
     bool operator<(const AlignmentData& other) const;
 };
 
@@ -53,9 +57,16 @@ public:
     // pileup graph (from left to right) that will be spliced back into the gfa
     array <vector <vector <AlignmentData> >, 2> alignment_data;
 
+    vector <edge_t> blunt_edges;
+
     /// Methods ///
+    void print_paths();
     void sort_alignment_data_by_length();
-    void update_alignment_data(bool is_left, handle_t node, uint64_t start_index, uint64_t stop_index);
+    void update_alignment_data(
+            bool is_left,
+            handle_t node,
+            uint64_t start_index,
+            uint64_t stop_index);
 
     PoaPileup();
 

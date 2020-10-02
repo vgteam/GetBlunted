@@ -35,10 +35,15 @@ void bluntify(string gfa_path){
 
     gfa_to_handle_graph(gfa_path, graph, id_map, overlaps);
 
+    // Vector of all the pileups for each adjacency component, with a 1:1 ratio of pileup:biclique
+    vector <vector <PoaPileup> > subgraphs;
+
     for_each_adjacency_component(graph, [&](AdjacencyComponent& adjacency_component){
         if (adjacency_component.size() == 1) {
             return true;
         }
+
+        subgraphs.emplace_back();
 
         adjacency_component.decompose_into_bipartite_blocks([&](const BipartiteGraph& bipartite_graph){
             // Iterate all alignments and build a set of alleles for each coordinate
@@ -51,6 +56,7 @@ void bluntify(string gfa_path){
                     graph,
                     pileup);
 
+            subgraphs.back().push_back(pileup);
 
             // Construct a new graph containing the correct alleles
 
@@ -67,6 +73,8 @@ int main(){
 //    string relative_gfa_path = "/data/unbalanced_bipartition.gfa";
     string relative_gfa_path = "/data/staggered_overlap.gfa";
 //    string relative_gfa_path = "/data/guppy_360_hg002_messy_small.gfa";
+//    string relative_gfa_path = "/data/guppy_360_hg002_mess.gfa";
+//    string relative_gfa_path = "/data/1q.gfa";
 
     const string absolute_gfa_path = join_paths(project_directory, relative_gfa_path);
 

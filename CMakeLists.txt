@@ -55,6 +55,7 @@ set(SOURCES
 	src/ReducedDualGraph.cpp
         src/SubtractiveHandleGraph.cpp
         src/topological_sort.cpp
+        src/unchop.cpp
         src/utility.cpp
         src/VertexColoring.cpp
         )

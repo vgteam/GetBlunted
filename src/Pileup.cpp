@@ -7,6 +7,13 @@ using std::sort;
 namespace bluntifier{
 
 
+AlignmentData::AlignmentData(uint64_t start, uint64_t stop, path_handle_t& path_handle):
+        sequence_start_index(start),
+        sequence_stop_index(stop),
+        path_handle(path_handle)
+{}
+
+
 bool AlignmentData::operator<(const AlignmentData& other) const{
     auto a = sequence_stop_index - sequence_start_index + 1;
     auto b = other.sequence_stop_index - other.sequence_start_index + 1;
@@ -14,8 +21,23 @@ bool AlignmentData::operator<(const AlignmentData& other) const{
     return a < b;
 }
 
+void PoaPileup::print_paths(){
+    graph.for_each_path_handle([&](path_handle_t path){
+        graph.for_each_step_in_path(path, [&](step_handle_t step){
+            auto h = graph.get_handle_of_step(step);
+            std::cout << graph.get_sequence(h);
+        });
 
-void PoaPileup::update_alignment_data(bool is_left, handle_t node, uint64_t start_index, uint64_t stop_index){
+        std::cout << '\n';
+    });
+}
+
+void PoaPileup::update_alignment_data(
+        bool is_left,
+        handle_t node,
+        uint64_t start_index,
+        uint64_t stop_index){
+
     int64_t id;
 
     if (not id_map[!is_left].exists(node)) {
@@ -25,7 +47,15 @@ void PoaPileup::update_alignment_data(bool is_left, handle_t node, uint64_t star
         id = id_map[!is_left].get_id(node);
     }
 
-    alignment_data[!is_left][id].emplace_back(start_index, stop_index);
+    auto side_string = to_string(is_left);
+    auto id_string = to_string(graph.get_id(node));
+    auto index_string = to_string(alignment_data[!is_left][id].size());
+
+    string path_name = side_string + '_' + id_string + '_' + index_string;
+
+    auto path_handle = graph.create_path_handle(path_name, false);
+
+    alignment_data[!is_left][id].emplace_back(start_index, stop_index, path_handle);
 
 }
 

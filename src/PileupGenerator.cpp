@@ -1,8 +1,9 @@
 #include "PileupGenerator.hpp"
 #include "handle_to_gfa.hpp"
+#include "unchop.hpp"
 
 using std::max;
-
+using handlegraph::step_handle_t;
 
 namespace bluntifier {
 
@@ -13,12 +14,6 @@ BicliqueIterator::BicliqueIterator():
 
 
 PileupGenerator::PileupGenerator()=default;
-
-
-AlignmentData::AlignmentData(uint64_t start, uint64_t stop):
-    sequence_start_index(start),
-    sequence_stop_index(stop)
-{}
 
 
 bool PileupGenerator::traverse_bipartition_edges(
@@ -498,8 +493,8 @@ void PileupGenerator::add_alignments_to_poa(
 
                     string subsequence = graph.get_subsequence(node_handle, data.sequence_start_index, length);
 
-                    std::cout << data.sequence_start_index << " " << length << '\n';
-                    std::cout << subsequence << '\n';
+//                    std::cout << data.sequence_start_index << " " << length << '\n';
+//                    std::cout << subsequence << '\n';
 
                     auto alignment = alignment_engine->Align(subsequence, spoa_graph);
                     spoa_graph.AddAlignment(alignment, subsequence);
@@ -507,16 +502,6 @@ void PileupGenerator::add_alignments_to_poa(
                     data.spoa_id = ++spoa_id;
                 }
                 else{
-                    // Assume the alignment data is reverse sorted by length at this point (not totally safe, but safe enough)
-                    auto node_handle = pileup.id_map[!is_left].get_name(id);
-
-                    auto length = data.sequence_stop_index - data.sequence_start_index + 1;
-
-                    string subsequence = graph.get_subsequence(node_handle, data.sequence_start_index, length);
-
-                    std::cout << data.sequence_start_index << " " << length << '\n';
-                    std::cout << subsequence << '\n';
-
                     data.spoa_id = spoa_id;
                 }
             }
@@ -545,7 +530,7 @@ void PileupGenerator::convert_spoa_to_bdsg(
 
 
             while (true) {
-                //            std::cout << node->code << " " << node->id << " " << node->Coverage() << " " << '\n';
+//              std::cout << node->code << " " << node->id << " " << node->Coverage() << " " << '\n';
 
                 auto iter = nodes_created.find(node->id);
 
@@ -553,7 +538,7 @@ void PileupGenerator::convert_spoa_to_bdsg(
                     auto gfa_handle = pileup.id_map[!is_left].get_name(id);
                     char base = gfa_handle_graph.get_base(gfa_handle, gfa_start_index + base_index);
 
-                    //                std::cout << base << '\n';
+//                  std::cout << base << '\n';
 
                     auto new_pileup_node = pileup.graph.create_handle(string(1, base));
                     nodes_created.emplace(node->id, new_pileup_node);
@@ -572,17 +557,10 @@ void PileupGenerator::convert_spoa_to_bdsg(
                 }
 
                 for (auto& item: pileup.alignment_data[!is_left][id]) {
-                    // Is a right side node
-                    if (!is_left) {
-                        if (gfa_start_index + base_index == item.sequence_stop_index) {
-                            item.pileup_node = previous_pileup_node;
-                        }
-                    }
-                    // Is a left side node
-                    else {
-                        if (gfa_start_index + base_index == item.sequence_start_index) {
-                            item.pileup_node = previous_pileup_node;
-                        }
+                    auto gfa_index = gfa_start_index + base_index;
+
+                    if (gfa_index >= item.sequence_start_index and gfa_index <= item.sequence_stop_index) {
+                        pileup.graph.append_step(item.path_handle, previous_pileup_node);
                     }
                 }
 
@@ -612,6 +590,13 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
 
             const edge_t& edge = iter->first;
             Alignment& alignment = iter->second;
+
+            // Do a quick check to see if this is actually a non-overlap (0M). If so, don't process it
+            if (alignment.operations.empty() or (alignment.operations[0].length == 0)){
+                pileup.blunt_edges.push_back(edge);
+                continue;
+            }
+
             pair<size_t, size_t> lengths;
             size_t start;
 
@@ -654,25 +639,24 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
             if (reference == query){
                 std::cerr << "WARNING: your GFA is loopy: "
                           << id_map.get_name(graph.get_id(reference)) << '\n';
-                return;
             }
 
             pileup.update_alignment_data(true, reference, ref_start, ref_stop);
             pileup.update_alignment_data(false, query, query_start, query_stop);
 
 
-            {
-                std::cout << "ref id:\t" << graph.get_id(reference) << '\n';
-                std::cout << "ref sequence:\t" << graph.get_sequence(reference) << '\n';
-                std::cout << "query sequence:\t" << graph.get_sequence(query) << '\n';
-                std::cout <<
-                          "ref_length\t" << ref_length << '\n' <<
-                          "query_length\t" << query_length << '\n' <<
-                          "ref_start\t" << ref_start << '\n' <<
-                          "ref_stop\t" << ref_stop << '\n' <<
-                          "query_start\t" << query_start << '\n' <<
-                          "query_stop\t" << query_stop << '\n' << '\n';
-            }
+//            {
+//                std::cout << "ref id:\t" << graph.get_id(reference) << '\n';
+//                std::cout << "ref sequence:\t" << graph.get_sequence(reference) << '\n';
+//                std::cout << "query sequence:\t" << graph.get_sequence(query) << '\n';
+//                std::cout <<
+//                          "ref_length\t" << ref_length << '\n' <<
+//                          "query_length\t" << query_length << '\n' <<
+//                          "ref_start\t" << ref_start << '\n' <<
+//                          "ref_stop\t" << ref_stop << '\n' <<
+//                          "query_start\t" << query_start << '\n' <<
+//                          "query_stop\t" << query_stop << '\n' << '\n';
+//            }
         }
     }
 
@@ -733,6 +717,16 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
             seeded_spoa_graph,
             pileup,
             graph);
+
+    handle_graph_to_gfa(pileup.graph, "test_output.gfa");
+    pileup.print_paths();
+    std::cout << '\n';
+
+    unchop(&pileup.graph);
+
+    handle_graph_to_gfa(pileup.graph, "test_output_unchopped.gfa");
+    pileup.print_paths();
+
 }
 
 
