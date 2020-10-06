@@ -560,7 +560,8 @@ void PileupGenerator::convert_spoa_to_bdsg(
                     auto gfa_index = gfa_start_index + base_index;
 
                     if (gfa_index >= item.sequence_start_index and gfa_index <= item.sequence_stop_index) {
-                        pileup.graph.append_step(item.path_handle, previous_pileup_node);
+                        auto path_handle = pileup.graph.get_path_handle(item.path_name);
+                        pileup.graph.append_step(path_handle, previous_pileup_node);
                     }
                 }
 
@@ -576,17 +577,17 @@ void PileupGenerator::convert_spoa_to_bdsg(
 
 
 void PileupGenerator::generate_spoa_graph_from_bipartition(
-        const BipartiteGraph& bipartite_graph,
+        const bipartition& bipartition,
         const IncrementalIdMap<string>& id_map,
         OverlapMap& overlaps,
         HandleGraph& graph,
         PoaPileup& pileup) {
 
-    for (auto left_iter = bipartite_graph.left_begin(); left_iter != bipartite_graph.left_end(); ++left_iter) {
-        for (auto right_iter = bipartite_graph.right_begin(); right_iter != bipartite_graph.right_end(); ++right_iter) {
-            std::cout << "bipartition size: " << bipartite_graph.left_size() << " " << bipartite_graph.right_size() << '\n';
+    for (const auto& left: bipartition.first) {
+        for (const auto& right: bipartition.second) {
+            std::cout << "bipartition size: " << bipartition.first.size() << " " << bipartition.second.size() << '\n';
 
-            edge_t non_canonical_edge = {*left_iter, graph.flip(*right_iter)};
+            edge_t non_canonical_edge = {left, graph.flip(right)};
             auto iter = overlaps.canonicalize_and_find(non_canonical_edge, graph);
 
             const edge_t& edge = iter->first;
@@ -646,18 +647,18 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
             pileup.update_alignment_data(false, query, query_start, query_stop);
 
 
-            {
-                std::cout << "ref id:\t" << graph.get_id(reference) << '\n';
-                std::cout << "ref sequence:\t" << graph.get_sequence(reference) << '\n';
-                std::cout << "query sequence:\t" << graph.get_sequence(query) << '\n';
-                std::cout <<
-                          "ref_length\t" << ref_length << '\n' <<
-                          "query_length\t" << query_length << '\n' <<
-                          "ref_start\t" << ref_start << '\n' <<
-                          "ref_stop\t" << ref_stop << '\n' <<
-                          "query_start\t" << query_start << '\n' <<
-                          "query_stop\t" << query_stop << '\n' << '\n';
-            }
+//            {
+//                std::cout << "ref id:\t" << graph.get_id(reference) << '\n';
+//                std::cout << "ref sequence:\t" << graph.get_sequence(reference) << '\n';
+//                std::cout << "query sequence:\t" << graph.get_sequence(query) << '\n';
+//                std::cout <<
+//                          "ref_length\t" << ref_length << '\n' <<
+//                          "query_length\t" << query_length << '\n' <<
+//                          "ref_start\t" << ref_start << '\n' <<
+//                          "ref_stop\t" << ref_stop << '\n' <<
+//                          "query_start\t" << query_start << '\n' <<
+//                          "query_stop\t" << query_stop << '\n' << '\n';
+//            }
         }
     }
 
@@ -720,14 +721,11 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
             graph);
 
     handle_graph_to_gfa(pileup.graph, "test_output.gfa");
-    pileup.print_paths();
     std::cout << '\n';
 
     unchop(&pileup.graph);
 
     handle_graph_to_gfa(pileup.graph, "test_output_unchopped.gfa");
-    pileup.print_paths();
-
 }
 
 

@@ -35,10 +35,10 @@ class AlignmentData{
 public:
     uint64_t sequence_start_index;
     uint64_t sequence_stop_index;
-    path_handle_t path_handle;
+    string path_name;
     uint32_t spoa_id;
 
-    AlignmentData(uint64_t start, uint64_t stop, path_handle_t& path_handle);
+    AlignmentData(uint64_t start, uint64_t stop, string& path_name);
     bool operator<(const AlignmentData& other) const;
 };
 
@@ -57,7 +57,12 @@ public:
     // pileup graph (from left to right) that will be spliced back into the gfa
     array <vector <vector <AlignmentData> >, 2> alignment_data;
 
+    // Keep track of any edges that are non-overlapping, and cant be represented in the POA graph
     vector <edge_t> blunt_edges;
+
+    // Index to help create unique names for paths in the context of the main GFA graph
+    uint64_t index = 0;
+
 
     /// Methods ///
     void print_paths();

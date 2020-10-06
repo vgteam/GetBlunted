@@ -42,6 +42,7 @@ set(SOURCES
         src/apply_bulk_modifications.cpp
 	src/BicliqueCover.cpp
 	src/BipartiteGraph.cpp
+	    src/copy_graph.cpp
         src/Cigar.cpp
         src/find_tips.cpp
 	src/GaloisLattice.cpp
