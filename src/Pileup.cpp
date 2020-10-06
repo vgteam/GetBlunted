@@ -7,10 +7,10 @@ using std::sort;
 namespace bluntifier{
 
 
-AlignmentData::AlignmentData(uint64_t start, uint64_t stop, path_handle_t& path_handle):
+AlignmentData::AlignmentData(uint64_t start, uint64_t stop, string& path_name):
         sequence_start_index(start),
         sequence_stop_index(stop),
-        path_handle(path_handle)
+        path_name(path_name)
 {}
 
 
@@ -49,13 +49,14 @@ void PoaPileup::update_alignment_data(
 
     auto side_string = to_string(is_left);
     auto id_string = to_string(graph.get_id(node));
-    auto index_string = to_string(alignment_data[!is_left][id].size());
+    auto overlap_index_string = to_string(alignment_data[!is_left][id].size());
+    auto pileup_index_string = to_string(index);
 
-    string path_name = side_string + '_' + id_string + '_' + index_string;
+    string path_name = id_string + '_' + pileup_index_string + '_' + side_string + '_' + overlap_index_string;
 
     auto path_handle = graph.create_path_handle(path_name, false);
 
-    alignment_data[!is_left][id].emplace_back(start_index, stop_index, path_handle);
+    alignment_data[!is_left][id].emplace_back(start_index, stop_index, path_name);
 
 }
 
