@@ -46,17 +46,16 @@ void bluntify(string gfa_path){
         subgraphs.emplace_back();
 
         adjacency_component.decompose_into_bipartite_blocks([&](const BipartiteGraph& bipartite_graph){
+            subgraphs.back().emplace_back();
+
             // Iterate all alignments and build a set of alleles for each coordinate
             PoaPileup pileup;
-            BicliqueIterator iterator;
             PileupGenerator::generate_spoa_graph_from_bipartition(
                     bipartite_graph,
                     id_map,
                     overlaps,
                     graph,
-                    pileup);
-
-            subgraphs.back().push_back(pileup);
+                    subgraphs.back().back());
 
             // Construct a new graph containing the correct alleles
 
@@ -70,8 +69,9 @@ int main(){
     string project_directory = parent_path(script_path, 3);
 
     // Get test GFA path
+    string relative_gfa_path = "/data/diploid_case_c.gfa";
 //    string relative_gfa_path = "/data/unbalanced_bipartition.gfa";
-    string relative_gfa_path = "/data/staggered_overlap.gfa";
+//    string relative_gfa_path = "/data/staggered_overlap.gfa";
 //    string relative_gfa_path = "/data/guppy_360_hg002_messy_small.gfa";
 //    string relative_gfa_path = "/data/guppy_360_hg002_mess.gfa";
 //    string relative_gfa_path = "/data/1q.gfa";

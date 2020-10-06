@@ -183,6 +183,7 @@ include(ExternalProject)
 # Download or update library as an external project
 ExternalProject_Add(project_bdsg
         GIT_REPOSITORY https://github.com/vgteam/libbdsg-easy.git
+        GIT_TAG b989949811918b18de48a5e57d7f45473d8901f1
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
         CONFIGURE_COMMAND ""
 #        DOWNLOAD_COMMAND ""
@@ -223,7 +224,9 @@ add_dependencies(bdsg
 add_dependencies(Bluntifier bdsg)
 
 # Ensure that main library has access to primary dependencies' and secondary dependencies' headers
-include_directories(external/bdsg/include/)
+include_directories(external/bdsg/include/
+        external/bdsg/include/handlegraph/
+        external/bdsg/include/bdsg/)
 
 # Add runtime path for main library so it can access external library
 #set_property(TARGET Bluntifier PROPERTY INSTALL_RPATH "$ORIGIN" "${INSTALL_DIR}/bin/bdsg")

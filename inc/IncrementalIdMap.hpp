@@ -15,7 +15,9 @@ using handlegraph::nid_t;
 using std::unique_ptr;
 using std::runtime_error;
 using std::unique_ptr;
+using std::shared_ptr;
 using std::make_unique;
+using std::make_shared;
 using std::to_string;
 
 

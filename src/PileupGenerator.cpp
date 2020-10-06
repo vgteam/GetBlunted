@@ -584,6 +584,7 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
 
     for (auto left_iter = bipartite_graph.left_begin(); left_iter != bipartite_graph.left_end(); ++left_iter) {
         for (auto right_iter = bipartite_graph.right_begin(); right_iter != bipartite_graph.right_end(); ++right_iter) {
+            std::cout << "bipartition size: " << bipartite_graph.left_size() << " " << bipartite_graph.right_size() << '\n';
 
             edge_t non_canonical_edge = {*left_iter, graph.flip(*right_iter)};
             auto iter = overlaps.canonicalize_and_find(non_canonical_edge, graph);
@@ -645,18 +646,18 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
             pileup.update_alignment_data(false, query, query_start, query_stop);
 
 
-//            {
-//                std::cout << "ref id:\t" << graph.get_id(reference) << '\n';
-//                std::cout << "ref sequence:\t" << graph.get_sequence(reference) << '\n';
-//                std::cout << "query sequence:\t" << graph.get_sequence(query) << '\n';
-//                std::cout <<
-//                          "ref_length\t" << ref_length << '\n' <<
-//                          "query_length\t" << query_length << '\n' <<
-//                          "ref_start\t" << ref_start << '\n' <<
-//                          "ref_stop\t" << ref_stop << '\n' <<
-//                          "query_start\t" << query_start << '\n' <<
-//                          "query_stop\t" << query_stop << '\n' << '\n';
-//            }
+            {
+                std::cout << "ref id:\t" << graph.get_id(reference) << '\n';
+                std::cout << "ref sequence:\t" << graph.get_sequence(reference) << '\n';
+                std::cout << "query sequence:\t" << graph.get_sequence(query) << '\n';
+                std::cout <<
+                          "ref_length\t" << ref_length << '\n' <<
+                          "query_length\t" << query_length << '\n' <<
+                          "ref_start\t" << ref_start << '\n' <<
+                          "ref_stop\t" << ref_stop << '\n' <<
+                          "query_start\t" << query_start << '\n' <<
+                          "query_stop\t" << query_stop << '\n' << '\n';
+            }
         }
     }
 

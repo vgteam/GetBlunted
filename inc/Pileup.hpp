@@ -69,6 +69,7 @@ public:
             uint64_t stop_index);
 
     PoaPileup();
+    PoaPileup(PoaPileup&&) = default;
 
 private:
     const size_t LEFT = 0;
