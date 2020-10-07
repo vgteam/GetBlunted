@@ -1,0 +1,5 @@
+H	VN:Z:1.0
+S	s1	GATT
+S	s2	ACA
+L	s1	+	s2	+	0M
+L	s2	+	s1	+	0M
