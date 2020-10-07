@@ -24,7 +24,7 @@ class Edge:
             r = "-"
         else:
             r = "+"
-        return "({}, {}, {})".format(self.target.name, r, self.length)
+        return "({}, {}, {}, {})".format(self.target.name, r, self.length, self.backward_length)
 
 class SeqNode:
     def __init__(self, sequence, name):
@@ -197,6 +197,15 @@ def table_sequences_are_consistent(in_gfa, out_gfa, table):
                 return False
     return True
 
+def is_blunt(out_gfa):
+    for nodename in out_gfa.nodes:
+        node = out_gfa.nodes[nodename]
+        for edge in node.left + node.right:
+            if edge.length != 0 or edge.backward_length != 0:
+                print("node {} has edge {}, which is not blunt".format(nodename, edge), file = sys.stderr)
+                return False
+    return True
+
 def adjacencies_are_exhaustive(in_gfa, out_gfa, table):
     
     rev_table = {}
@@ -274,6 +283,7 @@ if __name__ == "__main__":
 #    print(out_gfa)
 #    print(table)
     
+    assert(is_blunt(out_gfa))
     assert(table_sequences_are_consistent(in_gfa, out_gfa, table))
     assert(sequences_are_exhaustive(in_gfa, table))
     assert(adjacencies_are_exhaustive(in_gfa, out_gfa, table))

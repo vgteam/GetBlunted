@@ -1,3 +1,0 @@
-#blunted_seq_name	original_subseqs
-s1	read1[0:4]+
-s2	read1[4:7]+,read2[0:3]+
