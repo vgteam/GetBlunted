@@ -27,7 +27,7 @@ template <class T> class IncrementalIdMap {
 public:
     /// Attributes ///
 
-    vector <unique_ptr <T> > names;
+    vector <T> names;
     unordered_map <T, int64_t> ids;
     bool zero_based;
 
@@ -53,19 +53,20 @@ template<class T> IncrementalIdMap<T>::IncrementalIdMap(bool zero_based):
     zero_based(zero_based)
 {}
 
+
 template <class T> int64_t IncrementalIdMap<T>::insert(const T& s) {
     if (exists(s)){
         throw runtime_error("Error: attempted to insert duplicate key with id: " + to_string(get_id(s)));
     }
 
-    // Make a copy of the node name string, and allocate a pointer to it
-    names.push_back(make_unique<T>(s));
+    // Make a copy of the node name string
+    names.push_back(s);
 
     // Create an integer node ID (starting from 1)
     int64_t id = names.size() - zero_based;
 
-    // Create a reverse mapping by dereferencing the pointer
-    ids.insert({*names.back(),id});
+    // Create a reverse mapping
+    ids.emplace(s,id);
 
     // For convenience, return the ID number that was generated
     return id;
@@ -88,7 +89,7 @@ template<class T> int64_t IncrementalIdMap<T>::get_id(const T& name) const{
 
 
 template<class T> T IncrementalIdMap<T>::get_name(int64_t id) const{
-    return *names[id-1+zero_based];
+    return names[id-1+zero_based];
 }
 
 
