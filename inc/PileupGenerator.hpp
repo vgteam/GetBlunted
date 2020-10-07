@@ -74,6 +74,14 @@ public:
             OverlapMap& overlaps,
             HandleGraph& graph,
             PoaPileup& pileup);
+    
+    // Do POA with spoa for an arbitrary collection of edges
+    static void generate_spoa_graph_from_edges(
+            const vector<edge_t>& edges,
+            const IncrementalIdMap<string>& id_map,
+            OverlapMap& overlaps,
+            HandleGraph& graph,
+            PoaPileup& pileup);
 
     // A generator-style DFS walk of the nodes in the partition
     static bool traverse_bipartition_nodes(
