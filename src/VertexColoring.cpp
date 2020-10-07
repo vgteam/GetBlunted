@@ -828,6 +828,13 @@ vector<size_t> VertexColoring::interchange_greedy_coloring(const vector<size_t>&
 
 size_t VertexColoring::lower_bound() const {
     // TODO: any clique finding algorithm or Hoffman's bound
+    // TODO: Alon, Yuster, Zwick 1997 triangle detection O(m^(3/2))?
+    for (const auto& adj : graph) {
+        if (!adj.empty()) {
+            return 1;
+        }
+    }
+
     return 0;
 }
 
