@@ -575,106 +575,97 @@ void PileupGenerator::convert_spoa_to_bdsg(
     }
 }
 
-
-void PileupGenerator::generate_spoa_graph_from_bipartition(
-        const bipartition& bipartition,
+void PileupGenerator::generate_spoa_graph_from_edges(
+        const vector<edge_t>& edges,
         const IncrementalIdMap<string>& id_map,
         OverlapMap& overlaps,
         HandleGraph& graph,
         PoaPileup& pileup) {
-
-    for (const auto& left: bipartition.first) {
-        for (const auto& right: bipartition.second) {
-            std::cout << "bipartition size: " << bipartition.first.size() << " " << bipartition.second.size() << '\n';
-
-            edge_t non_canonical_edge = {left, graph.flip(right)};
-            auto iter = overlaps.canonicalize_and_find(non_canonical_edge, graph);
-
-            const edge_t& edge = iter->first;
-            Alignment& alignment = iter->second;
-
-            // Do a quick check to see if this is actually a non-overlap (0M). If so, don't process it
-            if (alignment.operations.empty() or (alignment.operations[0].length == 0)){
-                pileup.blunt_edges.push_back(edge);
-                continue;
-            }
-
-            pair<size_t, size_t> lengths;
-            size_t start;
-
-            std::cout << id_map.get_name(graph.get_id(edge.first)) << "->";
-            std::cout << id_map.get_name(graph.get_id(edge.second)) << '\n';
-
-            iter->second.compute_lengths(lengths);
-
-            start = graph.get_length(edge.first) - lengths.first;
-
-            std::cout << lengths.first << " " << lengths.second << '\n';
-            std::cout << iter->second.create_formatted_alignment_string(graph, edge, start, 0) << '\n';
-            std::cout << '\n';
-
-            alignment.compute_lengths(lengths);
-            size_t left_start = graph.get_length(edge.first) - lengths.first;
-            size_t right_start = 0;
-
-            handle_t reference = edge.first;
-            int64_t ref_id;
-            size_t ref_length;
-            size_t ref_start;
-            size_t ref_stop;
-
-            handle_t query = edge.second;
-            int64_t query_id;
-            size_t query_length;
-            size_t query_start;
-            size_t query_stop;
-
-            ref_length = lengths.first;
-            query_length = lengths.second;
-
-            ref_start = left_start;
-            ref_stop = graph.get_length(reference) - 1;
-
-            query_start = right_start;
-            query_stop =  query_length - 1;
-
-            if (reference == query){
-                std::cerr << "WARNING: your GFA is loopy: "
-                          << id_map.get_name(graph.get_id(reference)) << '\n';
-            }
-
-            pileup.update_alignment_data(true, reference, ref_start, ref_stop);
-            pileup.update_alignment_data(false, query, query_start, query_stop);
-
-
-//            {
-//                std::cout << "ref id:\t" << graph.get_id(reference) << '\n';
-//                std::cout << "ref sequence:\t" << graph.get_sequence(reference) << '\n';
-//                std::cout << "query sequence:\t" << graph.get_sequence(query) << '\n';
-//                std::cout <<
-//                          "ref_length\t" << ref_length << '\n' <<
-//                          "query_length\t" << query_length << '\n' <<
-//                          "ref_start\t" << ref_start << '\n' <<
-//                          "ref_stop\t" << ref_stop << '\n' <<
-//                          "query_start\t" << query_start << '\n' <<
-//                          "query_stop\t" << query_stop << '\n' << '\n';
-//            }
+    
+    for (auto non_canonical_edge : edges) {
+        
+        auto iter = overlaps.canonicalize_and_find(non_canonical_edge, graph);
+        
+        const edge_t& edge = iter->first;
+        Alignment& alignment = iter->second;
+        
+        // Do a quick check to see if this is actually a non-overlap (0M). If so, don't process it
+        if (alignment.operations.empty() or (alignment.operations[0].length == 0)){
+            pileup.blunt_edges.push_back(edge);
+            continue;
         }
+        
+        pair<size_t, size_t> lengths;
+        size_t start;
+        
+        std::cout << id_map.get_name(graph.get_id(edge.first)) << "->";
+        std::cout << id_map.get_name(graph.get_id(edge.second)) << '\n';
+        
+        iter->second.compute_lengths(lengths);
+        
+        start = graph.get_length(edge.first) - lengths.first;
+        
+        std::cout << lengths.first << " " << lengths.second << '\n';
+        std::cout << iter->second.create_formatted_alignment_string(graph, edge, start, 0) << '\n';
+        std::cout << '\n';
+        
+        alignment.compute_lengths(lengths);
+        size_t left_start = graph.get_length(edge.first) - lengths.first;
+        size_t right_start = 0;
+        
+        handle_t reference = edge.first;
+        int64_t ref_id;
+        size_t ref_length;
+        size_t ref_start;
+        size_t ref_stop;
+        
+        handle_t query = edge.second;
+        int64_t query_id;
+        size_t query_length;
+        size_t query_start;
+        size_t query_stop;
+        
+        ref_length = lengths.first;
+        query_length = lengths.second;
+        
+        ref_start = left_start;
+        ref_stop = graph.get_length(reference) - 1;
+        
+        query_start = right_start;
+        query_stop =  query_length - 1;
+        
+        if (reference == query){
+            std::cerr << "WARNING: your GFA is loopy: "
+            << id_map.get_name(graph.get_id(reference)) << '\n';
+        }
+        
+        pileup.update_alignment_data(true, reference, ref_start, ref_stop);
+        pileup.update_alignment_data(false, query, query_start, query_stop);
+        
+        
+//        {
+//            std::cout << "ref id:\t" << graph.get_id(reference) << '\n';
+//            std::cout << "ref sequence:\t" << graph.get_sequence(reference) << '\n';
+//            std::cout << "query sequence:\t" << graph.get_sequence(query) << '\n';
+//            std::cout <<
+//                      "ref_length\t" << ref_length << '\n' <<
+//                      "query_length\t" << query_length << '\n' <<
+//                      "ref_start\t" << ref_start << '\n' <<
+//                      "ref_stop\t" << ref_stop << '\n' <<
+//                      "query_start\t" << query_start << '\n' <<
+//                      "query_stop\t" << query_stop << '\n' << '\n';
+//        }
     }
-
+    
     pileup.sort_alignment_data_by_length();
-
+    
     auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 5, -3, -3, -1);
-
-
+    
+    
     spoa::Graph spoa_graph{};
-
-    add_alignments_to_poa(
-        graph,
-        pileup,
-        spoa_graph,
-        alignment_engine);
-
+    
+    add_alignments_to_poa(graph, pileup, spoa_graph, alignment_engine);
+    
 //    {
 //        spoa_graph.PrintDot("spoa_overlap.dot");
 //        auto msa = spoa_graph.GenerateMultipleSequenceAlignment();
@@ -683,49 +674,61 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
 //            std::cerr << it << std::endl;
 //        }
 //    }
-
+    
     auto consensus = spoa_graph.GenerateConsensus();
-
+    
     std::cerr << ">Consensus: " << consensus << std::endl;
-
+    
     spoa::Graph seeded_spoa_graph{};
-
+    
     auto seeded_alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 6, -2, -4, -1);
-
+    
     auto alignment = seeded_alignment_engine->Align(consensus, seeded_spoa_graph);
     seeded_spoa_graph.AddAlignment(alignment, consensus);
-
+    
     // Iterate a second time on alignment, this time with consensus as the seed
-    add_alignments_to_poa(
-            graph,
-            pileup,
-            seeded_spoa_graph,
-            seeded_alignment_engine);
-
+    add_alignments_to_poa(graph, pileup, seeded_spoa_graph, seeded_alignment_engine);
+    
     {
         auto seeded_consensus = seeded_spoa_graph.GenerateConsensus();
-
+        
         seeded_spoa_graph.PrintDot("spoa_overlap.dot");
         auto msa = seeded_spoa_graph.GenerateMultipleSequenceAlignment();
-
+        
         for (const auto& it : msa) {
             std::cerr << it << std::endl;
         }
-
-//        std::cerr << ">Consensus: " << consensus << std::endl;
+        
+        //        std::cerr << ">Consensus: " << consensus << std::endl;
     }
-
-    convert_spoa_to_bdsg(
-            seeded_spoa_graph,
-            pileup,
-            graph);
-
+    
+    convert_spoa_to_bdsg(seeded_spoa_graph, pileup, graph);
+    
     handle_graph_to_gfa(pileup.graph, "test_output.gfa");
     std::cout << '\n';
-
+    
     unchop(&pileup.graph);
-
+    
     handle_graph_to_gfa(pileup.graph, "test_output_unchopped.gfa");
+}
+
+void PileupGenerator::generate_spoa_graph_from_bipartition(
+        const bipartition& bipartition,
+        const IncrementalIdMap<string>& id_map,
+        OverlapMap& overlaps,
+        HandleGraph& graph,
+        PoaPileup& pileup) {
+
+    vector<edge_t> edges;
+    edges.reserve(bipartition.first.size() * bipartition.second.size());
+    for (const auto& left: bipartition.first) {
+        for (const auto& right: bipartition.second) {
+            std::cout << "bipartition size: " << bipartition.first.size() << " " << bipartition.second.size() << '\n';
+            edges.emplace_back(left, graph.flip(right));
+        }
+    }
+    
+    generate_spoa_graph_from_edges(edges, id_map, overlaps, graph, pileup);
 }
 
 

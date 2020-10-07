@@ -49,23 +49,44 @@ void bluntify(string gfa_path){
         subgraphs.emplace_back();
 
         adjacency_component.decompose_into_bipartite_blocks([&](const BipartiteGraph& bipartite_graph){
-            BicliqueCover biclique_cover(bipartite_graph);
-
+            
+            auto biclique_cover = BicliqueCover(bipartite_graph).get();
+            
+            // sort the bicliques in descending order by size (to get any repeated edges
+            // into larger POAs -- likely to be more compact this way)
+            sort(biclique_cover.begin(). biclique_cover.end(),
+                 [&](const bipartition& a, const bipartition& b) {
+                return a.first.size() * a.second.size() > b.first.size() * b.second.size();
+            });
+            
+            unordered_set<edge_t> edges_processed;
             uint64_t pileup_index = 0;
-            for (bipartition& biclique: biclique_cover.get()) {
+            for (const bipartition& biclique : biclique_cover) {
+                
+                // get the edges that haven't been handled in a previous biclique
+                vector<edge_t> new_edges;
+                for (handle_t left : biclique.first) {
+                    for (handle_t right : biclique.second) {
+                        edge_t edge(left, gfa_graph.flip(right));
+                        if (!edges_processed.count(edge)) {
+                            new_edges.push_back(edge);
+                        }
+                    }
+                }
+                
                 subgraphs.back().emplace_back();
-
+                
                 // Keep track of the number of pileups, used to make unique names for paths
                 subgraphs.back().back().index = pileup_index++;
-
+                
                 // Iterate all alignments and build a set of alleles for each coordinate
                 PoaPileup pileup;
-                PileupGenerator::generate_spoa_graph_from_bipartition(
-                        biclique,
-                        id_map,
-                        overlaps,
-                        gfa_graph,
-                        subgraphs.back().back());
+                PileupGenerator::generate_spoa_graph_from_edges(
+                      new_edges,
+                      id_map,
+                      overlaps,
+                      gfa_graph,
+                      subgraphs.back().back());
             }
 
             // Add each subgraph to the GFA graph (as an island, initially)
@@ -88,9 +109,9 @@ void bluntify(string gfa_path){
 //                        throw runtime_error("ERROR: could not find gfa node in pileup data");
 //                    }
 
-                    for (auto& alignment_data: pileup.alignment_data[0][id]){
-
-                    }
+//                    for (auto& alignment_data: pileup.alignment_data[0][id]){
+//
+//                    }
                 }
             }
 
