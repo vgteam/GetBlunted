@@ -100,8 +100,8 @@ def overlap(left, right):
                 match = -1
             mat[i][j] = max(
                     mat[i - 1][j - 1] + match,
-                    mat[i - 1][j] - 1,
-                    mat[i][j - 1] - 1
+                    mat[i - 1][j] - 4,
+                    mat[i][j - 1] - 4
                )
     
     
@@ -133,7 +133,7 @@ def overlap(left, right):
             op = 'M'
             i -= 1
             j -= 1
-        elif mat[i][j] == mat[i - 1][j] - 1:
+        elif mat[i][j] == mat[i - 1][j] - 4:
             op = 'D'
             i -= 1
         else:
@@ -169,15 +169,14 @@ if __name__ == "__main__":
     
     ref_length = 200
     ref_chunk_identity = .9
-    ref_expected_num_chunks = 2
-    coverage = 1
+    ref_expected_num_chunks = 3
+    coverage = 3
     min_read_length = 40
     mean_read_length = 60
-    read_error_rate = 0.-5
-    min_score = 10
+    read_error_rate = 0.05
+    min_score = 8
     
     seq = random_seq_with_repeats(ref_length, ref_chunk_identity, ref_expected_num_chunks)
-    print(seq)
     
     reads =  sample_reads(seq, coverage, min_read_length, mean_read_length, read_error_rate)
     
