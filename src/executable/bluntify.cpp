@@ -129,10 +129,58 @@ void bluntify(string gfa_path){
                 splice_site_mutexes);
     }
 
+    for (size_t node_id=1; node_id<splice_sites.size(); node_id++){
+        vector <size_t> left_sites;
+        vector <size_t> right_sites;
+
+        for (auto& site: splice_sites[node_id]){
+            // TODO split on a per AC basis and duplicate starting at the middlemost index for each
+            gfa_graph.get_handle(node_id, site.is_reverse);
+
+            if (site.is_left){
+                left_sites.emplace_back(site.sequence_start_index);
+            }
+            else{
+                right_sites.emplace_back(site.sequence_stop_index);
+            }
+        }
+
+        sort(left_sites.begin(), left_sites.end());
+        sort(right_sites.begin(), right_sites.end());
+
+        cout << id_map.get_name(node_id) << '\n';
+
+        // Find overlapping overlaps
+        if (not right_sites.empty() and not left_sites.empty()) {
+            for (auto& item: left_sites) {
+                if (item > right_sites[0]) {
+                    std::cout << "overlapping overlap!\n";
+                }
+            }
+        }
+
+        cout << "Left sites:\n";
+        for (auto& item: left_sites){
+            cout << item << ',';
+        }
+        cout << '\n';
+        cout << "Right sites:\n";
+        for (auto& item: right_sites){
+            cout << item << ',';
+        }
+        cout << '\n' << '\n';
+
+        auto all_sites = left_sites;
+        all_sites.insert(all_sites.end(), right_sites.begin(), right_sites.end());
+//        gfa_graph.divide_handle(all_sites);
+    }
+
     // Add each subgraph to the GFA graph (as an island, initially)
     for (auto& pileup: subgraphs.back()) {
         copy_path_handle_graph(&pileup.graph, &gfa_graph);
     }
+
+
 }
 
 
@@ -141,6 +189,9 @@ int main(){
     string project_directory = parent_path(script_path, 3);
 
     // Get test GFA path
+//    string relative_gfa_path = "/data/reversing.gfa";
+//    string relative_gfa_path = "/data/overlapping_overlaps.gfa";
+//    string relative_gfa_path = "/data/diploid_case_c.gfa";
     string relative_gfa_path = "/data/diploid_case_c.gfa";
 //    string relative_gfa_path = "/data/unbalanced_bipartition.gfa";
 //    string relative_gfa_path = "/data/staggered_overlap.gfa";

@@ -14,12 +14,19 @@ AlignmentData::AlignmentData(uint64_t start, uint64_t stop, string& path_name):
 {}
 
 
-AlignmentData::AlignmentData(bool is_forward, bool is_left, uint64_t start, uint64_t stop, string& path_name):
-    is_forward(is_forward),
-    is_left(is_left),
-    sequence_start_index(start),
-    sequence_stop_index(stop),
-    path_name(path_name)
+AlignmentData::AlignmentData(
+        bool is_forward,
+        bool is_left,
+        uint64_t start,
+        uint64_t stop,
+        string& path_name,
+        size_t pileup_index):
+
+        is_reverse(is_forward),
+        is_left(is_left),
+        sequence_start_index(start),
+        sequence_stop_index(stop),
+        path_name(path_name)
 {}
 
 

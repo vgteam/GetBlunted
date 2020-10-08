@@ -652,17 +652,17 @@ void PileupGenerator::generate_spoa_graph_from_edges(
 
         ref_id = graph.get_id(reference);
         splice_site_mutexes[ref_id].lock();
-        splice_sites[ref_id].emplace_back(ref_is_reverse, true, ref_start, ref_stop, ref_path_name);
+        splice_sites[ref_id].emplace_back(ref_is_reverse, true, ref_start, ref_stop, ref_path_name, pileup.index);
         splice_site_mutexes[ref_id].unlock();
 
         string query_path_name;
 
         pileup.update_alignment_data(false, query, query_start, query_stop, query_path_name);
 
-        ref_id = graph.get_id(reference);
-        splice_site_mutexes[ref_id].lock();
-        splice_sites[ref_id].emplace_back(query_is_reverse, true, query_start, query_stop, query_path_name);
-        splice_site_mutexes[ref_id].unlock();
+        query_id = graph.get_id(query);
+        splice_site_mutexes[query_id].lock();
+        splice_sites[query_id].emplace_back(query_is_reverse, false, query_start, query_stop, query_path_name, pileup.index);
+        splice_site_mutexes[query_id].unlock();
 
 //        {
 //            std::cout << "ref id:\t" << graph.get_id(reference) << '\n';
@@ -691,13 +691,13 @@ void PileupGenerator::generate_spoa_graph_from_edges(
 //        auto msa = spoa_graph.GenerateMultipleSequenceAlignment();
 //
 //        for (const auto& it : msa) {
-//            std::cerr << it << std::endl;
+//            std::cout << it << std::endl;
 //        }
 //    }
     
     auto consensus = spoa_graph.GenerateConsensus();
     
-    std::cerr << ">Consensus: " << consensus << std::endl;
+    std::cout << ">Consensus: " << consensus << std::endl;
     
     spoa::Graph seeded_spoa_graph{};
     
@@ -716,7 +716,7 @@ void PileupGenerator::generate_spoa_graph_from_edges(
         auto msa = seeded_spoa_graph.GenerateMultipleSequenceAlignment();
         
         for (const auto& it : msa) {
-            std::cerr << it << std::endl;
+            std::cout << it << std::endl;
         }
     }
     

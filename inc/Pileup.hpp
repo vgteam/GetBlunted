@@ -33,16 +33,17 @@ namespace bluntifier{
 
 class AlignmentData{
 public:
-    bool is_forward;
+    bool is_reverse;
     bool is_left;
     uint64_t sequence_start_index;
     uint64_t sequence_stop_index;
     string path_name;
+    size_t pileup_index;
     uint32_t spoa_id;
 
     AlignmentData()=default;
     AlignmentData(uint64_t start, uint64_t stop, string& path_name);
-    AlignmentData(bool is_forward, bool is_left, uint64_t start, uint64_t stop, string& path_name);
+    AlignmentData(bool is_forward, bool is_left, uint64_t start, uint64_t stop, string& path_name, size_t pileup_index);
     bool operator<(const AlignmentData& other) const;
 };
 
@@ -65,7 +66,7 @@ public:
     vector <edge_t> blunt_edges;
 
     // Index to help create unique names for paths in the context of the main GFA graph
-    uint64_t index = 0;
+    size_t index = 0;
 
 
     /// Methods ///
