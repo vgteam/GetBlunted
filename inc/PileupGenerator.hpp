@@ -8,6 +8,7 @@
 #include <vector>
 #include <deque>
 #include <stack>
+#include <mutex>
 
 #include "spoa/alignment_engine.hpp"
 #include "spoa/graph.hpp"
@@ -24,6 +25,7 @@ using std::vector;
 using std::deque;
 using std::queue;
 using std::stack;
+using std::mutex;
 
 
 namespace bluntifier {
@@ -73,7 +75,9 @@ public:
             const IncrementalIdMap<string>& id_map,
             OverlapMap& overlaps,
             HandleGraph& graph,
-            PoaPileup& pileup);
+            PoaPileup& pileup,
+            vector <vector <AlignmentData> >& splice_sites,
+            vector <mutex>& splice_site_mutexes);
     
     // Do POA with spoa for an arbitrary collection of edges
     static void generate_spoa_graph_from_edges(
@@ -81,7 +85,9 @@ public:
             const IncrementalIdMap<string>& id_map,
             OverlapMap& overlaps,
             HandleGraph& graph,
-            PoaPileup& pileup);
+            PoaPileup& pileup,
+            vector <vector <AlignmentData> >& splice_sites,
+            vector <mutex>& splice_site_mutexes);
 
     // A generator-style DFS walk of the nodes in the partition
     static bool traverse_bipartition_nodes(

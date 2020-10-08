@@ -14,6 +14,15 @@ AlignmentData::AlignmentData(uint64_t start, uint64_t stop, string& path_name):
 {}
 
 
+AlignmentData::AlignmentData(bool is_forward, bool is_left, uint64_t start, uint64_t stop, string& path_name):
+    is_forward(is_forward),
+    is_left(is_left),
+    sequence_start_index(start),
+    sequence_stop_index(stop),
+    path_name(path_name)
+{}
+
+
 bool AlignmentData::operator<(const AlignmentData& other) const{
     auto a = sequence_stop_index - sequence_start_index + 1;
     auto b = other.sequence_stop_index - other.sequence_start_index + 1;
@@ -36,7 +45,8 @@ void PoaPileup::update_alignment_data(
         bool is_left,
         handle_t node,
         uint64_t start_index,
-        uint64_t stop_index){
+        uint64_t stop_index,
+        string& path_name){
 
     int64_t id;
 
@@ -52,12 +62,11 @@ void PoaPileup::update_alignment_data(
     auto overlap_index_string = to_string(alignment_data[!is_left][id].size());
     auto pileup_index_string = to_string(index);
 
-    string path_name = id_string + '_' + pileup_index_string + '_' + side_string + '_' + overlap_index_string;
+    path_name = id_string + '_' + pileup_index_string + '_' + side_string + '_' + overlap_index_string;
 
     auto path_handle = graph.create_path_handle(path_name, false);
 
     alignment_data[!is_left][id].emplace_back(start_index, stop_index, path_name);
-
 }
 
 

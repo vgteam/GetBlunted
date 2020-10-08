@@ -33,12 +33,16 @@ namespace bluntifier{
 
 class AlignmentData{
 public:
+    bool is_forward;
+    bool is_left;
     uint64_t sequence_start_index;
     uint64_t sequence_stop_index;
     string path_name;
     uint32_t spoa_id;
 
+    AlignmentData()=default;
     AlignmentData(uint64_t start, uint64_t stop, string& path_name);
+    AlignmentData(bool is_forward, bool is_left, uint64_t start, uint64_t stop, string& path_name);
     bool operator<(const AlignmentData& other) const;
 };
 
@@ -71,7 +75,8 @@ public:
             bool is_left,
             handle_t node,
             uint64_t start_index,
-            uint64_t stop_index);
+            uint64_t stop_index,
+            string& path_name);
 
     PoaPileup();
     PoaPileup(PoaPileup&&) = default;
