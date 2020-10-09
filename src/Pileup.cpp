@@ -20,13 +20,15 @@ AlignmentData::AlignmentData(
         uint64_t start,
         uint64_t stop,
         string& path_name,
-        size_t pileup_index):
-
-        is_reverse(is_forward),
-        is_left(is_left),
-        sequence_start_index(start),
-        sequence_stop_index(stop),
-        path_name(path_name)
+        size_t pileup_index,
+        size_t component_index):
+    is_reverse(is_forward),
+    is_left(is_left),
+    sequence_start_index(start),
+    sequence_stop_index(stop),
+    path_name(path_name),
+    pileup_index(pileup_index),
+    component_index(component_index)
 {}
 
 
@@ -53,7 +55,8 @@ void PoaPileup::update_alignment_data(
         handle_t node,
         uint64_t start_index,
         uint64_t stop_index,
-        string& path_name){
+        string& path_name,
+        size_t component_index){
 
     int64_t id;
 
@@ -68,8 +71,14 @@ void PoaPileup::update_alignment_data(
     auto id_string = to_string(graph.get_id(node));
     auto overlap_index_string = to_string(alignment_data[!is_left][id].size());
     auto pileup_index_string = to_string(index);
+    auto component_index_string = to_string(component_index);
 
-    path_name = id_string + '_' + pileup_index_string + '_' + side_string + '_' + overlap_index_string;
+    path_name = component_index_string + '_' +
+            pileup_index_string + '_' +
+            id_string + '_' +
+            to_string(id) + '_' +
+            side_string + '_' +
+            overlap_index_string;
 
     auto path_handle = graph.create_path_handle(path_name, false);
 

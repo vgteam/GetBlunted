@@ -378,9 +378,9 @@ void PileupGenerator::generate_from_bipartition(
                         std::cout << '\n' << '\n';
 
                         auto prev_id = pileup.graph.get_id(prev_node);
-                        auto pseudo_ref_id = pileup.graph.get_id(pseudo_ref_node);
+                        auto _pseudo_ref_id = pileup.graph.get_id(pseudo_ref_node);
                         std::cout << prev_id << " " << pileup.graph.has_node(prev_id) << '\n';
-                        std::cout << pseudo_ref_id << " " << pileup.graph.has_node(pseudo_ref_id) << '\n';
+                        std::cout << _pseudo_ref_id << " " << pileup.graph.has_node(_pseudo_ref_id) << '\n';
 
                         if (not pileup.graph.has_edge(prev_node, pseudo_ref_node)) {
                             pileup.graph.create_edge(prev_node, pseudo_ref_node);
@@ -583,7 +583,8 @@ void PileupGenerator::generate_spoa_graph_from_edges(
         HandleGraph& graph,
         PoaPileup& pileup,
         vector <vector <AlignmentData> >& splice_sites,
-        vector <mutex>& splice_site_mutexes) {
+        vector <mutex>& splice_site_mutexes,
+        size_t component_index) {
     
     for (auto non_canonical_edge : edges) {
         auto iter = overlaps.canonicalize_and_find(non_canonical_edge, graph);
@@ -607,9 +608,9 @@ void PileupGenerator::generate_spoa_graph_from_edges(
         
         start = graph.get_length(edge.first) - lengths.first;
         
-        std::cout << lengths.first << " " << lengths.second << '\n';
-        std::cout << iter->second.create_formatted_alignment_string(graph, edge, start, 0) << '\n';
-        std::cout << '\n';
+//        std::cout << lengths.first << " " << lengths.second << '\n';
+//        std::cout << iter->second.create_formatted_alignment_string(graph, edge, start, 0) << '\n';
+//        std::cout << '\n';
         
         alignment.compute_lengths(lengths);
         size_t left_start = graph.get_length(edge.first) - lengths.first;
@@ -641,27 +642,43 @@ void PileupGenerator::generate_spoa_graph_from_edges(
         ref_is_reverse = graph.get_is_reverse(reference);
         query_is_reverse = graph.get_is_reverse(query);
 
-        if (reference == query){
-            std::cerr << "WARNING: your GFA is loopy: "
-            << id_map.get_name(graph.get_id(reference)) << '\n';
-        }
+//        if (reference == query){
+//            std::cerr << "WARNING: your GFA is loopy: "
+//            << id_map.get_name(graph.get_id(reference)) << '\n';
+//        }
 
         string ref_path_name;
 
-        pileup.update_alignment_data(true, reference, ref_start, ref_stop, ref_path_name);
+        pileup.update_alignment_data(true, reference, ref_start, ref_stop, ref_path_name, component_index);
 
         ref_id = graph.get_id(reference);
         splice_site_mutexes[ref_id].lock();
-        splice_sites[ref_id].emplace_back(ref_is_reverse, true, ref_start, ref_stop, ref_path_name, pileup.index);
+
+        splice_sites[ref_id].emplace_back(ref_is_reverse,
+                                          true,
+                                          ref_start,
+                                          ref_stop,
+                                          ref_path_name,
+                                          pileup.index,
+                                          component_index);
+
         splice_site_mutexes[ref_id].unlock();
 
         string query_path_name;
 
-        pileup.update_alignment_data(false, query, query_start, query_stop, query_path_name);
+        pileup.update_alignment_data(false, query, query_start, query_stop, query_path_name, component_index);
 
         query_id = graph.get_id(query);
         splice_site_mutexes[query_id].lock();
-        splice_sites[query_id].emplace_back(query_is_reverse, false, query_start, query_stop, query_path_name, pileup.index);
+
+        splice_sites[query_id].emplace_back(query_is_reverse,
+                                            false,
+                                            query_start,
+                                            query_stop,
+                                            query_path_name,
+                                            pileup.index,
+                                            component_index);
+
         splice_site_mutexes[query_id].unlock();
 
 //        {
@@ -697,7 +714,7 @@ void PileupGenerator::generate_spoa_graph_from_edges(
     
     auto consensus = spoa_graph.GenerateConsensus();
     
-    std::cout << ">Consensus: " << consensus << std::endl;
+//    std::cout << ">Consensus: " << consensus << std::endl;
     
     spoa::Graph seeded_spoa_graph{};
     
@@ -709,21 +726,21 @@ void PileupGenerator::generate_spoa_graph_from_edges(
     // Iterate a second time on alignment, this time with consensus as the seed
     add_alignments_to_poa(graph, pileup, seeded_spoa_graph, seeded_alignment_engine);
     
-    {
-        auto seeded_consensus = seeded_spoa_graph.GenerateConsensus();
-        
-        seeded_spoa_graph.PrintDot("spoa_overlap.dot");
-        auto msa = seeded_spoa_graph.GenerateMultipleSequenceAlignment();
-        
-        for (const auto& it : msa) {
-            std::cout << it << std::endl;
-        }
-    }
+//    {
+//        auto seeded_consensus = seeded_spoa_graph.GenerateConsensus();
+//
+//        seeded_spoa_graph.PrintDot("spoa_overlap.dot");
+//        auto msa = seeded_spoa_graph.GenerateMultipleSequenceAlignment();
+//
+//        for (const auto& it : msa) {
+//            std::cout << it << std::endl;
+//        }
+//    }
     
     convert_spoa_to_bdsg(seeded_spoa_graph, pileup, graph);
     
     handle_graph_to_gfa(pileup.graph, "test_output.gfa");
-    std::cout << '\n';
+//    std::cout << '\n';
     
     unchop(&pileup.graph);
     
@@ -738,18 +755,25 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
         HandleGraph& graph,
         PoaPileup& pileup,
         vector <vector <AlignmentData> >& splice_sites,
-        vector <mutex>& splice_site_mutexes) {
+        vector <mutex>& splice_site_mutexes,
+        size_t component_index) {
 
     vector<edge_t> edges;
     edges.reserve(bipartition.first.size() * bipartition.second.size());
     for (const auto& left: bipartition.first) {
         for (const auto& right: bipartition.second) {
-            std::cout << "bipartition size: " << bipartition.first.size() << " " << bipartition.second.size() << '\n';
             edges.emplace_back(left, graph.flip(right));
         }
     }
     
-    generate_spoa_graph_from_edges(edges, id_map, overlaps, graph, pileup, splice_sites, splice_site_mutexes);
+    generate_spoa_graph_from_edges(edges,
+                                   id_map,
+                                   overlaps,
+                                   graph,
+                                   pileup,
+                                   splice_sites,
+                                   splice_site_mutexes,
+                                   component_index);
 }
 
 

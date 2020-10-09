@@ -42,6 +42,14 @@ void process_adjacency_component(
 
     auto& adjacency_component = adjacency_components[i];
 
+    cout << (double(i)/adjacency_components.size()) << '\t' << adjacency_component.size() << '\n' << std::flush;
+
+    cout << "NODES IN ADJACENCY COMPONENT:\n";
+    for (auto& handle: adjacency_component){
+        std::cout << id_map.get_name(gfa_graph.get_id(handle)) << '\n';
+    }
+    cout << '\n';
+
     if (adjacency_component.size() == 1) {
         return;
     }
@@ -71,20 +79,21 @@ void process_adjacency_component(
                 }
             }
 
-            // Keep track of the number of pileups, used to make unique names for paths
-            subgraphs[i].emplace_back();
-            subgraphs[i].back().index = pileup_index++;
-
-            // Iterate all alignments and build a set of alleles for each coordinate
-            PoaPileup pileup;
-            PileupGenerator::generate_spoa_graph_from_edges(
-                    new_edges,
-                    id_map,
-                    overlaps,
-                    gfa_graph,
-                    subgraphs[i].back(),
-                    splice_sites,
-                    splice_site_mutexes);
+//            // Keep track of the number of pileups, used to make unique names for paths
+//            subgraphs[i].emplace_back();
+//            subgraphs[i].back().index = pileup_index++;
+//
+//            // Iterate all alignments and build a set of alleles for each coordinate
+//            PoaPileup pileup;
+//            PileupGenerator::generate_spoa_graph_from_edges(
+//                    new_edges,
+//                    id_map,
+//                    overlaps,
+//                    gfa_graph,
+//                    subgraphs[i].back(),
+//                    splice_sites,
+//                    splice_site_mutexes,
+//                    i);
         }
     });
 
@@ -115,6 +124,8 @@ void bluntify(string gfa_path){
     // Vector to store all the splice sites for each node.
     vector <vector <AlignmentData> > splice_sites(size);
     vector <mutex> splice_site_mutexes(size);
+
+    std::cout << "Total adjacency components:\t" << adjacency_components.size() << '\n';
 
     // TODO: thread this function
     for (size_t i = 0; i<adjacency_components.size(); i++){
@@ -192,12 +203,13 @@ int main(){
 //    string relative_gfa_path = "/data/reversing.gfa";
 //    string relative_gfa_path = "/data/overlapping_overlaps.gfa";
 //    string relative_gfa_path = "/data/diploid_case_c.gfa";
-    string relative_gfa_path = "/data/diploid_case_c.gfa";
 //    string relative_gfa_path = "/data/unbalanced_bipartition.gfa";
 //    string relative_gfa_path = "/data/staggered_overlap.gfa";
 //    string relative_gfa_path = "/data/guppy_360_hg002_messy_small.gfa";
 //    string relative_gfa_path = "/data/guppy_360_hg002_mess.gfa";
 //    string relative_gfa_path = "/data/1q.gfa";
+//    string relative_gfa_path = "/data/Assembly.gfa";
+    string relative_gfa_path = "/data/memory_error_subset.gfa";
 
     const string absolute_gfa_path = join_paths(project_directory, relative_gfa_path);
 

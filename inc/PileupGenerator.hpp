@@ -77,7 +77,8 @@ public:
             HandleGraph& graph,
             PoaPileup& pileup,
             vector <vector <AlignmentData> >& splice_sites,
-            vector <mutex>& splice_site_mutexes);
+            vector <mutex>& splice_site_mutexes,
+            size_t component_index);
     
     // Do POA with spoa for an arbitrary collection of edges
     static void generate_spoa_graph_from_edges(
@@ -87,7 +88,8 @@ public:
             HandleGraph& graph,
             PoaPileup& pileup,
             vector <vector <AlignmentData> >& splice_sites,
-            vector <mutex>& splice_site_mutexes);
+            vector <mutex>& splice_site_mutexes,
+            size_t component_index);
 
     // A generator-style DFS walk of the nodes in the partition
     static bool traverse_bipartition_nodes(

@@ -39,11 +39,20 @@ public:
     uint64_t sequence_stop_index;
     string path_name;
     size_t pileup_index;
+    size_t component_index;
     uint32_t spoa_id;
 
     AlignmentData()=default;
     AlignmentData(uint64_t start, uint64_t stop, string& path_name);
-    AlignmentData(bool is_forward, bool is_left, uint64_t start, uint64_t stop, string& path_name, size_t pileup_index);
+    AlignmentData(
+            bool is_forward,
+            bool is_left,
+            uint64_t start,
+            uint64_t stop,
+            string& path_name,
+            size_t pileup_index,
+            size_t component_index);
+
     bool operator<(const AlignmentData& other) const;
 };
 
@@ -77,7 +86,8 @@ public:
             handle_t node,
             uint64_t start_index,
             uint64_t stop_index,
-            string& path_name);
+            string& path_name,
+            size_t component_index);
 
     PoaPileup();
     PoaPileup(PoaPileup&&) = default;
