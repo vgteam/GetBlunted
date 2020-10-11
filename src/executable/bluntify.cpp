@@ -83,7 +83,7 @@ void process_adjacency_component(
             subgraphs[i].emplace_back();
             subgraphs[i].back().index = pileup_index++;
 
-            // Iterate all alignments and build a set of alleles for each coordinate
+            // Iterate all alignments and build a set of splice sites and pileups
             PoaPileup pileup;
             PileupGenerator::generate_spoa_graph_from_edges(
                     new_edges,
@@ -97,6 +97,23 @@ void process_adjacency_component(
         }
     });
 
+}
+
+
+/// Gather all the indexes that the node needs to be split at (initially, for duplication purposes)
+/// TODO: adapt for multiple bicliques
+void aggregate_splice_sites(vector<size_t>& left_sites, vector<size_t>& right_sites, vector<size_t>& all_sites){
+    set<size_t> all_nonduplicate_sites;
+
+    all_nonduplicate_sites.emplace(left_sites.back());
+
+    // Because divide handle cuts AFTER the index provided, right sites need to be offset by 1
+    all_nonduplicate_sites.emplace(right_sites.front() - 1);
+
+    for (auto& item: all_nonduplicate_sites){
+        cout << item << '\n';
+        all_sites.emplace_back(item);
+    }
 }
 
 
@@ -143,18 +160,33 @@ void bluntify(string gfa_path){
     for (size_t node_id=1; node_id<splice_sites.size(); node_id++){
         vector <size_t> left_sites;
         vector <size_t> right_sites;
+        vector <size_t> all_sites;
 
         for (auto& site: splice_sites[node_id]){
 //            cout << site << '\n' << '\n';
 
-            // TODO split on a per AC basis and duplicate starting at the middlemost index for each
-            gfa_graph.get_handle(node_id, site.is_reverse);
+            // TODO split on a biclique basis and duplicate starting at the middlemost index for each biclique
+            auto h = gfa_graph.get_handle(node_id, site.is_reverse);
 
+//          If the AlignmentData tells us that it is "left", that means the node is on the left of an overlap,
+//          which indicates that the overlap is happening on the right end of the node...
             if (site.is_left){
-                left_sites.emplace_back(site.sequence_start_index);
+                if (not site.is_reverse){
+                    right_sites.emplace_back(site.sequence_start_index);
+                }
+                else{
+                    size_t forward_start_index = gfa_graph.get_length(h) - site.sequence_start_index - 1;
+                    left_sites.emplace_back(forward_start_index);
+                }
             }
             else{
-                right_sites.emplace_back(site.sequence_stop_index);
+                if (not site.is_reverse){
+                    left_sites.emplace_back(site.sequence_stop_index);
+                }
+                else{
+                    size_t forward_start_index = gfa_graph.get_length(h) - site.sequence_stop_index - 1;
+                    right_sites.emplace_back(forward_start_index);
+                }
             }
         }
 
@@ -166,7 +198,7 @@ void bluntify(string gfa_path){
         // Find overlapping overlaps
         if (not right_sites.empty() and not left_sites.empty()) {
             for (auto& item: left_sites) {
-                if (item > right_sites[0]) {
+                if (item >= right_sites[0]) {
                     std::cout << "overlapping overlap!\n";
                 }
             }
@@ -183,9 +215,9 @@ void bluntify(string gfa_path){
         }
         cout << '\n' << '\n';
 
-        auto all_sites = left_sites;
-        all_sites.insert(all_sites.end(), right_sites.begin(), right_sites.end());
-//        gfa_graph.divide_handle(all_sites);
+        aggregate_splice_sites(left_sites, right_sites, all_sites);
+//        auto h = gfa_graph.get_handle(node_id, false);
+//        gfa_graph.divide_handle(h, all_sites);
     }
 
     // Add each subgraph to the GFA graph (as an island, initially)

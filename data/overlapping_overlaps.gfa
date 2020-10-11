@@ -10,3 +10,47 @@ L	D	+	A	+	5M
 L	A	+	E	+	3M
 L	C	+	B	+	4M
 L	E	+	D	+	6M
+
+
+# Node A
+#  D      TGCCAGTAGTAG           .
+#                |||||           .
+#  B        GGCGAAGTAGCATGCCAA   .
+#                |||||||||||||   .
+# -A-            AGTAGCATGCCAAGCTC
+#                .      ||||||||||
+#  C             .      TGCCAAGCTCTGACGGCG
+#                .             |||
+#  E             .             CTCGATGCCAG
+
+
+# Node B
+#  C      TGCCAAGCTCTGACGGCG             .
+#                       ||||             .
+# -B-                   GGCGAAGTAGCATGCCAA
+#                       .    |||||||||||||
+#  A                    .    AGTAGCATGCCAAGCTC
+
+
+# Node C
+#  A      AGTAGCATGCCAAGCTC       .
+#                ||||||||||       .
+# -C-            TGCCAAGCTCTGACGGCG
+#                .              |||
+#  B             .              GGCGAAGTAGCATGCCAA
+
+
+# Node D
+#  E      CTCGATGCCAG     .
+#              ||||||     .
+# -D-          TGCCAGTAGTAG
+#              .      |||||
+#  A           .      AGTAGCATGCCAAGCTC
+
+
+# Node E
+#  A      AGTAGCATGCCAAGCTC       .
+#                       |||       .
+# -E-                   CTCGATGCCAG
+#                       .    ||||||
+#  D                    .    TGCCAGTAGTAG
