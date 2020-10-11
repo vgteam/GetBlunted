@@ -245,7 +245,7 @@ void BipartiteGraph::simplify_side(const vector<handle_t>& simplifying_partition
         
         // look for a simplification
         for (size_t i = 0; i < num_successors.size() && fully_simplified; ++i) {
-            if (num_successors[i] == 0) {
+            if (num_successors[i] == 0 || simplifying_edges[i].empty()) {
                 // we want to find a node with successors
                 continue;
             }
@@ -294,53 +294,69 @@ void BipartiteGraph::simplify_side(const vector<handle_t>& simplifying_partition
                         is_second_order_neighbor[l] = true;
                     }
                     
-                    for (size_t k = 0; k < simplifying_partition.size(); ++k) {
-                        if (is_second_order_neighbor[k]) {
+                    for (size_t l = 0; l < simplifying_partition.size(); ++l) {
+                        if (is_second_order_neighbor[l]) {
                             // this is a neighbor of i and j's neighbor whose edge we just removed
                             
-                            // there's now one more element in k's neighborhood being
+                            // there's now one more element in l's neighborhood being
                             // removed by the set difference with j's neighborhood
-                            ++neighbor_delta[k][j];
+                            ++neighbor_delta[l][j];
 #ifdef debug_simplify
-                            cerr << "increment neighbor delta[" << k << "," << j << "] to " << neighbor_delta[k][j] << endl;
+                            cerr << "increment neighbor delta[" << l << "," << j << "] to " << neighbor_delta[l][j] << endl;
 #endif
                             
-                            if (successor[k][j]) {
-                                // j can no longer be a successor of k because we took
+                            if (successor[l][j]) {
+                                // j can no longer be a successor of l because we took
                                 // away a neighbor from j that they shared
-                                successor[k][j] = false;
-                                --num_successors[k];
+                                successor[l][j] = false;
+                                --num_successors[l];
 #ifdef debug_simplify
-                                cerr << j << " is no longer a successor of " << k << ", bringing num successors to " << num_successors[k] << endl;
+                                cerr << j << " is no longer a successor of " << l << ", bringing num successors to " << num_successors[l] << endl;
 #endif
                             }
                         }
                         else {
                             // there's now one less edge in j's neighborhood
-                            --neighbor_delta[j][k];
+                            --neighbor_delta[j][l];
 #ifdef debug_simplify
-                            cerr << "decrement neighbor delta[" << j << "," << k << "] to " << neighbor_delta[j][k] << endl;
+                            cerr << "decrement neighbor delta[" << j << "," << l << "] to " << neighbor_delta[j][l] << endl;
 #endif
                             
-                            if (neighbor_delta[j][k] == 0 && !simplifying_edges[j].empty()) {
+                            if (neighbor_delta[j][l] == 0 && !simplifying_edges[j].empty()) {
                                 // j's neighbors are now a subset of k's neighbors
-                                if (!successor[j][k]) {
-                                    successor[j][k] = true;
+                                if (!successor[j][l]) {
+                                    successor[j][l] = true;
                                     ++num_successors[j];
 #ifdef debug_simplify
-                                    cerr << k << " is now a successor of " << j << ", bringing num successors to " << num_successors[j] << endl;
+                                    cerr << l << " is now a successor of " << j << ", bringing num successors to " << num_successors[j] << endl;
 #endif
                                 }
                             }
                         }
+                        
                     }
-                }
-                if (successor[j][i]) {
-                    // i and j were mutually successors, but no longer
-                    successor[j][i] = false;
-                    --num_successors[j];
+                    
 #ifdef debug_simplify
-                    cerr << "removing mutual successor relation on " << j << ", bringing num successors to " << num_successors[j] << endl;
+                    cerr << "after edge removal" << endl;
+                    cerr << "neighbor delta" << endl;
+                    for (auto& row : neighbor_delta) {
+                        for (auto val : row) {
+                            cerr << val << " ";
+                        }
+                        cerr << endl;
+                    }
+                    cerr << "num successors" << endl;
+                    for (auto val : num_successors) {
+                        cerr << val << " ";
+                    }
+                    cerr << endl;
+                    cerr << "successors" << endl;
+                    for (auto& row : successor) {
+                        for (auto val : row) {
+                            cerr << val << " ";
+                        }
+                        cerr << endl;
+                    }
 #endif
                 }
             }

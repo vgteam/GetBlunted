@@ -716,6 +716,50 @@ int main(){
 //        }
     }
     
+    // a simplification case that revealed a bug at one point
+    {
+        HashGraph graph;
+        
+        handle_t h0 = graph.create_handle("A");
+        handle_t h1 = graph.create_handle("A");
+        handle_t h2 = graph.create_handle("A");
+        handle_t h3 = graph.create_handle("A");
+        handle_t h4 = graph.create_handle("A");
+        
+        graph.create_edge(h0, h3);
+        graph.create_edge(h0, h4);
+        graph.create_edge(h1, h3);
+        graph.create_edge(h1, h4);
+        graph.create_edge(h2, h3);
+        graph.create_edge(h2, h4);
+        
+        bipartition partition({h0, h1, h2},
+                              {graph.flip(h3), graph.flip(h4)});
+        
+        BipartiteGraph bigraph(graph, partition);
+        vector<pair<handle_t, vector<handle_t>>> simplifications;
+        BipartiteGraph simple = bigraph.simplify(simplifications);
+        
+        bool found_unsimplified_node = false;
+        for (auto h : partition.first) {
+            if (!found_unsimplified_node) {
+                set<handle_t> sides;
+                simple.for_each_adjacent_side(h, [&](const handle_t& side){
+                    sides.insert(side);
+                });
+                if (!sides.empty()) {
+                    assert(sides.size() == 1);
+                    found_unsimplified_node = true;
+                }
+            }
+            else {
+                simple.for_each_adjacent_side(h, [&](const handle_t& side){
+                    assert(false);
+                });
+            }
+        }
+    }
+    
     cerr << "biclique cover tests successful" << endl;
     return 0;
 }
