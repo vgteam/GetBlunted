@@ -46,7 +46,7 @@ void process_adjacency_component(
 
     cout << "NODES IN ADJACENCY COMPONENT:\n";
     for (auto& handle: adjacency_component){
-        std::cout << id_map.get_name(gfa_graph.get_id(handle)) << '\n';
+        std::cout << id_map.get_name(gfa_graph.get_id(handle)) << (gfa_graph.get_is_reverse(handle) ? "-" : "+") << '\n';
     }
     cout << '\n';
 
