@@ -42,7 +42,7 @@ void process_adjacency_component(
 
     auto& adjacency_component = adjacency_components[i];
 
-    cout << (double(i)/adjacency_components.size()) << '\t' << adjacency_component.size() << '\n' << std::flush;
+    cout << "Component " << i << " of size " << adjacency_component.size() << '\n' << std::flush;
 
     cout << "NODES IN ADJACENCY COMPONENT:\n";
     for (auto& handle: adjacency_component){
@@ -79,21 +79,21 @@ void process_adjacency_component(
                 }
             }
 
-//            // Keep track of the number of pileups, used to make unique names for paths
-//            subgraphs[i].emplace_back();
-//            subgraphs[i].back().index = pileup_index++;
-//
-//            // Iterate all alignments and build a set of alleles for each coordinate
-//            PoaPileup pileup;
-//            PileupGenerator::generate_spoa_graph_from_edges(
-//                    new_edges,
-//                    id_map,
-//                    overlaps,
-//                    gfa_graph,
-//                    subgraphs[i].back(),
-//                    splice_sites,
-//                    splice_site_mutexes,
-//                    i);
+            // Keep track of the number of pileups, used to make unique names for paths
+            subgraphs[i].emplace_back();
+            subgraphs[i].back().index = pileup_index++;
+
+            // Iterate all alignments and build a set of alleles for each coordinate
+            PoaPileup pileup;
+            PileupGenerator::generate_spoa_graph_from_edges(
+                    new_edges,
+                    id_map,
+                    overlaps,
+                    gfa_graph,
+                    subgraphs[i].back(),
+                    splice_sites,
+                    splice_site_mutexes,
+                    i);
         }
     });
 
@@ -145,6 +145,8 @@ void bluntify(string gfa_path){
         vector <size_t> right_sites;
 
         for (auto& site: splice_sites[node_id]){
+//            cout << site << '\n' << '\n';
+
             // TODO split on a per AC basis and duplicate starting at the middlemost index for each
             gfa_graph.get_handle(node_id, site.is_reverse);
 
@@ -159,7 +161,7 @@ void bluntify(string gfa_path){
         sort(left_sites.begin(), left_sites.end());
         sort(right_sites.begin(), right_sites.end());
 
-        cout << id_map.get_name(node_id) << '\n';
+        cout << "Splice sites for node: " << id_map.get_name(node_id) << '\n';
 
         // Find overlapping overlaps
         if (not right_sites.empty() and not left_sites.empty()) {
@@ -195,25 +197,20 @@ void bluntify(string gfa_path){
 }
 
 
-int main(){
-    string script_path = __FILE__;
-    string project_directory = parent_path(script_path, 3);
+int main(int argc, char **argv){
+    string gfa_path;
 
-    // Get test GFA path
-//    string relative_gfa_path = "/data/reversing.gfa";
-//    string relative_gfa_path = "/data/overlapping_overlaps.gfa";
-//    string relative_gfa_path = "/data/diploid_case_c.gfa";
-//    string relative_gfa_path = "/data/unbalanced_bipartition.gfa";
-//    string relative_gfa_path = "/data/staggered_overlap.gfa";
-//    string relative_gfa_path = "/data/guppy_360_hg002_messy_small.gfa";
-//    string relative_gfa_path = "/data/guppy_360_hg002_mess.gfa";
-//    string relative_gfa_path = "/data/1q.gfa";
-//    string relative_gfa_path = "/data/Assembly.gfa";
-    string relative_gfa_path = "/data/memory_error_subset.gfa";
+    if (argc == 1){
+        throw runtime_error("No input gfa path found");
+    }
+    else if (argc == 2){
+        gfa_path = argv[1];
+    }
+    else{
+        throw runtime_error("Too many arguments. Specify 1 input gfa path.");
+    }
 
-    const string absolute_gfa_path = join_paths(project_directory, relative_gfa_path);
-
-    bluntify(absolute_gfa_path);
+    bluntify(gfa_path);
 
     return 0;
 }

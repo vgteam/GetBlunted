@@ -20,6 +20,7 @@ using handlegraph::edge_t;
 using bdsg::PackedGraph;
 using std::unordered_map;
 using std::unordered_set;
+using std::ostream;
 using std::vector;
 using std::string;
 using std::deque;
@@ -28,7 +29,6 @@ using std::array;
 
 
 namespace bluntifier{
-
 
 
 class AlignmentData{
@@ -45,7 +45,7 @@ public:
     AlignmentData()=default;
     AlignmentData(uint64_t start, uint64_t stop, string& path_name);
     AlignmentData(
-            bool is_forward,
+            bool is_reverse,
             bool is_left,
             uint64_t start,
             uint64_t stop,
@@ -55,6 +55,8 @@ public:
 
     bool operator<(const AlignmentData& other) const;
 };
+
+ostream& operator<<(ostream& os, AlignmentData& alignment_data);
 
 
 class PoaPileup {

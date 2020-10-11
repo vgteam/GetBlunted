@@ -15,14 +15,14 @@ AlignmentData::AlignmentData(uint64_t start, uint64_t stop, string& path_name):
 
 
 AlignmentData::AlignmentData(
-        bool is_forward,
+        bool is_reverse,
         bool is_left,
         uint64_t start,
         uint64_t stop,
         string& path_name,
         size_t pileup_index,
         size_t component_index):
-    is_reverse(is_forward),
+    is_reverse(is_reverse),
     is_left(is_left),
     sequence_start_index(start),
     sequence_stop_index(stop),
@@ -30,6 +30,19 @@ AlignmentData::AlignmentData(
     pileup_index(pileup_index),
     component_index(component_index)
 {}
+
+
+ostream& operator<<(ostream& os, AlignmentData& alignment_data){
+    os << "is_reverse:\t" << alignment_data.is_reverse << '\n';
+    os << "is_left:\t" << alignment_data.is_left << '\n';
+    os << "start:\t" << alignment_data.sequence_start_index << '\n';
+    os << "stop:\t" << alignment_data.sequence_stop_index << '\n';
+    os << "path_name:\t" << alignment_data.path_name << '\n';
+    os << "pileup_index:\t" << alignment_data.pileup_index << '\n';
+    os << "component_index:\t" << alignment_data.component_index << '\n';
+
+    return os;
+}
 
 
 bool AlignmentData::operator<(const AlignmentData& other) const{

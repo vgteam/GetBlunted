@@ -476,7 +476,7 @@ void PileupGenerator::add_alignments_to_poa(
         unique_ptr<AlignmentEngine>& alignment_engine){
 
     // If the graph already has some sequences in it, then start the id at that number
-    uint32_t spoa_id = spoa_graph.sequences().size() - 1;
+    uint32_t spoa_id = spoa_graph.sequences().size();
 
     for (bool is_left: {false, true}){
 
@@ -499,7 +499,7 @@ void PileupGenerator::add_alignments_to_poa(
                     auto alignment = alignment_engine->Align(subsequence, spoa_graph);
                     spoa_graph.AddAlignment(alignment, subsequence);
 
-                    data.spoa_id = ++spoa_id;
+                    data.spoa_id = spoa_id;
                 }
                 else{
                     data.spoa_id = spoa_id;
@@ -702,16 +702,7 @@ void PileupGenerator::generate_spoa_graph_from_edges(
     spoa::Graph spoa_graph{};
     
     add_alignments_to_poa(graph, pileup, spoa_graph, alignment_engine);
-    
-//    {
-//        spoa_graph.PrintDot("spoa_overlap.dot");
-//        auto msa = spoa_graph.GenerateMultipleSequenceAlignment();
-//
-//        for (const auto& it : msa) {
-//            std::cout << it << std::endl;
-//        }
-//    }
-    
+
     auto consensus = spoa_graph.GenerateConsensus();
     
 //    std::cout << ">Consensus: " << consensus << std::endl;
@@ -725,23 +716,24 @@ void PileupGenerator::generate_spoa_graph_from_edges(
     
     // Iterate a second time on alignment, this time with consensus as the seed
     add_alignments_to_poa(graph, pileup, seeded_spoa_graph, seeded_alignment_engine);
-    
-//    {
-//        auto seeded_consensus = seeded_spoa_graph.GenerateConsensus();
-//
-//        seeded_spoa_graph.PrintDot("spoa_overlap.dot");
-//        auto msa = seeded_spoa_graph.GenerateMultipleSequenceAlignment();
-//
-//        for (const auto& it : msa) {
-//            std::cout << it << std::endl;
-//        }
-//    }
-    
+
+
+    {
+        auto seeded_consensus = seeded_spoa_graph.GenerateConsensus();
+
+        seeded_spoa_graph.PrintDot("spoa_overlap.dot");
+        auto msa = seeded_spoa_graph.GenerateMultipleSequenceAlignment();
+
+        for (const auto& it : msa) {
+            std::cout << it << std::endl;
+        }
+        std::cout << '\n';
+    }
+
     convert_spoa_to_bdsg(seeded_spoa_graph, pileup, graph);
-    
+
     handle_graph_to_gfa(pileup.graph, "test_output.gfa");
-//    std::cout << '\n';
-    
+
     unchop(&pileup.graph);
     
     handle_graph_to_gfa(pileup.graph, "test_output_unchopped.gfa");
