@@ -15,6 +15,7 @@
 using bluntifier::IncrementalIdMap;
 using handlegraph::path_handle_t;
 using handlegraph::step_handle_t;
+using handlegraph::HandleGraph;
 using handlegraph::handle_t;
 using handlegraph::edge_t;
 using bdsg::PackedGraph;
@@ -31,20 +32,39 @@ using std::array;
 namespace bluntifier{
 
 
-class AlignmentData{
+class SpliceData{
 public:
+    /// Attributes ///
+
+    // Was the splice site calculated from a node that was flipped in the handle graph
     bool is_reverse;
+
+    // Was the node to the left or right of the biclique (in the GFA-canonical direction)
     bool is_left;
-    uint64_t sequence_start_index;
-    uint64_t sequence_stop_index;
+
+    // At which coordinate is the splice event (orientation sensitive)
+    size_t sequence_start_index;
+    size_t sequence_stop_index;
+
+    // A globally unique string to point to a path in the overlap POA graph which describes where
+    // this node's sequence enters the graph
     string path_name;
-    size_t pileup_index;
+
+    // To which biclique does this site splice into (globally unique index)
+    size_t biclique_index;
+
+    // From which adjacency component was this site
     size_t component_index;
+
+    // Only used internally for keeping track of this sequence's place in the SPOA overlap
     uint32_t spoa_id;
 
-    AlignmentData()=default;
-    AlignmentData(uint64_t start, uint64_t stop, string& path_name);
-    AlignmentData(
+
+    /// Methods ///
+
+    SpliceData()=default;
+    SpliceData(uint64_t start, uint64_t stop, string& path_name);
+    SpliceData(
             bool is_reverse,
             bool is_left,
             uint64_t start,
@@ -53,10 +73,20 @@ public:
             size_t pileup_index,
             size_t component_index);
 
-    bool operator<(const AlignmentData& other) const;
+    // Simplify finding which coord is the relevant one when splicing into the gfa (variable from left/right nodes)
+    size_t get_coordinate();
+
+    // Remove left/right AND forward/reverse ambiguity when finding the splice coordinate
+    size_t get_forward_coordinate(HandleGraph& gfa_graph, size_t node_id);
+
+    // Save some sanity by telling the user whether the splice site is on the left end of the canonical node
+    bool forward_splice_is_left();
+
+    bool operator<(const SpliceData& other) const;
 };
 
-ostream& operator<<(ostream& os, AlignmentData& alignment_data);
+
+ostream& operator<<(ostream& os, SpliceData& alignment_data);
 
 
 class PoaPileup {
@@ -71,13 +101,13 @@ public:
 
     // For each node in the original gfa graph (stored here in order of their appearance) what are the nodes in the
     // pileup graph (from left to right) that will be spliced back into the gfa
-    array <vector <vector <AlignmentData> >, 2> alignment_data;
+    array <vector <vector <SpliceData> >, 2> alignment_data;
 
     // Keep track of any edges that are non-overlapping, and cant be represented in the POA graph
     vector <edge_t> blunt_edges;
 
     // Index to help create unique names for paths in the context of the main GFA graph
-    size_t index = 0;
+    size_t biclique_index = 0;
 
 
     /// Methods ///

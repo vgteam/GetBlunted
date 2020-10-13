@@ -76,7 +76,7 @@ public:
             OverlapMap& overlaps,
             HandleGraph& graph,
             PoaPileup& pileup,
-            vector <vector <AlignmentData> >& splice_sites,
+            vector <vector <SpliceData> >& splice_sites,
             vector <mutex>& splice_site_mutexes,
             size_t component_index);
     
@@ -87,7 +87,7 @@ public:
             OverlapMap& overlaps,
             HandleGraph& graph,
             PoaPileup& pileup,
-            vector <vector <AlignmentData> >& splice_sites,
+            vector <vector <SpliceData> >& splice_sites,
             vector <mutex>& splice_site_mutexes,
             size_t component_index);
 

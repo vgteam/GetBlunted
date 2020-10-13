@@ -582,7 +582,7 @@ void PileupGenerator::generate_spoa_graph_from_edges(
         OverlapMap& overlaps,
         HandleGraph& graph,
         PoaPileup& pileup,
-        vector <vector <AlignmentData> >& splice_sites,
+        vector <vector <SpliceData> >& splice_sites,
         vector <mutex>& splice_site_mutexes,
         size_t component_index) {
     
@@ -659,7 +659,7 @@ void PileupGenerator::generate_spoa_graph_from_edges(
                                           ref_start,
                                           ref_stop,
                                           ref_path_name,
-                                          pileup.index,
+                                          pileup.biclique_index,
                                           component_index);
 
         splice_site_mutexes[ref_id].unlock();
@@ -676,7 +676,7 @@ void PileupGenerator::generate_spoa_graph_from_edges(
                                             query_start,
                                             query_stop,
                                             query_path_name,
-                                            pileup.index,
+                                            pileup.biclique_index,
                                             component_index);
 
         splice_site_mutexes[query_id].unlock();
@@ -717,7 +717,6 @@ void PileupGenerator::generate_spoa_graph_from_edges(
     // Iterate a second time on alignment, this time with consensus as the seed
     add_alignments_to_poa(graph, pileup, seeded_spoa_graph, seeded_alignment_engine);
 
-
     {
         auto seeded_consensus = seeded_spoa_graph.GenerateConsensus();
 
@@ -746,7 +745,7 @@ void PileupGenerator::generate_spoa_graph_from_bipartition(
         OverlapMap& overlaps,
         HandleGraph& graph,
         PoaPileup& pileup,
-        vector <vector <AlignmentData> >& splice_sites,
+        vector <vector <SpliceData> >& splice_sites,
         vector <mutex>& splice_site_mutexes,
         size_t component_index) {
 
