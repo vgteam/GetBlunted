@@ -16,7 +16,7 @@ using bluntifier::parent_path;
 using bluntifier::join_paths;
 using bluntifier::IncrementalIdMap;
 using bluntifier::BicliqueIterator;
-using bluntifier::PileupGenerator;
+using bluntifier::PoaPileupGenerator;
 using bluntifier::PoaPileup;
 using bluntifier::OverlapMap;
 using bluntifier::Alignment;
@@ -89,15 +89,16 @@ void process_adjacency_component(
 
             // Iterate all alignments and build a set of splice sites and pileups
             PoaPileup pileup;
-            PileupGenerator::generate_spoa_graph_from_edges(
-                    new_edges,
+            PoaPileupGenerator pileup_generator(
+                    bipartite_graph,
                     id_map,
                     overlaps,
                     gfa_graph,
-                    subgraphs[i].back(),
+                    pileup,
                     splice_sites,
-                    splice_site_mutexes,
-                    i);
+                    splice_site_mutexes);
+
+            pileup_generator.generate_from_edges(new_edges,i);
         }
     });
 }
@@ -159,9 +160,11 @@ void bluntify(string gfa_path){
 
     for (size_t node_id=1; node_id<splice_sites.size(); node_id++){
         cout << id_map.get_name(node_id) << '\n';
+        auto h = gfa_graph.get_handle(node_id, false);
+        size_t node_length = gfa_graph.get_length(h);
 
         for (auto& site: splice_sites[node_id]){
-            cout << site.get_forward_coordinate(gfa_graph, node_id) << " "
+            cout << site.get_forward_coordinate(node_length) << " "
                  << site.forward_splice_is_left() << " "
                  << site.biclique_index << '\n';
         }

@@ -25,18 +25,21 @@ void Splicer::find_duplication_sites(
     map<size_t,size_t> max_left_sites;
     map<size_t,size_t> min_right_sites;
 
+    auto h = gfa_graph.get_handle(node_id, false);
+    size_t node_length = gfa_graph.get_length(h);
+
     for (size_t i=0; i<splice_sites[node_id].size(); i++) {
         auto& site = splice_sites[node_id][i];
 
         if (site.forward_splice_is_left()) {
-            auto coord = site.get_forward_coordinate(gfa_graph, node_id);
+            auto coord = site.get_forward_coordinate(node_length);
 
             auto iter = max_left_sites.find(site.biclique_index);
 
             if (iter != max_left_sites.end()){
                 auto prev_max_index = iter->second;
                 auto& prev_max_site = splice_sites[node_id][prev_max_index];
-                auto prev_max_coord = prev_max_site.get_forward_coordinate(gfa_graph, node_id);
+                auto prev_max_coord = prev_max_site.get_forward_coordinate(node_length);
 
                 if (coord > prev_max_coord){
                     iter->second = i;
@@ -47,14 +50,14 @@ void Splicer::find_duplication_sites(
             }
         }
         else{
-            auto coord = site.get_forward_coordinate(gfa_graph, node_id);
+            auto coord = site.get_forward_coordinate(node_length);
 
             auto iter = min_right_sites.find(site.biclique_index);
 
             if (iter != min_right_sites.end()){
                 auto prev_min_index = iter->second;
                 auto& prev_min_site = splice_sites[node_id][prev_min_index];
-                auto prev_min_coord = prev_min_site.get_forward_coordinate(gfa_graph, node_id);
+                auto prev_min_coord = prev_min_site.get_forward_coordinate(node_length);
 
                 if (coord < prev_min_coord){
                     iter->second = i;
@@ -69,13 +72,13 @@ void Splicer::find_duplication_sites(
     cout << "DUPLICATION SITES\n";
     cout << "LEFT sites\n";
     for (auto& item: max_left_sites){
-        auto coord = splice_sites[node_id][item.second].get_forward_coordinate(gfa_graph, node_id);
+        auto coord = splice_sites[node_id][item.second].get_forward_coordinate(node_length);
         cout << item.first << " " << coord << '\n';
         left_sites.emplace_back(item);
     }
     cout << "RIGHT sites\n";
     for (auto& item: min_right_sites){
-        auto coord = splice_sites[node_id][item.second].get_forward_coordinate(gfa_graph, node_id);
+        auto coord = splice_sites[node_id][item.second].get_forward_coordinate(node_length);
         cout << item.first << " " << coord << '\n';
         right_sites.emplace_back(item);
     }
@@ -84,20 +87,20 @@ void Splicer::find_duplication_sites(
     // Return objects should be a sorted vector, not a map, because maps are unweildy and no one likes them
     sort(left_sites.begin(), left_sites.end(), [&](const pair<size_t,size_t>& a, const pair<size_t,size_t>& b){
         auto& a_site = splice_sites[node_id][a.second];
-        auto a_value = a_site.get_forward_coordinate(gfa_graph, node_id);
+        auto a_value = a_site.get_forward_coordinate(node_length);
 
         auto& b_site = splice_sites[node_id][b.second];
-        auto b_value = b_site.get_forward_coordinate(gfa_graph, node_id);
+        auto b_value = b_site.get_forward_coordinate(node_length);
 
         return a_value < b_value;
     });
 
     sort(right_sites.begin(), right_sites.end(), [&](const pair<size_t,size_t>& a, const pair<size_t,size_t>& b){
         auto& a_site = splice_sites[node_id][a.second];
-        auto a_value = a_site.get_forward_coordinate(gfa_graph, node_id);
+        auto a_value = a_site.get_forward_coordinate(node_length);
 
         auto& b_site = splice_sites[node_id][b.second];
-        auto b_value = b_site.get_forward_coordinate(gfa_graph, node_id);
+        auto b_value = b_site.get_forward_coordinate(node_length);
 
         return a_value < b_value;
     });
@@ -107,14 +110,17 @@ void Splicer::find_duplication_sites(
 void Splicer::find_overlapping_overlaps(){
     vector<size_t> indexes;
 
+    auto h = gfa_graph.get_handle(node_id, false);
+    size_t node_length = gfa_graph.get_length(h);
+
     for (size_t i=0; i<splice_sites[node_id].size(); i++){
         indexes.push_back(i);
     }
 
     // Sort the indexes instead of the array itself
     sort(indexes.begin(), indexes.end(), [&](const size_t& a, const size_t& b){
-        auto a_value = splice_sites[node_id][a].get_forward_coordinate(gfa_graph, node_id);
-        auto b_value = splice_sites[node_id][b].get_forward_coordinate(gfa_graph, node_id);
+        auto a_value = splice_sites[node_id][a].get_forward_coordinate(node_length);
+        auto b_value = splice_sites[node_id][b].get_forward_coordinate(node_length);
 
         if (a_value == b_value){
             return splice_sites[node_id][a].forward_splice_is_left();
@@ -136,12 +142,12 @@ void Splicer::find_overlapping_overlaps(){
                 auto i_queue = right_visited_queue.front();
                 right_visited_queue.pop();
 
-                auto coord = splice_sites[node_id][i_queue].get_forward_coordinate(gfa_graph, node_id);
+                auto coord = splice_sites[node_id][i_queue].get_forward_coordinate(node_length);
                 cout << "overlapping overlap:\tR " << coord << '\n';
             }
 
             if (right_visited){
-                auto coord = splice_sites[node_id][i].get_forward_coordinate(gfa_graph, node_id);
+                auto coord = splice_sites[node_id][i].get_forward_coordinate(node_length);
                 cout << "overlapping overlap:\tL " << coord << '\n';
             }
         }
@@ -155,9 +161,11 @@ void Splicer::find_overlapping_overlaps(){
 
 void Splicer::duplicate_terminus(size_t site_index){
     auto& site = splice_sites[node_id][site_index];
-    auto coord = site.get_forward_coordinate(gfa_graph, node_id);
 
     auto h = gfa_graph.get_handle(node_id, false);
+    size_t node_length = gfa_graph.get_length(h);
+
+    auto coord = site.get_forward_coordinate(node_length);
 
     handle_t left_handle;
     handle_t right_handle;
@@ -167,12 +175,10 @@ void Splicer::duplicate_terminus(size_t site_index){
 
     // Update all the splice sites that just got broken
     for (auto other_site: splice_sites[node_id]){
-        auto other_coord = other_site.get_forward_coordinate(gfa_graph, node_id);
+        auto other_coord = other_site.get_forward_coordinate(node_length);
 
         if (other_coord >= coord and not other_site.forward_splice_is_left()){
-            cout << other_site.get_forward_coordinate(gfa_graph, node_id) << '\n';
-            other_site.offset_splice_coordinate(gfa_graph, node_id, coord);
-            cout << other_site.get_forward_coordinate(gfa_graph, node_id) << '\n' << '\n';
+            cout << other_site.get_forward_coordinate(node_length) << '\n' << '\n';
         }
     }
 }

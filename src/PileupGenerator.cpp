@@ -13,19 +13,50 @@ BicliqueIterator::BicliqueIterator():
 {}
 
 
-PileupGenerator::PileupGenerator()=default;
-
-
-bool PileupGenerator::traverse_bipartition_edges(
-        const HandleGraph& graph,
-        const OverlapMap& overlaps,
+PoaPileupGenerator::PoaPileupGenerator(
         const BipartiteGraph& bipartite_graph,
-        BicliqueIterator& iterator) {
+        const IncrementalIdMap<string>& id_map,
+        OverlapMap& overlaps,
+        HandleGraph& gfa_graph,
+        PoaPileup& pileup,
+        vector <vector <SpliceData> >& splice_sites,
+        vector <mutex>& splice_site_mutexes
+):
+    bipartite_graph(bipartite_graph),
+    id_map(id_map),
+    overlaps(overlaps),
+    gfa_graph(gfa_graph),
+    pileup(pileup),
+    splice_sites(splice_sites),
+    splice_site_mutexes(splice_site_mutexes)
+{}
+
+
+PileupGenerator::PileupGenerator(
+        const BipartiteGraph& bipartite_graph,
+        const IncrementalIdMap<string>& id_map,
+        OverlapMap& overlaps,
+        HandleGraph& gfa_graph,
+        Pileup& pileup,
+        vector <vector <SpliceData> >& splice_sites,
+        vector <mutex>& splice_site_mutexes
+):
+    bipartite_graph(bipartite_graph),
+    id_map(id_map),
+    overlaps(overlaps),
+    gfa_graph(gfa_graph),
+    pileup(pileup),
+    splice_sites(splice_sites),
+    splice_site_mutexes(splice_site_mutexes)
+{}
+
+
+bool PileupGenerator::traverse_bipartition_edges(BicliqueIterator& iterator) {
 
     bool done;
 
     if (iterator.first_step) {
-        PileupGenerator::traverse_bipartition_nodes(graph, overlaps, bipartite_graph, iterator);
+        PileupGenerator::traverse_bipartition_nodes(iterator);
         if (iterator.is_left) {
             iterator.prev_left_node = iterator.node;
             iterator.prev_left_is_valid = true;
@@ -35,18 +66,18 @@ bool PileupGenerator::traverse_bipartition_edges(
         }
     }
 
-    done = not PileupGenerator::traverse_bipartition_nodes(graph, overlaps, bipartite_graph, iterator);
+    done = not PileupGenerator::traverse_bipartition_nodes(iterator);
 
     if (not done) {
         if (iterator.is_left) {
             if (iterator.prev_right_is_valid) {
-                iterator.edge = {iterator.node, graph.flip(iterator.prev_right_node)};
+                iterator.edge = {iterator.node, gfa_graph.flip(iterator.prev_right_node)};
             }
             iterator.prev_left_node = iterator.node;
             iterator.prev_left_is_valid = true;
         } else {
             if (iterator.prev_left_is_valid) {
-                iterator.edge = {iterator.prev_left_node, graph.flip(iterator.node)};
+                iterator.edge = {iterator.prev_left_node, gfa_graph.flip(iterator.node)};
             }
             iterator.prev_right_node = iterator.node;
             iterator.prev_right_is_valid = true;
@@ -57,11 +88,7 @@ bool PileupGenerator::traverse_bipartition_edges(
 }
 
 
-bool PileupGenerator::traverse_bipartition_nodes(
-        const HandleGraph& graph,
-        const OverlapMap& overlaps,
-        const BipartiteGraph& bipartite_graph,
-        BicliqueIterator& iterator){
+bool PileupGenerator::traverse_bipartition_nodes(BicliqueIterator& iterator){
 
     if (iterator.first_step){
         // Pick an arbitrary node to start with
@@ -110,32 +137,27 @@ bool PileupGenerator::traverse_bipartition_nodes(
 }
 
 
-void PileupGenerator::debug_print(const IncrementalIdMap<string>& id_map,
-                                  HandleGraph& graph,
-                                  OverlapMap& overlaps,
-                                  BicliqueIterator& biclique_iterator){
+void PileupGenerator::debug_print(BicliqueIterator& biclique_iterator){
 
-    auto iter = overlaps.canonicalize_and_find(biclique_iterator.edge, graph);
+    auto iter = overlaps.canonicalize_and_find(biclique_iterator.edge, gfa_graph);
     const edge_t& edge = iter->first;
     pair<size_t, size_t> lengths;
     size_t start;
 
-    std::cout << id_map.get_name(graph.get_id(edge.first)) << "->";
-    std::cout << id_map.get_name(graph.get_id(edge.second)) << '\n';
+    std::cout << id_map.get_name(gfa_graph.get_id(edge.first)) << "->";
+    std::cout << id_map.get_name(gfa_graph.get_id(edge.second)) << '\n';
 
     iter->second.compute_lengths(lengths);
 
-    start = graph.get_length(edge.first) - lengths.first;
+    start = gfa_graph.get_length(edge.first) - lengths.first;
 
     std::cout << "Is left: " << biclique_iterator.is_left << '\n';
     std::cout << lengths.first << " " << lengths.second << '\n';
-    std::cout << iter->second.create_formatted_alignment_string(graph, edge, start, 0) << '\n';
+    std::cout << iter->second.create_formatted_alignment_string(gfa_graph, edge, start, 0) << '\n';
 }
 
 
 void PileupGenerator::update_pseudoref(
-        Pileup& pileup,
-        HandleGraph& graph,
         handle_t pseudo_reference,
         size_t pseudo_ref_length,
         size_t prev_pseudo_ref_length,
@@ -145,8 +167,8 @@ void PileupGenerator::update_pseudoref(
     // Walk from the last index of the prev pseudoref up to the current index
     if (is_left) {
         for (size_t i = prev_pseudo_ref_length; i < pseudo_ref_length; i++) {
-            auto h = pileup.graph.create_handle(string(1, graph.get_base(pseudo_reference, i)));
-            std::cout << "created node:\t" << graph.get_id(h) << " " << graph.has_node(graph.get_id(h)) << '\n';
+            auto h = pileup.graph.create_handle(string(1, gfa_graph.get_base(pseudo_reference, i)));
+            std::cout << "created node:\t" << gfa_graph.get_id(h) << " " << gfa_graph.has_node(gfa_graph.get_id(h)) << '\n';
 
             if (not pileup.paths[pseudo_ref_id].empty()) {
                 pileup.graph.create_edge(pileup.paths[pseudo_ref_id].back(), h);
@@ -157,20 +179,20 @@ void PileupGenerator::update_pseudoref(
             }
             pileup.paths[pseudo_ref_id].push_back(h);
 
-            std::cout << "base:\t" << graph.get_base(pseudo_reference, i) << '\n';
-            std::cout << "id:\t" << graph.get_id(h) << '\n' << '\n';
+            std::cout << "base:\t" << gfa_graph.get_base(pseudo_reference, i) << '\n';
+            std::cout << "id:\t" << gfa_graph.get_id(h) << '\n' << '\n';
         }
     }
     // Walk BACKWARDS from the last index of the prev pseudoref down to the current index
     else {
-        size_t start = graph.get_length(pseudo_reference) - prev_pseudo_ref_length - 1;
-        size_t stop = graph.get_length(pseudo_reference) - pseudo_ref_length - 1;
+        size_t start = gfa_graph.get_length(pseudo_reference) - prev_pseudo_ref_length - 1;
+        size_t stop = gfa_graph.get_length(pseudo_reference) - pseudo_ref_length - 1;
 
-        std::cout <<  graph.get_length(pseudo_reference) << " " << pileup.paths[pseudo_ref_id].size() << " " << start << " " << stop << '\n';
+        std::cout << gfa_graph.get_length(pseudo_reference) << " " << pileup.paths[pseudo_ref_id].size() << " " << start << " " << stop << '\n';
 
         for (int64_t i = start; i > int64_t(stop); i--) {
-            auto h = pileup.graph.create_handle(string(1, graph.get_base(pseudo_reference, i)));
-            std::cout << "created node:\t" << graph.get_id(h) << " " << graph.has_node(graph.get_id(h)) << '\n';
+            auto h = pileup.graph.create_handle(string(1, gfa_graph.get_base(pseudo_reference, i)));
+            std::cout << "created node:\t" << gfa_graph.get_id(h) << " " << gfa_graph.has_node(gfa_graph.get_id(h)) << '\n';
 
             if (not pileup.paths[pseudo_ref_id].empty()) {
                 pileup.graph.create_edge(h, pileup.paths[pseudo_ref_id].front());
@@ -190,7 +212,6 @@ void PileupGenerator::update_pseudoref(
 /// that depends on the expected relationship between ref/query must be flipped.
 /// This method tells whether that is the case
 bool PileupGenerator::pseudoref_is_reversed(
-        const Pileup& pileup,
         const edge_t& canonical_edge,
         const BicliqueIterator& biclique_iterator){
 
@@ -223,28 +244,23 @@ bool PileupGenerator::pseudoref_is_reversed(
 }
 
 
-void PileupGenerator::generate_from_bipartition(
-        const BipartiteGraph& bipartite_graph,
-        const IncrementalIdMap<string>& id_map,
-        OverlapMap& overlaps,
-        HandleGraph& graph,
-        Pileup& pileup) {
+void PileupGenerator::generate_from_bipartition() {
 
     BicliqueIterator biclique_iterator;
     pileup.paths.resize(bipartite_graph.left_size() + bipartite_graph.right_size());
 
     int i = 0;
-    while (PileupGenerator::traverse_bipartition_edges(graph, overlaps, bipartite_graph, biclique_iterator)) {
-        debug_print(id_map, graph, overlaps, biclique_iterator);
+    while (PileupGenerator::traverse_bipartition_edges(biclique_iterator)) {
+        debug_print(biclique_iterator);
         std::cout << '\n';
 
-        auto iter = overlaps.canonicalize_and_find(biclique_iterator.edge, graph);
+        auto iter = overlaps.canonicalize_and_find(biclique_iterator.edge, gfa_graph);
         const edge_t& canonical_edge = iter->first;
         Alignment& alignment = iter->second;
         pair<size_t, size_t> lengths;
 
         alignment.compute_lengths(lengths);
-        size_t left_start = graph.get_length(canonical_edge.first) - lengths.first;
+        size_t left_start = gfa_graph.get_length(canonical_edge.first) - lengths.first;
         size_t right_start = 0;
 
         handle_t pseudo_reference;
@@ -255,10 +271,10 @@ void PileupGenerator::generate_from_bipartition(
         handle_t pseudo_query;
         int64_t pseudo_query_id;
 
-        bool pseudoref_is_reversed = PileupGenerator::pseudoref_is_reversed(pileup, canonical_edge, biclique_iterator);
+        bool pseudoref_reversed = pseudoref_is_reversed(canonical_edge, biclique_iterator);
 
         // Figure out which sequence is being treated as the "ref" in the overlap, call it pseudo reference
-        if (pseudoref_is_reversed) {
+        if (pseudoref_reversed) {
             pseudo_reference = canonical_edge.second;
             pseudo_query = canonical_edge.first;
             pseudo_ref_length = lengths.second;
@@ -269,7 +285,7 @@ void PileupGenerator::generate_from_bipartition(
             pseudo_ref_length = lengths.first;
         }
 
-        // Find out whether the pseudo ref has been added to the graph and what its length was
+        // Find out whether the pseudo ref has been added to the gfa_graph and what its length was
         if (not pileup.id_map.exists(pseudo_reference)){
             prev_pseudo_ref_length = 0;
         }
@@ -278,34 +294,32 @@ void PileupGenerator::generate_from_bipartition(
             prev_pseudo_ref_length = pileup.paths[pseudo_ref_id].size();
         }
 
-        // If the previous alignment that used this pseudo ref did not span enough bases, the graph will need updating.
+        // If the previous alignment that used this pseudo ref did not span enough bases, the gfa_graph will need updating.
         // This also happens for the first alignment in the biclique, because no "ref" exists yet.
         if (prev_pseudo_ref_length < pseudo_ref_length){
-            // This is the first sequence in the graph
+            // This is the first sequence in the gfa_graph
             if (not pileup.id_map.exists(pseudo_reference)) {
                 pseudo_ref_id = pileup.id_map.insert(pseudo_reference);
             }
             update_pseudoref(
-                    pileup,
-                    graph,
                     pseudo_reference,
                     pseudo_ref_length,
                     prev_pseudo_ref_length,
                     pseudo_ref_id,
-                    pseudoref_is_reversed);
+                    pseudoref_reversed);
 
         }
 
         {
-            std::cout << "pseudoref id:\t" << graph.get_id(pseudo_reference) << '\n';
-            std::cout << "pseudoref sequence:\t" << graph.get_sequence(pseudo_reference) << '\n';
+            std::cout << "pseudoref id:\t" << gfa_graph.get_id(pseudo_reference) << '\n';
+            std::cout << "pseudoref sequence:\t" << gfa_graph.get_sequence(pseudo_reference) << '\n';
             string test_path = "test_alignment_graph_" + std::to_string(i) + ".gfa";
             handle_graph_to_gfa(pileup.graph, test_path);
             i++;
         }
 
-        std::cout << graph.get_length(canonical_edge.first) << " " <<  lengths.first << " " << left_start << " "
-                  << graph.get_length(canonical_edge.second) << " " <<  lengths.second << " " << right_start << '\n';
+        std::cout << gfa_graph.get_length(canonical_edge.first) << " " << lengths.first << " " << left_start << " "
+                  << gfa_graph.get_length(canonical_edge.second) << " " << lengths.second << " " << right_start << '\n';
         AlignmentIterator alignment_iterator(left_start, right_start);
 
         if (not pileup.id_map.exists(pseudo_query)) {
@@ -323,14 +337,14 @@ void PileupGenerator::generate_from_bipartition(
             uint8_t code = alignment.operations[alignment_iterator.cigar_index].code;
 
             // Is the traversal walking forwards or backwards? Reassign the relevant flags/data accordingly
-            if (pseudoref_is_reversed) {
-                pseudo_query_base = graph.get_base(canonical_edge.first, alignment_iterator.ref_index);
-                pseudo_ref_base = graph.get_base(canonical_edge.second, alignment_iterator.query_index);
+            if (pseudoref_reversed) {
+                pseudo_query_base = gfa_graph.get_base(canonical_edge.first, alignment_iterator.ref_index);
+                pseudo_ref_base = gfa_graph.get_base(canonical_edge.second, alignment_iterator.query_index);
                 is_pseudo_query_move = Alignment::is_ref_move[code];
                 is_pseudo_ref_move = Alignment::is_query_move[code];
             } else {
-                pseudo_query_base = graph.get_base(canonical_edge.second, alignment_iterator.query_index);
-                pseudo_ref_base = graph.get_base(canonical_edge.first, alignment_iterator.ref_index);
+                pseudo_query_base = gfa_graph.get_base(canonical_edge.second, alignment_iterator.query_index);
+                pseudo_ref_base = gfa_graph.get_base(canonical_edge.first, alignment_iterator.ref_index);
                 is_pseudo_query_move = Alignment::is_query_move[code];
                 is_pseudo_ref_move = Alignment::is_ref_move[code];
                 offset = prev_pseudo_ref_length - pseudo_ref_length;
@@ -346,7 +360,7 @@ void PileupGenerator::generate_from_bipartition(
                 std::cout <<
                           "query_base:\t" << pseudo_query_base << '\n' <<
                           "query_index:\t" << alignment_iterator.query_index << '\n' <<
-                          "ref nid:\t" << graph.get_id(pseudo_ref_node) << '\n' <<
+                          "ref nid:\t" << gfa_graph.get_id(pseudo_ref_node) << '\n' <<
                           "ref_base:\t" << pseudo_ref_base << '\n' <<
                           "ref_index:\t" << alignment_iterator.ref_index << '\n' <<
                           "query_move:\t" << is_pseudo_query_move << '\n' <<
@@ -354,7 +368,7 @@ void PileupGenerator::generate_from_bipartition(
 
                 std::cout << "Pseudoref node ids:\n";
                 for (auto& item: pileup.paths[pseudo_ref_id]) {
-                    std::cout << graph.get_id(item) << ",";
+                    std::cout << gfa_graph.get_id(item) << ",";
                 }
                 std::cout << '\n' << '\n';
 
@@ -399,9 +413,9 @@ void PileupGenerator::generate_from_bipartition(
                 else {
                     std::cout << "MISMATCH\n";
 
-                    // Create a new node and splice into the graph
+                    // Create a new node and splice into the gfa_graph
                     auto node = pileup.graph.create_handle(string(1,pseudo_query_base));
-                    std::cout << "created node:\t" << pileup.graph.get_id(node) << " " << pileup.graph.has_node(graph.get_id(node)) << '\n';
+                    std::cout << "created node:\t" << pileup.graph.get_id(node) << " " << pileup.graph.has_node(gfa_graph.get_id(node)) << '\n';
 
                     if (not pileup.paths[pseudo_query_id].empty()){
                         auto prev_node = pileup.paths[pseudo_query_id].back();
@@ -419,7 +433,7 @@ void PileupGenerator::generate_from_bipartition(
                     }
                     std::cout << '\n' << '\n';
 
-                    std::cout << "created node:\t" << pileup.graph.get_id(pileup.paths[pseudo_query_id].back()) << " " << pileup.graph.has_node(graph.get_id(pileup.paths[pseudo_query_id].back())) << '\n';
+                    std::cout << "created node:\t" << pileup.graph.get_id(pileup.paths[pseudo_query_id].back()) << " " << pileup.graph.has_node(gfa_graph.get_id(pileup.paths[pseudo_query_id].back())) << '\n';
                 }
                 pseudo_query_index++;
                 pseudo_ref_index++;
@@ -435,9 +449,9 @@ void PileupGenerator::generate_from_bipartition(
                 std::cout << "INSERT\n";
 
                 // Similar to a mismatch
-                // Create a new node and splice into the graph
+                // Create a new node and splice into the gfa_graph
                 auto node = pileup.graph.create_handle(string(1,pseudo_query_base));
-                std::cout << "created node:\t" << graph.get_id(node) << " " << graph.has_node(graph.get_id(node)) << '\n';
+                std::cout << "created node:\t" << gfa_graph.get_id(node) << " " << gfa_graph.has_node(gfa_graph.get_id(node)) << '\n';
 
                 if (not pileup.paths[pseudo_query_id].empty()){
                     auto prev_node = pileup.paths[pseudo_query_id].back();
@@ -469,48 +483,35 @@ void PileupGenerator::generate_from_bipartition(
 }
 
 
-void PileupGenerator::add_alignments_to_poa(
-        HandleGraph& graph,
-        PoaPileup& pileup,
-        Graph& spoa_graph,
-        unique_ptr<AlignmentEngine>& alignment_engine){
+void PoaPileupGenerator::add_alignments_to_poa(Graph& spoa_graph, unique_ptr<AlignmentEngine>& alignment_engine){
 
     // If the graph already has some sequences in it, then start the id at that number
     uint32_t spoa_id = spoa_graph.sequences().size();
 
     for (bool is_left: {false, true}){
+        for (uint64_t id=0; id < pileup.splice_site_indexes[!is_left].size(); id++) {
+            // Assume the alignment data is reverse sorted by length at this point (not totally safe, but safe enough)
+            auto data = get_splice_data(is_left,id,0);
 
-        for (uint64_t id=0; id < pileup.alignment_data[!is_left].size(); id++) {
+            auto node_handle = pileup.id_map[!is_left].get_name(id);
+            auto gfa_node_length = gfa_graph.get_length(node_handle);
+            auto start_index = data.get_start_index(gfa_node_length);
 
-            for (size_t i = 0; i < pileup.alignment_data[!is_left][id].size(); i++) {
-                auto& data = pileup.alignment_data[!is_left][id][i];
+            string subsequence = gfa_graph.get_subsequence(node_handle, start_index, data.length);
 
-                if (i == 0) {
-                    // Assume the alignment data is reverse sorted by length at this point (not totally safe, but safe enough)
-                    auto node_handle = pileup.id_map[!is_left].get_name(id);
+            std::cout << gfa_node_length << " " << start_index << " " << data.length << '\n';
+            std::cout << subsequence << '\n';
 
-                    auto length = data.sequence_stop_index - data.sequence_start_index + 1;
+            auto alignment = alignment_engine->Align(subsequence, spoa_graph);
+            spoa_graph.AddAlignment(alignment, subsequence);
 
-                    string subsequence = graph.get_subsequence(node_handle, data.sequence_start_index, length);
-
-//                    std::cout << data.sequence_start_index << " " << length << '\n';
-//                    std::cout << subsequence << '\n';
-
-                    auto alignment = alignment_engine->Align(subsequence, spoa_graph);
-                    spoa_graph.AddAlignment(alignment, subsequence);
-
-                    data.spoa_id = spoa_id++;
-                }
-            }
+            data.spoa_id = spoa_id++;
         }
     }
 }
 
 
-void PileupGenerator::convert_spoa_to_bdsg(
-        Graph& spoa_graph,
-        PoaPileup& pileup,
-        HandleGraph& gfa_handle_graph){
+void PoaPileupGenerator::convert_spoa_to_bdsg(Graph& spoa_graph){
 
     auto paths = spoa_graph.sequences();
     unordered_map <uint32_t, handle_t> nodes_created;
@@ -519,14 +520,15 @@ void PileupGenerator::convert_spoa_to_bdsg(
     for (bool is_left: {false, true}){
 
         // Iterate all the sequences involved in this biclique (find them by their coordinates)
-        for (uint64_t id=0; id < pileup.alignment_data[!is_left].size(); id++) {
+        for (uint64_t id=0; id < pileup.splice_site_indexes[!is_left].size(); id++) {
             // Get the longest overlap for this sequence
-            auto alignment_data = pileup.alignment_data[!is_left][id][0];
+            auto alignment_data = get_splice_data(is_left, id, 0);
 
             // This points to the first SPOA node within the path that this sequence aligned to in the SPOA graph
             auto node = paths[alignment_data.spoa_id];
 
-            uint64_t gfa_start_index = alignment_data.sequence_start_index;
+            auto gfa_node_length = gfa_graph.get_length(pileup.id_map[!is_left].get_name(id));
+            uint64_t gfa_start_index = alignment_data.get_start_index(gfa_node_length);
             uint64_t base_index = 0;
 
             // Iterate through the path
@@ -538,7 +540,7 @@ void PileupGenerator::convert_spoa_to_bdsg(
 
                 if (iter == nodes_created.end()) {
                     auto gfa_handle = pileup.id_map[!is_left].get_name(id);
-                    char base = gfa_handle_graph.get_base(gfa_handle, gfa_start_index + base_index);
+                    char base = gfa_graph.get_base(gfa_handle, gfa_start_index + base_index);
 
                     auto new_pileup_node = pileup.graph.create_handle(string(1, base));
                     nodes_created.emplace(node->id, new_pileup_node);
@@ -557,11 +559,15 @@ void PileupGenerator::convert_spoa_to_bdsg(
                 }
 
                 // If there are other (shorter) overlaps that this node participated in, then they also need paths
-                for (auto& item: pileup.alignment_data[!is_left][id]) {
+                for (auto& splice_data_index: pileup.splice_site_indexes[!is_left][id]) {
+                    auto splice_data = get_splice_data(is_left, id, splice_data_index);
                     auto gfa_index = gfa_start_index + base_index;
 
-                    if (gfa_index >= item.sequence_start_index and gfa_index <= item.sequence_stop_index) {
-                        auto path_handle = pileup.graph.get_path_handle(item.path_name);
+                    auto other_start_index = splice_data.get_start_index(gfa_node_length);
+                    auto other_stop_index = splice_data.get_stop_index(gfa_node_length);
+
+                    if (gfa_index >= other_start_index and gfa_index <= other_stop_index) {
+                        auto path_handle = pileup.graph.get_path_handle(splice_data.path_name);
                         pileup.graph.append_step(path_handle, previous_pileup_node);
                     }
                 }
@@ -578,18 +584,53 @@ void PileupGenerator::convert_spoa_to_bdsg(
 }
 
 
-void PileupGenerator::generate_spoa_graph_from_edges(
-        const vector<edge_t>& edges,
-        const IncrementalIdMap<string>& id_map,
-        OverlapMap& overlaps,
-        HandleGraph& graph,
-        PoaPileup& pileup,
-        vector <vector <SpliceData> >& splice_sites,
-        vector <mutex>& splice_site_mutexes,
-        size_t component_index) {
+//void PileupGenerator::generate_unique_path_name(){
+//    auto side_string = to_string(is_left);
+//    auto id_string = to_string(graph.get_id(node));
+//    auto overlap_index_string = to_string(splice_site_indexes[!is_left][id].size());
+//    auto biclique_index_string = to_string(biclique_index);
+//    auto component_index_string = to_string(component_index);
+//
+//    path_name = component_index_string + '_' +
+//                biclique_index_string + '_' +
+//                id_string + '_' +
+//                to_string(id) + '_' +
+//                side_string + '_' +
+//                overlap_index_string;
+//
+//
+//}
+
+
+SpliceData& PoaPileupGenerator::get_splice_data(bool is_left, size_t id, size_t i){
+    auto gfa_node_handle = pileup.id_map[!is_left].get_name(id);
+    auto node_id = gfa_graph.get_id(gfa_node_handle);
+    auto splice_site_index = pileup.splice_site_indexes[!is_left][id][i];
+
+    return splice_sites[node_id][splice_site_index];
+}
+
+
+void PoaPileupGenerator::sort_alignment_data_by_length(){
+    for (bool is_left: {false, true}){
+        for (size_t id=0; id<pileup.splice_site_indexes[is_left].size(); id++) {
+            auto& indexes = pileup.splice_site_indexes[is_left][id];
+
+            sort(indexes.begin(), indexes.end(), [&](const size_t& a, const size_t& b){
+                auto a_value = get_splice_data(is_left, id, a).length;
+                auto b_value = get_splice_data(is_left, id, b).length;
+
+                return a_value > b_value;
+            });
+        }
+    }
+}
+
+
+void PoaPileupGenerator::generate_from_edges(const vector<edge_t>& edges, size_t component_index) {
     
     for (auto non_canonical_edge : edges) {
-        auto iter = overlaps.canonicalize_and_find(non_canonical_edge, graph);
+        auto iter = overlaps.canonicalize_and_find(non_canonical_edge, gfa_graph);
         
         const edge_t& edge = iter->first;
         Alignment& alignment = iter->second;
@@ -602,84 +643,65 @@ void PileupGenerator::generate_spoa_graph_from_edges(
         
         pair<size_t, size_t> lengths;
 
-        std::cout << id_map.get_name(graph.get_id(edge.first)) << "->";
-        std::cout << id_map.get_name(graph.get_id(edge.second)) << '\n';
+        std::cout << id_map.get_name(gfa_graph.get_id(edge.first)) << "->";
+        std::cout << id_map.get_name(gfa_graph.get_id(edge.second)) << '\n';
         
         iter->second.compute_lengths(lengths);
 
         {
-            size_t start = graph.get_length(edge.first) - lengths.first;
+            size_t start = gfa_graph.get_length(edge.first) - lengths.first;
             std::cout << lengths.first << " " << lengths.second << '\n';
-            std::cout << iter->second.create_formatted_alignment_string(graph, edge, start, 0) << '\n';
+            std::cout << iter->second.create_formatted_alignment_string(gfa_graph, edge, start, 0) << '\n';
             std::cout << '\n';
         }
 
         alignment.compute_lengths(lengths);
-        size_t left_start = graph.get_length(edge.first) - lengths.first;
-        size_t right_start = 0;
-        
+
         handle_t reference = edge.first;
         int64_t ref_id;
-        size_t ref_length;
-        size_t ref_start;
-        size_t ref_stop;
+        size_t ref_overlap_length;
         bool ref_is_reverse;
-        
+        ref_overlap_length = lengths.first;
+        ref_is_reverse = gfa_graph.get_is_reverse(reference);
+        ref_id = gfa_graph.get_id(reference);
+
         handle_t query = edge.second;
         int64_t query_id;
-        size_t query_length;
-        size_t query_start;
-        size_t query_stop;
+        size_t query_overlap_length;
         bool query_is_reverse;
-        
-        ref_length = lengths.first;
-        query_length = lengths.second;
-        
-        ref_start = left_start;
-        ref_stop = graph.get_length(reference) - 1;
-        
-        query_start = right_start;
-        query_stop =  query_length - 1;
+        query_overlap_length = lengths.second;
+        query_is_reverse = gfa_graph.get_is_reverse(query);
+        query_id = gfa_graph.get_id(query);
 
-        ref_is_reverse = graph.get_is_reverse(reference);
-        query_is_reverse = graph.get_is_reverse(query);
+        std::cout << "REF IS_REVERSE: " << ref_is_reverse << '\n';
+        std::cout << "QUERY IS_REVERSE: " << query_is_reverse << '\n';
 
-//        if (reference == query){
-//            std::cerr << "WARNING: your GFA is loopy: "
-//            << id_map.get_name(graph.get_id(reference)) << '\n';
-//        }
-
-        string ref_path_name;
-
-        pileup.update_alignment_data(true, reference, ref_start, ref_stop, ref_path_name, component_index);
-
-        ref_id = graph.get_id(reference);
         splice_site_mutexes[ref_id].lock();
+        size_t ref_splice_site_index = splice_sites[ref_id].size();
+        string ref_path_name = to_string(ref_id) + '_' + to_string(ref_splice_site_index);
+        pileup.graph.create_path_handle(ref_path_name);
+
+        pileup.update_alignment_data(true, reference, ref_splice_site_index);
 
         splice_sites[ref_id].emplace_back(ref_is_reverse,
                                           true,
-                                          ref_start,
-                                          ref_stop,
+                                          ref_overlap_length,
                                           ref_path_name,
                                           pileup.biclique_index,
                                           component_index);
 
         splice_site_mutexes[ref_id].unlock();
 
-        string query_path_name;
-
-        pileup.update_alignment_data(false, query, query_start, query_stop, query_path_name, component_index);
-
-        query_id = graph.get_id(query);
         splice_site_mutexes[query_id].lock();
+        size_t query_splice_site_index = splice_sites[query_id].size();
+        string query_path_name = to_string(query_id) + to_string(query_splice_site_index);
+        pileup.graph.create_path_handle(query_path_name);
 
-        std::cout << "REF IS_REVERSE: " << ref_is_reverse << '\n';
-        std::cout << "QUERY IS_REVERSE: " << query_is_reverse << '\n';
+        pileup.update_alignment_data(false, query, query_splice_site_index);
 
         splice_sites[query_id].emplace_back(query_is_reverse,
                                             false,
-                                            query_start,
-                                            query_stop,
+                                            query_overlap_length,
                                             query_path_name,
                                             pileup.biclique_index,
                                             component_index);
@@ -687,26 +709,28 @@ void PileupGenerator::generate_spoa_graph_from_edges(
         splice_site_mutexes[query_id].unlock();
 
 //        {
-//            std::cout << "ref id:\t" << graph.get_id(reference) << '\n';
-//            std::cout << "ref sequence:\t" << graph.get_sequence(reference) << '\n';
-//            std::cout << "query sequence:\t" << graph.get_sequence(query) << '\n';
+//            size_t ref_length = gfa_graph.get_length(reference);
+//            size_t query_length = gfa_graph.get_length(query);
+//            std::cout << "ref id:\t" << gfa_graph.get_id(reference) << '\n';
+//            std::cout << "ref sequence:\t" << gfa_graph.get_sequence(reference) << '\n';
+//            std::cout << "query sequence:\t" << gfa_graph.get_sequence(query) << '\n';
 //            std::cout <<
-//                      "ref_length\t" << ref_length << '\n' <<
-//                      "query_length\t" << query_length << '\n' <<
-//                      "ref_start\t" << ref_start << '\n' <<
-//                      "ref_stop\t" << ref_stop << '\n' <<
-//                      "query_start\t" << query_start << '\n' <<
-//                      "query_stop\t" << query_stop << '\n' << '\n';
+//                      "ref_overlap_length\t" << ref_overlap_length << '\n' <<
+//                      "query_overlap_length\t" << query_overlap_length << '\n' <<
+//                      "ref_start\t" << splice_sites[ref_id].back().get_start_index(ref_length) << '\n' <<
+//                      "ref_stop\t" << splice_sites[ref_id].back().get_stop_index(ref_length) << '\n' <<
+//                      "query_start\t" << splice_sites[query_id].back().get_start_index(query_length) << '\n' <<
+//                      "query_stop\t" << splice_sites[query_id].back().get_stop_index(query_length) << '\n' << '\n';
 //        }
     }
     
-    pileup.sort_alignment_data_by_length();
+    sort_alignment_data_by_length();
     
     auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 5, -3, -3, -1);
 
     spoa::Graph spoa_graph{};
     
-    add_alignments_to_poa(graph, pileup, spoa_graph, alignment_engine);
+    add_alignments_to_poa(spoa_graph, alignment_engine);
 
     auto consensus = spoa_graph.GenerateConsensus();
     
@@ -720,7 +744,7 @@ void PileupGenerator::generate_spoa_graph_from_edges(
     seeded_spoa_graph.AddAlignment(alignment, consensus);
     
     // Iterate a second time on alignment, this time with consensus as the seed
-    add_alignments_to_poa(graph, pileup, seeded_spoa_graph, seeded_alignment_engine);
+    add_alignments_to_poa(seeded_spoa_graph, seeded_alignment_engine);
 
     {
         auto seeded_consensus = seeded_spoa_graph.GenerateConsensus();
@@ -734,7 +758,7 @@ void PileupGenerator::generate_spoa_graph_from_edges(
         std::cout << '\n';
     }
 
-    convert_spoa_to_bdsg(seeded_spoa_graph, pileup, graph);
+    convert_spoa_to_bdsg(seeded_spoa_graph);
 
     handle_graph_to_gfa(pileup.graph, "test_output.gfa");
 
@@ -743,10 +767,10 @@ void PileupGenerator::generate_spoa_graph_from_edges(
     handle_graph_to_gfa(pileup.graph, "test_output_unchopped.gfa");
 
 //    {
-//        pileup.graph.for_each_path_handle([&](const path_handle_t& p) {
-//            pileup.graph.for_each_step_in_path(p, [&](const step_handle_t& step) {
-//                auto h = pileup.graph.get_handle_of_step(step);
-//                std::cout << pileup.graph.get_sequence(h);
+//        pileup.gfa_graph.for_each_path_handle([&](const path_handle_t& p) {
+//            pileup.gfa_graph.for_each_step_in_path(p, [&](const step_handle_t& step) {
+//                auto h = pileup.gfa_graph.get_handle_of_step(step);
+//                std::cout << pileup.gfa_graph.get_sequence(h);
 //            });
 //            std::cout << "\n";
 //        });
@@ -754,32 +778,17 @@ void PileupGenerator::generate_spoa_graph_from_edges(
 }
 
 
-void PileupGenerator::generate_spoa_graph_from_bipartition(
-        const bipartition& bipartition,
-        const IncrementalIdMap<string>& id_map,
-        OverlapMap& overlaps,
-        HandleGraph& graph,
-        PoaPileup& pileup,
-        vector <vector <SpliceData> >& splice_sites,
-        vector <mutex>& splice_site_mutexes,
-        size_t component_index) {
+void PoaPileupGenerator::generate_from_bipartition(const bipartition& bipartition, size_t component_index) {
 
     vector<edge_t> edges;
     edges.reserve(bipartition.first.size() * bipartition.second.size());
     for (const auto& left: bipartition.first) {
         for (const auto& right: bipartition.second) {
-            edges.emplace_back(left, graph.flip(right));
+            edges.emplace_back(left, gfa_graph.flip(right));
         }
     }
     
-    generate_spoa_graph_from_edges(edges,
-                                   id_map,
-                                   overlaps,
-                                   graph,
-                                   pileup,
-                                   splice_sites,
-                                   splice_site_mutexes,
-                                   component_index);
+    generate_from_edges(edges, component_index);
 }
 
 

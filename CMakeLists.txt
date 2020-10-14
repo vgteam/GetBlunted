@@ -15,11 +15,10 @@ message(STATUS "CMAKE_CXX_COMPILER_VERSION: ${CMAKE_CXX_COMPILER_VERSION}")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-#set(CMAKE_CXX_FLAGS "-fexceptions -fsanitize=address")
-set(ASAN_OPTIONS=check_initialization_order=1)
-set(ASAN_OPTIONS=detect_leaks=1)
+set(CMAKE_CXX_FLAGS "-fexceptions -fsanitize=address")
+#set(ASAN_OPTIONS=check_initialization_order=1)
+#set(ASAN_OPTIONS=detect_leaks=1)
 
-#set(CMAKE_CXX_FLAGS "-fexceptions -fno-new-ttp-matching")
 set(CMAKE_CXX_FLAGS "-fexceptions")
 
 add_definitions(-ggdb3 -O0 -Wall)       # Debugging + No optimization
@@ -54,6 +53,7 @@ set(SOURCES
         src/PileupGenerator.cpp
         src/Pileup.cpp
 	src/ReducedDualGraph.cpp
+        src/Splicer.cpp
         src/SubtractiveHandleGraph.cpp
         src/topological_sort.cpp
         src/unchop.cpp

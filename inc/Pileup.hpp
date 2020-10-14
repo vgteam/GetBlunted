@@ -42,9 +42,8 @@ public:
     // Was the node to the left or right of the biclique (in the GFA-canonical direction)
     bool is_left;
 
-    // At which coordinate is the splice event (orientation sensitive)
-    size_t sequence_start_index;
-    size_t sequence_stop_index;
+    // How far from the end of this node is the splice site
+    size_t length;
 
     // A globally unique string to point to a path in the overlap POA graph which describes where
     // this node's sequence enters the graph
@@ -63,24 +62,26 @@ public:
     /// Methods ///
 
     SpliceData()=default;
-    SpliceData(uint64_t start, uint64_t stop, string& path_name);
+    SpliceData(size_t length, string& path_name);
     SpliceData(
             bool is_reverse,
             bool is_left,
-            uint64_t start,
-            uint64_t stop,
+            size_t length,
             string& path_name,
             size_t pileup_index,
             size_t component_index);
 
+    size_t get_start_index(size_t node_length) const;
+    size_t get_stop_index(size_t node_length) const;
+
     // Simplify finding which coord is the relevant one when splicing into the gfa (variable from left/right nodes)
-    size_t get_coordinate();
+    size_t get_coordinate(size_t node_length);
 
     // Remove left/right AND forward/reverse ambiguity when finding the splice coordinate
-    size_t get_forward_coordinate(HandleGraph& gfa_graph, size_t node_id) const;
+    size_t get_forward_coordinate(size_t node_length) const;
 
     // Assume an index is given in forward orientation, then re-zero this splice sites coords based on that index
-    void offset_splice_coordinate(HandleGraph& gfa_graph, size_t node_id, size_t coordinate);
+    void offset_splice_coordinate(size_t node_length, size_t coordinate);
 
     // Save some sanity by telling the user whether the splice site is on the left end of the canonical node
     bool forward_splice_is_left() const;
@@ -104,7 +105,7 @@ public:
 
     // For each node in the original gfa graph (stored here in order of their appearance) what are the nodes in the
     // pileup graph (from left to right) that will be spliced back into the gfa
-    array <vector <vector <SpliceData> >, 2> alignment_data;
+    array <vector <vector <size_t> >, 2> splice_site_indexes;
 
     // Keep track of any edges that are non-overlapping, and cant be represented in the POA graph
     vector <edge_t> blunt_edges;
@@ -115,14 +116,10 @@ public:
 
     /// Methods ///
     void print_paths();
-    void sort_alignment_data_by_length();
     void update_alignment_data(
             bool is_left,
             handle_t node,
-            uint64_t start_index,
-            uint64_t stop_index,
-            string& path_name,
-            size_t component_index);
+            size_t splice_site_index);
 
     PoaPileup();
     PoaPileup(PoaPileup&&) = default;

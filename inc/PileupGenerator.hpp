@@ -52,63 +52,79 @@ public:
 };
 
 
+class PoaPileupGenerator {
+public:
+    /// Attributes ///
+    const BipartiteGraph& bipartite_graph;
+    const IncrementalIdMap<string>& id_map;
+    OverlapMap& overlaps;
+    HandleGraph& gfa_graph;
+    PoaPileup& pileup;
+    vector <vector <SpliceData> >& splice_sites;
+    vector <mutex>& splice_site_mutexes;
+
+    /// Methods ///
+    PoaPileupGenerator(
+            const BipartiteGraph& bipartite_graph,
+            const IncrementalIdMap<string>& id_map,
+            OverlapMap& overlaps,
+            HandleGraph& gfa_graph,
+            PoaPileup& pileup,
+            vector <vector <SpliceData> >& splice_sites,
+            vector <mutex>& splice_site_mutexes
+    );
+
+    // Basically just throw all the sequences into a POA alignment and see what happens
+    void generate_from_bipartition(const bipartition& bipartition, size_t component_index);
+
+    // Do POA with spoa for an arbitrary collection of edges
+    void generate_from_edges(const vector<edge_t>& edges, size_t component_index);
+
+private:
+    void sort_alignment_data_by_length();
+
+    SpliceData& get_splice_data(bool is_left, size_t id, size_t i);
+
+    void add_alignments_to_poa(Graph& spoa_graph, unique_ptr<AlignmentEngine>& alignment_engine);
+
+    void convert_spoa_to_bdsg(Graph& spoa_graph);
+};
+
 
 class PileupGenerator {
 public:
     /// Attributes ///
+    const BipartiteGraph& bipartite_graph;
+    const IncrementalIdMap<string>& id_map;
+    OverlapMap& overlaps;
+    HandleGraph& gfa_graph;
+    Pileup& pileup;
+    vector <vector <SpliceData> >& splice_sites;
+    vector <mutex>& splice_site_mutexes;
 
     /// Methods ///
-    PileupGenerator();
+    PileupGenerator(
+            const BipartiteGraph& bipartite_graph,
+            const IncrementalIdMap<string>& id_map,
+            OverlapMap& overlaps,
+            HandleGraph& gfa_graph,
+            Pileup& pileup,
+            vector <vector <SpliceData> >& splice_sites,
+            vector <mutex>& splice_site_mutexes
+    );
 
     // Given a bipartition, build a multiple sequence alignment by projecting a set of pairwise alignments
     // through each other, using an arbitrary subset of pairs
-    static void generate_from_bipartition(
-            const BipartiteGraph& bipartite_graph,
-            const IncrementalIdMap<string>& id_map,
-            OverlapMap& overlaps,
-            HandleGraph& graph,
-            Pileup& pileup);
-
-    // Basically just throw all the sequences into a POA alignment and see what happens
-    static void generate_spoa_graph_from_bipartition(
-            const bipartition& bipartition,
-            const IncrementalIdMap<string>& id_map,
-            OverlapMap& overlaps,
-            HandleGraph& graph,
-            PoaPileup& pileup,
-            vector <vector <SpliceData> >& splice_sites,
-            vector <mutex>& splice_site_mutexes,
-            size_t component_index);
-    
-    // Do POA with spoa for an arbitrary collection of edges
-    static void generate_spoa_graph_from_edges(
-            const vector<edge_t>& edges,
-            const IncrementalIdMap<string>& id_map,
-            OverlapMap& overlaps,
-            HandleGraph& graph,
-            PoaPileup& pileup,
-            vector <vector <SpliceData> >& splice_sites,
-            vector <mutex>& splice_site_mutexes,
-            size_t component_index);
+    void generate_from_bipartition();
 
     // A generator-style DFS walk of the nodes in the partition
-    static bool traverse_bipartition_nodes(
-            const HandleGraph& graph,
-            const OverlapMap& overlaps,
-            const BipartiteGraph& bipartite_graph,
-            BicliqueIterator& iterator);
+    bool traverse_bipartition_nodes(BicliqueIterator& iterator);
 
     // A generator-style walk along the bipartition such that each step fills in the "edge" object with an edge
     // containing one sequence that was in a previous alignment allowing a projected MSA to be built.
-    static bool traverse_bipartition_edges(
-            const HandleGraph& graph,
-            const OverlapMap& overlaps,
-            const BipartiteGraph& bipartite_graph,
-            BicliqueIterator& iterator);
+    bool traverse_bipartition_edges(BicliqueIterator& iterator);
 
-    static void update_pseudoref(
-            Pileup& pileup,
-            HandleGraph& graph,
+    void update_pseudoref(
             handle_t pseudo_reference,
             size_t pseudo_ref_length,
             size_t prev_pseudo_ref_length,
@@ -116,27 +132,11 @@ public:
             bool is_left);
 
 private:
-    static void debug_print(
-            const IncrementalIdMap<string>& id_map,
-            HandleGraph& graph,
-            OverlapMap& overlaps,
-            BicliqueIterator& biclique_iterator);
+    void debug_print(BicliqueIterator& biclique_iterator);
 
-    static bool pseudoref_is_reversed(
-            const Pileup& pileup,
+    bool pseudoref_is_reversed(
             const edge_t& canonical_edge,
             const BicliqueIterator& biclique_iterator);
-
-    static void add_alignments_to_poa(
-            HandleGraph& graph,
-            PoaPileup& pileup,
-            Graph& spoa_graph,
-            unique_ptr<AlignmentEngine>& alignment_engine);
-
-    static void convert_spoa_to_bdsg(
-            Graph& spoa_graph,
-            PoaPileup& pileup,
-            HandleGraph& gfa_handle_graph);
 };
 
 
