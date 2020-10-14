@@ -499,10 +499,7 @@ void PileupGenerator::add_alignments_to_poa(
                     auto alignment = alignment_engine->Align(subsequence, spoa_graph);
                     spoa_graph.AddAlignment(alignment, subsequence);
 
-                    data.spoa_id = spoa_id;
-                }
-                else{
-                    data.spoa_id = spoa_id;
+                    data.spoa_id = spoa_id++;
                 }
             }
         }
@@ -521,24 +518,27 @@ void PileupGenerator::convert_spoa_to_bdsg(
 
     for (bool is_left: {false, true}){
 
+        // Iterate all the sequences involved in this biclique (find them by their coordinates)
         for (uint64_t id=0; id < pileup.alignment_data[!is_left].size(); id++) {
-            // Longest alignment
+            // Get the longest overlap for this sequence
             auto alignment_data = pileup.alignment_data[!is_left][id][0];
+
+            // This points to the first SPOA node within the path that this sequence aligned to in the SPOA graph
             auto node = paths[alignment_data.spoa_id];
+
             uint64_t gfa_start_index = alignment_data.sequence_start_index;
             uint64_t base_index = 0;
 
-
+            // Iterate through the path
             while (true) {
 //              std::cout << node->code << " " << node->id << " " << node->Coverage() << " " << '\n';
 
+                // Check if this node has already been copied to the BDSGraph
                 auto iter = nodes_created.find(node->id);
 
                 if (iter == nodes_created.end()) {
                     auto gfa_handle = pileup.id_map[!is_left].get_name(id);
                     char base = gfa_handle_graph.get_base(gfa_handle, gfa_start_index + base_index);
-
-//                  std::cout << base << '\n';
 
                     auto new_pileup_node = pileup.graph.create_handle(string(1, base));
                     nodes_created.emplace(node->id, new_pileup_node);
@@ -556,6 +556,7 @@ void PileupGenerator::convert_spoa_to_bdsg(
                     previous_pileup_node = iter->second;
                 }
 
+                // If there are other (shorter) overlaps that this node participated in, then they also need paths
                 for (auto& item: pileup.alignment_data[!is_left][id]) {
                     auto gfa_index = gfa_start_index + base_index;
 
@@ -567,6 +568,7 @@ void PileupGenerator::convert_spoa_to_bdsg(
 
                 base_index++;
 
+                // Move to the next SPOA node
                 if (!(node = node->Successor(alignment_data.spoa_id))) {
                     break;
                 }
@@ -599,19 +601,19 @@ void PileupGenerator::generate_spoa_graph_from_edges(
         }
         
         pair<size_t, size_t> lengths;
-        size_t start;
-        
+
         std::cout << id_map.get_name(graph.get_id(edge.first)) << "->";
         std::cout << id_map.get_name(graph.get_id(edge.second)) << '\n';
         
         iter->second.compute_lengths(lengths);
-        
-        start = graph.get_length(edge.first) - lengths.first;
-        
-//        std::cout << lengths.first << " " << lengths.second << '\n';
-//        std::cout << iter->second.create_formatted_alignment_string(graph, edge, start, 0) << '\n';
-//        std::cout << '\n';
-        
+
+        {
+            size_t start = graph.get_length(edge.first) - lengths.first;
+            std::cout << lengths.first << " " << lengths.second << '\n';
+            std::cout << iter->second.create_formatted_alignment_string(graph, edge, start, 0) << '\n';
+            std::cout << '\n';
+        }
+
         alignment.compute_lengths(lengths);
         size_t left_start = graph.get_length(edge.first) - lengths.first;
         size_t right_start = 0;
@@ -670,6 +672,9 @@ void PileupGenerator::generate_spoa_graph_from_edges(
 
         query_id = graph.get_id(query);
         splice_site_mutexes[query_id].lock();
+
+        std::cout << "REF IS_REVERSE: " << ref_is_reverse << '\n';
+        std::cout << "QUERY IS_REVERSE: " << query_is_reverse << '\n';
 
         splice_sites[query_id].emplace_back(query_is_reverse,
                                             false,
@@ -736,6 +741,16 @@ void PileupGenerator::generate_spoa_graph_from_edges(
     unchop(&pileup.graph);
     
     handle_graph_to_gfa(pileup.graph, "test_output_unchopped.gfa");
+
+//    {
+//        pileup.graph.for_each_path_handle([&](const path_handle_t& p) {
+//            pileup.graph.for_each_step_in_path(p, [&](const step_handle_t& step) {
+//                auto h = pileup.graph.get_handle_of_step(step);
+//                std::cout << pileup.graph.get_sequence(h);
+//            });
+//            std::cout << "\n";
+//        });
+//    }
 }
 
 

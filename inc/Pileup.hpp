@@ -77,10 +77,13 @@ public:
     size_t get_coordinate();
 
     // Remove left/right AND forward/reverse ambiguity when finding the splice coordinate
-    size_t get_forward_coordinate(HandleGraph& gfa_graph, size_t node_id);
+    size_t get_forward_coordinate(HandleGraph& gfa_graph, size_t node_id) const;
+
+    // Assume an index is given in forward orientation, then re-zero this splice sites coords based on that index
+    void offset_splice_coordinate(HandleGraph& gfa_graph, size_t node_id, size_t coordinate);
 
     // Save some sanity by telling the user whether the splice site is on the left end of the canonical node
-    bool forward_splice_is_left();
+    bool forward_splice_is_left() const;
 
     bool operator<(const SpliceData& other) const;
 };

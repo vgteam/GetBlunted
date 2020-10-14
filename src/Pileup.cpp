@@ -50,7 +50,7 @@ size_t SpliceData::get_coordinate(){
 /// Tell the user which of the sequence indexes is the middlemost index, so that leftness
 /// doesn't need to be considered AND flip the coord if the node was reverse at the time
 /// this site was created
-size_t SpliceData::get_forward_coordinate(HandleGraph& gfa_graph, size_t node_id){
+size_t SpliceData::get_forward_coordinate(HandleGraph& gfa_graph, size_t node_id) const{
     auto h = gfa_graph.get_handle(node_id, is_reverse);
 
     size_t coordinate;
@@ -83,7 +83,7 @@ size_t SpliceData::get_forward_coordinate(HandleGraph& gfa_graph, size_t node_id
 }
 
 
-bool SpliceData::forward_splice_is_left(){
+bool SpliceData::forward_splice_is_left() const{
     bool splice_is_left;
 
     // If the SpliceData tells us that it is "left", that means the node is on the left of an overlap,
