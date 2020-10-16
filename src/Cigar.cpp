@@ -104,7 +104,7 @@ Alignment::Alignment(const string& s) {
 }
 
 
-void Alignment::compute_lengths(pair<size_t,size_t>& lengths){
+void Alignment::compute_lengths(pair<size_t,size_t>& lengths) const{
     // Reset lengths
     lengths.first = 0;
     lengths.second = 0;

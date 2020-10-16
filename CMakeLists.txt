@@ -50,10 +50,7 @@ set(SOURCES
         src/IncrementalIdMap.cpp
         src/is_single_stranded.cpp
         src/OverlapMap.cpp
-        src/PileupGenerator.cpp
-        src/Pileup.cpp
 	src/ReducedDualGraph.cpp
-        src/Splicer.cpp
         src/SubtractiveHandleGraph.cpp
         src/topological_sort.cpp
         src/unchop.cpp

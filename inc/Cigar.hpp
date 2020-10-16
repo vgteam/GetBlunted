@@ -71,7 +71,7 @@ public:
     Alignment(const string& s);
 
     // Return the sequence lengths of the {query,ref} in a pair
-    void compute_lengths(pair<size_t,size_t>& lengths);
+    void compute_lengths(pair<size_t,size_t>& lengths) const;
 
     // Return the length in terms of non-inserts and non-deletes
     uint64_t compute_common_length();
