@@ -31,7 +31,10 @@ public:
     void insert(const gfak::edge_elem& e, const edge_t& edge_handle);
     unordered_map<edge_t,Alignment>::iterator at(handle_t source, handle_t sink);
     unordered_map<edge_t,Alignment>::iterator at(const edge_t& edge_handle);
-    unordered_map<edge_t,Alignment>::iterator canonicalize_and_find(edge_t& edge, const HandleGraph& graph);
+    unordered_map<edge_t,Alignment>::const_iterator at(handle_t source, handle_t sink) const;
+    unordered_map<edge_t,Alignment>::const_iterator at(const edge_t& edge_handle) const;
+    unordered_map<edge_t,Alignment>::iterator canonicalize_and_find(const edge_t& edge, const HandleGraph& graph);
+    unordered_map<edge_t,Alignment>::const_iterator canonicalize_and_find(const edge_t& edge, const HandleGraph& graph) const;
     void canonicalize_and_compute_lengths(pair<size_t,size_t>& lengths, edge_t& edge, const HandleGraph& graph);
 };
 

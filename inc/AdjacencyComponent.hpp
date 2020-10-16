@@ -44,7 +44,7 @@ void for_each_adjacency_component(const HandleGraph& graph,
                                   const function<void(AdjacencyComponent&)>& lambda);
 
 
-void compute_adjacency_components(const HandleGraph& graph, vector<AdjacencyComponent>& components);
+void compute_all_adjacency_components(const HandleGraph& graph, vector<AdjacencyComponent>& components);
 
 
 // get a list of all of the adjacency components in a graph

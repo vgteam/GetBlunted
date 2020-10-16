@@ -48,7 +48,7 @@ bool AdjacencyComponent::empty() const {
 }
 
 
-void compute_adjacency_components(const HandleGraph& graph, vector<AdjacencyComponent>& components) {
+void compute_all_adjacency_components(const HandleGraph& graph, vector<AdjacencyComponent>& components) {
     for_each_adjacency_component(graph, [&](AdjacencyComponent& component) {
         components.emplace_back(move(component));
     });
