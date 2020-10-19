@@ -281,6 +281,9 @@ void NodeInfo::sort_factored_overlaps(){
 //}
 
 
+// TODO: create test and separate class for recursive duping
+
+
 void duplicate_termini(
         const vector <vector <BicliqueEdgeIndex> >& node_to_biclique_edge,
         const Bicliques& bicliques,
