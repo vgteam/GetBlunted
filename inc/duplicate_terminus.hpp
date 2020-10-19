@@ -17,7 +17,7 @@ namespace bluntifier{
 
 void duplicate_terminus(
         MutablePathMutableHandleGraph& graph,
-        queue<size_t>& sizes,
+        deque<size_t>& sizes,
         deque<handle_t>& children,
         handle_t parent_node);
 

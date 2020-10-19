@@ -2,6 +2,7 @@
 #include "BicliqueCover.hpp"
 #include "OverlapMap.hpp"
 #include "gfa_to_handle.hpp"
+#include "duplicate_terminus.hpp"
 #include "copy_graph.hpp"
 #include "utility.hpp"
 
@@ -21,6 +22,7 @@ using bluntifier::BipartiteGraph;
 using bluntifier::BicliqueCover;
 using bluntifier::bipartition;
 using bluntifier::copy_path_handle_graph;
+using bluntifier::duplicate_terminus;
 
 using handlegraph::handle_t;
 using bdsg::HashGraph;
@@ -115,6 +117,10 @@ public:
     void sort_factored_overlaps();
 
     size_t get_overlap_length(edge_t edge, bool side);
+    void get_sorted_biclique_extents(
+            array <deque <size_t>, 2>& sorted_extents_per_side,
+            array <deque <size_t>, 2>& sorted_bicliques_per_side);
+
     void print_stats();
 };
 
@@ -159,6 +165,93 @@ void NodeInfo::print_stats() {
     }
 
     cout << '\n';
+}
+
+
+size_t NodeInfo::get_overlap_length(edge_t edge, bool side){
+    pair<size_t, size_t> lengths;
+    overlaps.at(edge)->second.compute_lengths(lengths);
+
+    size_t length;
+    if (side == 0){
+        length = lengths.first;
+    }
+    else{
+        length = lengths.second;
+    }
+
+    return length;
+}
+
+
+// For one node, make a mapping: (side -> (biclique_index -> (edge_index,length) ) )
+void NodeInfo::factor_overlaps_by_biclique_and_side() {
+
+    for (auto& index: node_to_biclique_edge[node_id]) {
+        auto edge = bicliques[index];
+
+        auto left_node_id = gfa_graph.get_id(edge.first);
+        auto right_node_id = gfa_graph.get_id(edge.second);
+
+        // It's possible that the edge is a self-edge. Add the edge (index) to any side that it matches.
+        if (left_node_id == nid_t(node_id)) {
+            auto length = get_overlap_length(edge, 0);
+            factored_overlaps[0][index.biclique_index].emplace_back(index.edge_index, length);
+        }
+        if (right_node_id == nid_t(node_id)) {
+            auto length = get_overlap_length(edge, 1);
+            factored_overlaps[1][index.biclique_index].emplace_back(index.edge_index, length);
+        }
+    }
+}
+
+
+void NodeInfo::sort_factored_overlaps(){
+    // First sort each biclique by its constituent edges
+    for (bool side: {0,1}) {
+        auto biclique_edge_indexes = factored_overlaps[side];
+
+        for (auto& biclique: biclique_edge_indexes) {
+            auto& biclique_index = biclique.first;
+            auto& overlap_infos = biclique.second;
+
+            sort(overlap_infos.begin(), overlap_infos.end(), [&](OverlapInfo a, OverlapInfo b){
+                return a.length > b.length;
+            });
+        }
+    }
+}
+
+
+void NodeInfo::get_sorted_biclique_extents(
+        array <deque <size_t>, 2>& sorted_extents_per_side,
+        array <deque <size_t>, 2>& sorted_bicliques_per_side){
+
+    for (auto side: {0,1}) {
+        vector <pair <size_t, size_t> > sorted_biclique_extents;
+
+        auto biclique_edge_indexes = factored_overlaps[side];
+
+        // Collect all the longest overlaps for each biclique (NodeInfo keeps them in descending sorted order)
+        for (auto& biclique: biclique_edge_indexes) {
+            auto& biclique_index = biclique.first;
+            auto& overlap_infos = biclique.second;
+
+            sorted_biclique_extents.emplace_back(biclique_index, overlap_infos[0].length);
+        }
+
+        // Sort the bicliques by their longest overlap length
+        sort(sorted_biclique_extents.begin(), sorted_biclique_extents.end(),
+             [&](const pair<size_t, size_t>& a, const pair<size_t, size_t>& b) {
+                 return a.second > b.second;
+             });
+
+        // Unzip the pairs into 2 deques (makes it easier to send the data off to the recursive duplicator)
+        for (auto& item: sorted_biclique_extents){
+            sorted_bicliques_per_side[side].emplace_back(item.first);
+            sorted_extents_per_side[side].emplace_back(item.second);
+        }
+    }
 }
 
 
@@ -220,80 +313,28 @@ void compute_all_bicliques(
 }
 
 
-size_t NodeInfo::get_overlap_length(edge_t edge, bool side){
-    pair<size_t, size_t> lengths;
-    overlaps.at(edge)->second.compute_lengths(lengths);
-
-    size_t length;
-    if (side == 0){
-        length = lengths.first;
-    }
-    else{
-        length = lengths.second;
-    }
-
-    return length;
-}
-
-
-// For one node, make a mapping: (side -> (biclique_index -> (edge_index,length) ) )
-void NodeInfo::factor_overlaps_by_biclique_and_side() {
-
-    for (auto& index: node_to_biclique_edge[node_id]) {
-        auto edge = bicliques[index];
-
-        auto left_node_id = gfa_graph.get_id(edge.first);
-        auto right_node_id = gfa_graph.get_id(edge.second);
-
-        // It's possible that the edge is a self-edge. Add the edge (index) to any side that it matches.
-        if (left_node_id == nid_t(node_id)) {
-            auto length = get_overlap_length(edge, 0);
-            factored_overlaps[0][index.biclique_index].emplace_back(index.edge_index, length);
-        }
-        if (right_node_id == nid_t(node_id)) {
-            auto length = get_overlap_length(edge, 1);
-            factored_overlaps[1][index.biclique_index].emplace_back(index.edge_index, length);
-        }
-    }
-}
-
-
-void NodeInfo::sort_factored_overlaps(){
-    for (bool side: {0,1}) {
-        auto biclique_edge_indexes = factored_overlaps[side];
-
-        for (auto& biclique: biclique_edge_indexes) {
-            auto& biclique_index = biclique.first;
-            auto& overlap_infos = biclique.second;
-
-            sort(overlap_infos.begin(), overlap_infos.end(), [&](OverlapInfo a, OverlapInfo b){
-                return a.length > b.length;
-            });
-        }
-    }
-}
-
-
-//void make_babies(HandleGraph& gfa_graph, NodeInfo node_info, bool side){
-//    for (){
-//
-//    }
-//}
-
-
-// TODO: create test and separate class for recursive duping
-
-
-void duplicate_termini(
+void duplicate(
         const vector <vector <BicliqueEdgeIndex> >& node_to_biclique_edge,
         const Bicliques& bicliques,
-        HandleGraph& gfa_graph,
+        MutablePathMutableHandleGraph& gfa_graph,
         OverlapMap& overlaps){
+
 
     for (size_t node_id=1; node_id<node_to_biclique_edge.size(); node_id++){
         // Factor the overlaps into hierarchy: side -> biclique -> (overlap, length)
         NodeInfo node_info(node_to_biclique_edge, bicliques, gfa_graph, overlaps, node_id);
 
+        // Keep track of which biclique is in which position once sorted
+        array <deque <size_t>, 2> sorted_sizes_per_side;
+        array <deque <size_t>, 2> sorted_bicliques_per_side;
+
+        node_info.get_sorted_biclique_extents(sorted_sizes_per_side, sorted_bicliques_per_side);
+
+        for (auto side: {0,1}) {
+            deque<handle_t> children;
+            auto h = gfa_graph.get_handle(node_id, false);
+            duplicate_terminus(gfa_graph, sorted_sizes_per_side[side], children, h);
+        }
     }
 }
 
@@ -372,7 +413,7 @@ void bluntify(string gfa_path){
 
     map_splice_sites_by_node(gfa_graph, bicliques, node_to_biclique_edge);
 
-    duplicate_termini(node_to_biclique_edge, bicliques, gfa_graph, overlaps);
+    duplicate(node_to_biclique_edge, bicliques, gfa_graph, overlaps);
 
 }
 
