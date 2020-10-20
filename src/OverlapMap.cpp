@@ -9,15 +9,19 @@ namespace bluntifier{
 OverlapMap::OverlapMap()=default;
 
 
-void OverlapMap::insert(const gfak::edge_elem& e, handle_t source, handle_t sink){
-    Alignment cigar(e.alignment);
-    overlaps.insert({make_pair(source, sink), cigar});
+Alignment OverlapMap::insert(const gfak::edge_elem& e, handle_t source, handle_t sink){
+    Alignment alignment(e.alignment);
+    overlaps.insert({make_pair(source, sink), alignment});
+
+    return alignment;
 }
 
 
-void OverlapMap::insert(const gfak::edge_elem& e, const edge_t& edge_handle){
-    Alignment cigar(e.alignment);
-    overlaps.insert({edge_handle, cigar});
+Alignment OverlapMap::insert(const gfak::edge_elem& e, const edge_t& edge_handle){
+    Alignment alignment(e.alignment);
+    overlaps.insert({edge_handle, alignment});
+
+    return alignment;
 }
 
 

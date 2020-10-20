@@ -122,7 +122,20 @@ void gfa_to_handle_graph_on_disk(
         graph.create_edge(a, b);
 
         // Update the overlap map (assuming the GFA is "canonical")
-        overlaps.insert(e, a, b);
+        Alignment alignment = overlaps.insert(e, a, b);
+
+        pair<size_t, size_t> lengths;
+        alignment.compute_lengths(lengths);
+
+        if (lengths.first > graph.get_length(a)){
+            cerr << "WARNING: sum of cigar operations is longer than source node: "
+                 << e.source_name << " " << e.sink_name << '\n';
+        }
+        if (lengths.second > graph.get_length(b)){
+            cerr << "WARNING: sum of cigar operations is longer than sink node: "
+                 << e.source_name << " " << e.sink_name << '\n';
+        }
+
     });
 }
 

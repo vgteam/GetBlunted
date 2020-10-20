@@ -27,8 +27,8 @@ public:
     /// Methods ///
     OverlapMap();
 
-    void insert(const gfak::edge_elem& e, handle_t source, handle_t sink);
-    void insert(const gfak::edge_elem& e, const edge_t& edge_handle);
+    Alignment insert(const gfak::edge_elem& e, handle_t source, handle_t sink);
+    Alignment insert(const gfak::edge_elem& e, const edge_t& edge_handle);
     unordered_map<edge_t,Alignment>::iterator at(handle_t source, handle_t sink);
     unordered_map<edge_t,Alignment>::iterator at(const edge_t& edge_handle);
     unordered_map<edge_t,Alignment>::const_iterator at(handle_t source, handle_t sink) const;
