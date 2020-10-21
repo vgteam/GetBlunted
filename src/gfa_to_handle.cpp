@@ -121,7 +121,7 @@ void gfa_to_handle_graph_on_disk(
         handle_t b = graph.get_handle(sink_id, not e.sink_orientation_forward);
         graph.create_edge(a, b);
 
-        // Update the overlap map (assuming the GFA is "canonical")
+        // Update the overlap map
         Alignment alignment = overlaps.insert(e, a, b);
 
         pair<size_t, size_t> lengths;

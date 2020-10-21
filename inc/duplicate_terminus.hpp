@@ -15,7 +15,14 @@ using std::queue;
 namespace bluntifier{
 
 
-void duplicate_terminus(
+void duplicate_prefix(
+        MutablePathMutableHandleGraph& graph,
+        deque<size_t>& sizes,
+        deque<handle_t>& children,
+        handle_t parent_node);
+
+
+void duplicate_suffix(
         MutablePathMutableHandleGraph& graph,
         deque<size_t>& sizes,
         deque<handle_t>& children,
