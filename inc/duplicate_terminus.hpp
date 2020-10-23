@@ -19,14 +19,14 @@ void duplicate_prefix(
         MutablePathMutableHandleGraph& graph,
         deque<size_t>& sizes,
         deque<handle_t>& children,
-        handle_t parent_node);
+        handle_t parent_handle);
 
 
 void duplicate_suffix(
         MutablePathMutableHandleGraph& graph,
         deque<size_t>& sizes,
         deque<handle_t>& children,
-        handle_t parent_node);
+        handle_t parent_handle);
 
 
 }

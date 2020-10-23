@@ -28,6 +28,8 @@ using bluntifier::duplicate_prefix;
 using bluntifier::duplicate_suffix;
 using bluntifier::run_command;
 
+using handlegraph::MutablePathDeletableHandleGraph;
+using handlegraph::as_integer;
 using handlegraph::handle_t;
 using bdsg::HashGraph;
 
@@ -214,7 +216,7 @@ void NodeInfo::factor_overlaps_by_biclique_and_side() {
 void NodeInfo::sort_factored_overlaps(){
     // First sort each biclique by its constituent edges
     for (bool side: {0,1}) {
-        auto biclique_edge_indexes = factored_overlaps[side];
+        auto& biclique_edge_indexes = factored_overlaps[side];
 
         for (auto& biclique: biclique_edge_indexes) {
             auto& biclique_index = biclique.first;
@@ -238,7 +240,7 @@ void NodeInfo::get_sorted_biclique_extents(
     for (auto side: {0,1}) {
         vector <pair <size_t, size_t> > sorted_biclique_extents;
 
-        auto biclique_edge_indexes = factored_overlaps[side];
+        auto& biclique_edge_indexes = factored_overlaps[side];
 
         // Collect all the longest overlaps for each biclique (NodeInfo keeps them in descending sorted order)
         for (auto& biclique: biclique_edge_indexes) {
@@ -316,8 +318,8 @@ void compute_all_bicliques(
         vector <bipartition> biclique_cover = BicliqueCover(bipartite_graph).get();
         vector <vector <edge_t> > deduplicated_biclique_cover;
 
-        // TODO: find a lock-minimal way to prevent copying each biclique cover during duplication
-        // TODO: Maybe just move the deduplication outside of thread fn?
+        // TODO: find a lock-minimal thread safe way to prevent copying each biclique cover during duplication
+        // TODO: Maybe just move the deduplication step outside of thread fn?
         deduplicate_and_canonicalize_biclique_cover(
                 biclique_cover,
                 deduplicated_biclique_cover,
@@ -333,15 +335,172 @@ void compute_all_bicliques(
 }
 
 
-void update_biclique_edges(){
+void update_biclique_edges(
+        MutablePathMutableHandleGraph& gfa_graph,
+        Bicliques& bicliques,
+        OverlapMap& overlaps,
+        nid_t old_node_id,
+        handle_t old_handle,
+        handle_t old_handle_flipped,
+        const array <deque <size_t>, 2>& sorted_bicliques_per_side,
+        const deque <handle_t>& children,
+        bool duped_side){
+
+    for (auto& item: children) {
+        std::cout << gfa_graph.get_id(item) << " " << as_integer(item) << "F " << as_integer(gfa_graph.flip(item)) << "R " << gfa_graph.get_sequence(item) << '\n';
+    }
+
+    for (bool side: {0,1}) {
+        for (size_t i = 0; i < sorted_bicliques_per_side[side].size(); i++) {
+            size_t biclique_index = sorted_bicliques_per_side[side][i];
+
+            for (auto& edge: bicliques[biclique_index]) {
+                auto old_edge = edge;
+
+                cout << "Replacing " << old_node_id << '\n';
+                cout << "Replacing " << as_integer(old_handle) <<"F or " << as_integer(old_handle_flipped) << "R" << '\n';
+
+                cout << "[" << biclique_index << "] " << duped_side << " " << side << as_integer(old_edge.first) << "h->" << as_integer(old_edge.second) << "h" << '\n';
+
+                if (duped_side == 0) {
+                    if (side == 0) {
+                        if (old_edge.second == old_handle){
+                            edge.second = children[i+1];
+
+                            // Account for self loops (non-reversing)
+                            if (old_edge.first == old_edge.second){
+                                edge.first = children[0];
+                            }
+                            cout << "Creating " << gfa_graph.get_id(edge.first) << "->" << gfa_graph.get_id(edge.second) << '\n';
+                            gfa_graph.create_edge(edge);
+                            overlaps.update_edge(old_edge, edge);
+
+                        }
+                        else if (old_edge.second == old_handle_flipped){
+                            edge.second = gfa_graph.flip(children[0]);
+
+                            // Account for self loops (non-reversing)
+                            if (old_edge.first == old_edge.second){
+                                edge.first = gfa_graph.flip(children[i+1]);
+                            }
+                            cout << "Creating " << gfa_graph.get_id(edge.first) << "->" << gfa_graph.get_id(edge.second) << '\n';
+                            gfa_graph.create_edge(edge);
+                            overlaps.update_edge(old_edge, edge);
+
+                        }
+                    }
+                    else{
+                        if (old_edge.first == old_handle){
+                            edge.first = children[0];
+
+                            // Account for self loops (non-reversing)
+                            if (old_edge.first == old_edge.second){
+                                edge.second = children[i+1];
+                            }
+                            cout << "Creating " << gfa_graph.get_id(edge.first) << "->" << gfa_graph.get_id(edge.second) << '\n';
+                            gfa_graph.create_edge(edge);
+                            overlaps.update_edge(old_edge, edge);
+                        }
+                        else if (old_edge.first == old_handle_flipped){
+                            edge.first = gfa_graph.flip(children[i+1]);
+
+                            // Account for self loops (non-reversing)
+                            if (old_edge.first == old_edge.second){
+                                edge.second = gfa_graph.flip(children[0]);
+                            }
+                            cout << "Creating " << gfa_graph.get_id(edge.first) << "->" << gfa_graph.get_id(edge.second) << '\n';
+                            gfa_graph.create_edge(edge);
+                            overlaps.update_edge(old_edge, edge);
+                        }
+                    }
+                }
+                else{
+                    if (side == 0) {
+                        if (old_edge.second == old_handle){
+                            edge.second = children[0];
+
+                            // Account for self loops (non-reversing)
+                            if (old_edge.first == old_edge.second){
+                                edge.first = children[i+1];
+                            }
+                            cout << "Creating " << gfa_graph.get_id(edge.first) << "->" << gfa_graph.get_id(edge.second) << '\n';
+                            gfa_graph.create_edge(edge);
+                            overlaps.update_edge(old_edge, edge);
+
+                        }
+                        else if (old_edge.second == old_handle_flipped){
+                            edge.second = gfa_graph.flip(children[i+1]);
+
+                            // Account for self loops (non-reversing)
+                            if (old_edge.first == old_edge.second){
+                                edge.first = gfa_graph.flip(children[0]);
+                            }
+                            cout << "Creating " << gfa_graph.get_id(edge.first) << "->" << gfa_graph.get_id(edge.second) << '\n';
+                            gfa_graph.create_edge(edge);
+                            overlaps.update_edge(old_edge, edge);
+
+                        }
+                    }
+                    else{
+                        if (old_edge.first == old_handle){
+                            edge.first = children[i+1];
+
+                            // Account for self loops (non-reversing)
+                            if (old_edge.first == old_edge.second){
+                                edge.second = children[0];
+                            }
+                            cout << "Creating " << gfa_graph.get_id(edge.first) << "->" << gfa_graph.get_id(edge.second) << '\n';
+                            gfa_graph.create_edge(edge);
+                            overlaps.update_edge(old_edge, edge);
+
+                        }
+                        else if (old_edge.first == old_handle_flipped){
+                            edge.first = gfa_graph.flip(children[0]);
+
+                            // Account for self loops (non-reversing)
+                            if (old_edge.first == old_edge.second){
+                                edge.second = gfa_graph.flip(children[i+1]);
+                            }
+                            cout << "Creating " << gfa_graph.get_id(edge.first) << "->" << gfa_graph.get_id(edge.second) << '\n';
+                            gfa_graph.create_edge(edge);
+                            overlaps.update_edge(old_edge, edge);
+
+                        }
+                    }
+                }
+            }
+        }
+    }
+    cout << '\n';
+}
+
+
+void remove_participating_edges(
+        MutablePathDeletableHandleGraph& gfa_graph,
+        Bicliques& bicliques,
+        const array <deque <size_t>, 2>& sorted_bicliques_per_side,
+        nid_t parent_node
+){
+
+    for (bool side: {0,1}) {
+        for (auto& biclique_index: sorted_bicliques_per_side[side]) {
+            for (auto& edge: bicliques[biclique_index]) {
+                if (gfa_graph.get_id(edge.first) == parent_node or gfa_graph.get_id(edge.second) == parent_node) {
+//                    cout << "Deleting " << gfa_graph.get_id(edge.first) << "->" << gfa_graph.get_id(edge.second)
+//                         << '\n';
+                    gfa_graph.destroy_edge(edge);
+                }
+            }
+        }
+    }
 
 }
 
 
 void duplicate_termini(
         const vector <vector <BicliqueEdgeIndex> >& node_to_biclique_edge,
-        const Bicliques& bicliques,
-        MutablePathMutableHandleGraph& gfa_graph,
+        Bicliques& bicliques,
+        MutablePathDeletableHandleGraph& gfa_graph,
         OverlapMap& overlaps){
 
     for (size_t node_id=1; node_id<node_to_biclique_edge.size(); node_id++){
@@ -357,19 +516,39 @@ void duplicate_termini(
         node_info.get_sorted_biclique_extents(sorted_sizes_per_side, sorted_bicliques_per_side);
 
         {
-            string test_path_prefix = "test_bluntify_" + std::to_string(node_id) + "__";
+            string test_path_prefix = "test_bluntify_" + std::to_string(node_id) + "_";
             handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
             string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                              + test_path_prefix + ".png";
             run_command(command);
         }
 
+        handle_t parent_handle = gfa_graph.get_handle(node_id, 0);
+        handle_t parent_handle_flipped = gfa_graph.flip(parent_handle);
+        nid_t parent_node = node_id;
+
+        remove_participating_edges(gfa_graph, bicliques, sorted_bicliques_per_side, parent_node);
+
         deque<handle_t> left_children;
         deque<handle_t> right_children;
-        handle_t parent_node = gfa_graph.get_handle(node_id, 0);
 
         if (not sorted_sizes_per_side[0].empty()) {
-            duplicate_prefix(gfa_graph, sorted_sizes_per_side[0], left_children, parent_node);
+            duplicate_prefix(gfa_graph, sorted_sizes_per_side[0], left_children, parent_handle);
+
+            update_biclique_edges(
+                    gfa_graph,
+                    bicliques,
+                    overlaps,
+                    parent_node,
+                    parent_handle,
+                    parent_handle_flipped,
+                    sorted_bicliques_per_side,
+                    left_children,
+                    0);
+
+            parent_handle = left_children.front();
+            parent_handle_flipped = gfa_graph.flip(parent_handle);
+            parent_node = gfa_graph.get_id(parent_handle);
 
             {
                 string test_path_prefix = "test_bluntify_" + std::to_string(node_id) + "_" + std::to_string(0);
@@ -378,17 +557,31 @@ void duplicate_termini(
                                  + test_path_prefix + ".png";
                 run_command(command);
             }
-
-            parent_node = left_children.back();
         }
 
 
-
         if (not sorted_sizes_per_side[1].empty()) {
-            duplicate_suffix(gfa_graph, sorted_sizes_per_side[1], right_children, parent_node);
+            // Skip trivial duplication
+            if (sorted_sizes_per_side[1].size() == 1 and sorted_sizes_per_side[1][0] == gfa_graph.get_length(parent_handle)){
+//                cout << "Skipping trivial duplication\n";
+                continue;
+            }
+
+            duplicate_suffix(gfa_graph, sorted_sizes_per_side[1], right_children, parent_handle);
+
+            update_biclique_edges(
+                    gfa_graph,
+                    bicliques,
+                    overlaps,
+                    parent_node,
+                    parent_handle,
+                    parent_handle_flipped,
+                    sorted_bicliques_per_side,
+                    right_children,
+                    1);
 
             {
-                string test_path_prefix = "test_bluntify" + std::to_string(node_id) + "_" + std::to_string(1);
+                string test_path_prefix = "test_bluntify_" + std::to_string(node_id) + "_" + std::to_string(1);
                 handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
                 string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                                  + test_path_prefix + ".png";
@@ -448,6 +641,13 @@ void bluntify(string gfa_path){
     OverlapMap overlaps;
 
     gfa_to_handle_graph(gfa_path, gfa_graph, id_map, overlaps);
+
+    {
+        size_t id = 1;
+        for (auto& item: id_map.names) {
+            cout << id++ << " " << item << '\n';
+        }
+    }
 
     // Where all the ACs go
     vector<AdjacencyComponent> adjacency_components;
