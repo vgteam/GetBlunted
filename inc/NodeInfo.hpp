@@ -52,9 +52,9 @@ public:
 
     void get_sorted_biclique_extents(
             array<deque<size_t>, 2>& sorted_extents_per_side,
-            array<deque<size_t>, 2>& sorted_bicliques_per_side);
+            array<deque<size_t>, 2>& sorted_bicliques_per_side) const;
 
-    void print_stats();
+    void print_stats() const;
 };
 
 

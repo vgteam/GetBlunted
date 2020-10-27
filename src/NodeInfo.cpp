@@ -26,7 +26,7 @@ NodeInfo::NodeInfo(
 }
 
 
-void NodeInfo::print_stats() {
+void NodeInfo::print_stats() const{
     cout << "Node " << node_id << '\n';
 
     for (size_t side: {0, 1}) {
@@ -83,11 +83,27 @@ void NodeInfo::factor_overlaps_by_biclique_and_side() {
         // If the node is on the "left" of an edge then the overlap happens on the "right side" of the node...
         if (left_node_id == nid_t(node_id)) {
             auto length = get_overlap_length(edge, 0);
-            factored_overlaps[1][index.biclique_index].emplace_back(index.edge_index, length);
+
+            if (not gfa_graph.get_is_reverse(edge.first)) {
+                // Strictly adding entries to the map, so [] is ok here
+                factored_overlaps[1][index.biclique_index].emplace_back(index.edge_index, length);
+            }
+            else {
+                // Strictly adding entries to the map, so [] is ok here
+                factored_overlaps[0][index.biclique_index].emplace_back(index.edge_index, length);
+            }
         }
         if (right_node_id == nid_t(node_id)) {
             auto length = get_overlap_length(edge, 1);
-            factored_overlaps[0][index.biclique_index].emplace_back(index.edge_index, length);
+
+            if (not gfa_graph.get_is_reverse(edge.second)) {
+                // Strictly adding entries to the map, so [] is ok here
+                factored_overlaps[0][index.biclique_index].emplace_back(index.edge_index, length);
+            }
+            else{
+                // Strictly adding entries to the map, so [] is ok here
+                factored_overlaps[1][index.biclique_index].emplace_back(index.edge_index, length);
+            }
         }
     }
 }
@@ -112,7 +128,7 @@ void NodeInfo::sort_factored_overlaps() {
 
 void NodeInfo::get_sorted_biclique_extents(
         array<deque<size_t>, 2>& sorted_extents_per_side,
-        array<deque<size_t>, 2>& sorted_bicliques_per_side) {
+        array<deque<size_t>, 2>& sorted_bicliques_per_side) const{
 
     sorted_extents_per_side = {};
     sorted_bicliques_per_side = {};
@@ -120,12 +136,14 @@ void NodeInfo::get_sorted_biclique_extents(
     for (auto side: {0, 1}) {
         vector<pair<size_t, size_t> > sorted_biclique_extents;
 
-        auto& biclique_edge_indexes = factored_overlaps[side];
+        const auto& biclique_edge_indexes = factored_overlaps[side];
 
         // Collect all the longest overlaps for each biclique (NodeInfo keeps them in descending sorted order)
-        for (auto& biclique: biclique_edge_indexes) {
+        for (const auto& biclique: biclique_edge_indexes) {
             auto& biclique_index = biclique.first;
             auto& overlap_infos = biclique.second;
+
+            cout << "longest overlap for biclique " << biclique_index << " is " << overlap_infos[0].length << '\n';
 
             sorted_biclique_extents.emplace_back(biclique_index, overlap_infos[0].length);
         }
