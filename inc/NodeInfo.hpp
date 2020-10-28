@@ -35,14 +35,14 @@ public:
     const Bicliques& bicliques;
     const HandleGraph& gfa_graph;
     const OverlapMap& overlaps;
-    const size_t node_id;
+    const nid_t node_id;
 
     NodeInfo(
             const vector<vector<BicliqueEdgeIndex> >& node_to_biclique_edge,
             const Bicliques& bicliques,
             const HandleGraph& gfa_graph,
             const OverlapMap& overlaps,
-            size_t node_id);
+            nid_t node_id);
 
     void factor_overlaps_by_biclique_and_side();
 

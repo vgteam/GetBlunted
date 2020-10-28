@@ -14,7 +14,7 @@ NodeInfo::NodeInfo(
         const Bicliques& bicliques,
         const HandleGraph& gfa_graph,
         const OverlapMap& overlaps,
-        size_t node_id) :
+        nid_t node_id) :
         node_to_biclique_edge(node_to_biclique_edge),
         bicliques(bicliques),
         gfa_graph(gfa_graph),

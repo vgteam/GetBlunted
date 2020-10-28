@@ -3,6 +3,11 @@
 namespace bluntifier{
 
 
+OverlappingOverlapNode::OverlappingOverlapNode(nid_t parent_node):
+    parent_node(parent_node)
+{}
+
+
 Duplicator::Duplicator(
         const vector <vector <BicliqueEdgeIndex> >& node_to_biclique_edge,
         Bicliques& bicliques,
@@ -13,10 +18,36 @@ Duplicator::Duplicator(
 {}
 
 
+void Duplicator::duplicate_overlapping_overlap_node(
+        MutablePathDeletableHandleGraph& gfa_graph,
+        const array <deque <size_t>, 2>& sorted_sizes_per_side,
+        const array <deque <size_t>, 2>& sorted_bicliques_per_side,
+        const NodeInfo& node_info){
+    auto result = overlapping_overlap_nodes.emplace(node_info.node_id, node_info.node_id);
+    auto& overlap_node_data = result.first->second;
+
+    auto parent_handle = gfa_graph.get_handle(node_info.node_id, false);
+
+    for (auto& max_biclique_overlap_size: sorted_sizes_per_side[0]){
+        string sequence = gfa_graph.get_subsequence(parent_handle, 0, max_biclique_overlap_size);
+
+        gfa_graph.create_handle(sequence);
+        // TODO update OverlappingOverlapNode
+    }
+    for (auto& max_biclique_overlap_size: sorted_sizes_per_side[1]){
+        size_t start = gfa_graph.get_length(parent_handle) - max_biclique_overlap_size;
+        string sequence = gfa_graph.get_subsequence(parent_handle, start, max_biclique_overlap_size);
+
+        gfa_graph.create_handle(sequence);
+        // TODO update OverlappingOverlapNode
+    }
+
+}
+
+
 void Duplicator::repair_edges(
         MutablePathDeletableHandleGraph& gfa_graph,
         const array <map <size_t, handle_t>, 2>& biclique_side_to_child,
-        nid_t old_node_id,
         handle_t old_handle,
         handle_t old_handle_flipped) {
 
@@ -102,7 +133,6 @@ void Duplicator::remove_participating_edges(
         MutablePathDeletableHandleGraph& gfa_graph,
         nid_t parent_node
 ){
-
     for (auto side: {0,1}) {
         for (auto& biclique_index: sorted_bicliques_per_side[side]) {
             for (auto& edge: bicliques[biclique_index]) {
@@ -120,7 +150,6 @@ void Duplicator::remove_participating_edges(
 
 
 void Duplicator::duplicate_termini(MutablePathDeletableHandleGraph& gfa_graph){
-
     for (size_t node_id=1; node_id<node_to_biclique_edge.size(); node_id++){
         // Factor the overlaps into hierarchy: side -> biclique -> (overlap, length)
         const NodeInfo node_info(node_to_biclique_edge, bicliques, gfa_graph, overlaps, node_id);
@@ -132,6 +161,15 @@ void Duplicator::duplicate_termini(MutablePathDeletableHandleGraph& gfa_graph){
         array <deque <size_t>, 2> sorted_bicliques_per_side;
 
         node_info.get_sorted_biclique_extents(sorted_sizes_per_side, sorted_bicliques_per_side);
+
+        // If this is an overlapping overlap node, skip it and save it for later (adjacent nodes need to be duped first)
+        if (not sorted_sizes_per_side[0].empty() and not sorted_sizes_per_side[1].empty()){
+            if (sorted_sizes_per_side[0][0] > sorted_sizes_per_side[1][0]){
+                cout << "Skipping overlapping overlap node: " << node_id << '\n';
+//                overlapping_overlap_nodes.emplace_back(node_id);
+                continue;
+            }
+        }
 
         if (gfa_graph.get_node_count() < 30){
             string test_path_prefix = "test_bluntify_" + std::to_string(node_id) + "_";
@@ -178,7 +216,6 @@ void Duplicator::duplicate_termini(MutablePathDeletableHandleGraph& gfa_graph){
             biclique_side_to_child[0][biclique] = child;
         }
 
-
         // Check if right dupe is necessary
         bool right_dupe_is_trivial = false;
         if (not sorted_sizes_per_side[1].empty()) {
@@ -191,13 +228,12 @@ void Duplicator::duplicate_termini(MutablePathDeletableHandleGraph& gfa_graph){
             right_dupe_is_trivial = true;
         }
 
-
         // Do right duplication if necessary
         if (not right_dupe_is_trivial) {
             duplicate_suffix(gfa_graph, sorted_sizes_per_side[1], right_children, left_children.front());
         }
         else{
-            // If no duplication was performed, then the children are the parent
+            // If no duplication was performed, then the children are the parent (spooky)
             right_children = {left_children.front(), left_children.front()};
         }
 
@@ -212,7 +248,6 @@ void Duplicator::duplicate_termini(MutablePathDeletableHandleGraph& gfa_graph){
         repair_edges(
             gfa_graph,
             biclique_side_to_child,
-            node_id,
             parent_handle,
             parent_handle_flipped);
 
@@ -223,8 +258,12 @@ void Duplicator::duplicate_termini(MutablePathDeletableHandleGraph& gfa_graph){
                              + test_path_prefix + ".png";
             run_command(command);
         }
+    }
 
+    for (auto& node_id: overlapping_overlap_nodes){
+        // Do something
     }
 }
+
 
 }

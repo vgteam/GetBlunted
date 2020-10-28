@@ -71,8 +71,32 @@ void gfa_to_handle_graph_in_memory(
             handle_t b = graph.get_handle(sink_id, not edge.sink_orientation_forward);
             graph.create_edge(a, b);
 
-            // Update the overlap map (assuming the GFA is "canonical")
-            overlaps.insert(edge, a, b);
+            // Update the overlap map
+            Alignment alignment = overlaps.insert(edge, a, b);
+
+            pair<size_t, size_t> lengths;
+            alignment.compute_lengths(lengths);
+
+            if (lengths.first > graph.get_length(a)){
+                cerr << "WARNING: sum of cigar operations is longer than SOURCE node: "
+                     << edge.source_name << " " << edge.sink_name << '\n';
+            }
+            if (lengths.second > graph.get_length(b)){
+                cerr << "WARNING: sum of cigar operations is longer than SINK node: "
+                     << edge.source_name << " " << edge.sink_name << '\n';
+            }
+//            if (lengths.first <= graph.get_length(a) and lengths.second <= graph.get_length(b)){
+//                size_t ref_start = graph.get_length(a) - lengths.first;
+//                string formatted_alignment = alignment.create_formatted_alignment_string(graph, {a,b}, ref_start, 0);
+//
+//                for (char c: formatted_alignment){
+//                    if (c == '*'){
+//                        cerr << edge.source_name << "->" << edge.sink_name << '\n';
+//                        cerr << formatted_alignment << '\n' << '\n';
+//                        break;
+//                    }
+//                }
+//            }
         }
     }
 }
@@ -128,13 +152,25 @@ void gfa_to_handle_graph_on_disk(
         alignment.compute_lengths(lengths);
 
         if (lengths.first > graph.get_length(a)){
-            cerr << "WARNING: sum of cigar operations is longer than source node: "
-                 << e.source_name << " " << e.sink_name << '\n';
+            cerr << "WARNING: sum of cigar operations is longer than SOURCE node: "
+                 << e.source_name << "->" << e.sink_name << '\n' << '\n';
         }
         if (lengths.second > graph.get_length(b)){
-            cerr << "WARNING: sum of cigar operations is longer than sink node: "
-                 << e.source_name << " " << e.sink_name << '\n';
+            cerr << "WARNING: sum of cigar operations is longer than SINK node: "
+                 << e.source_name << "->" << e.sink_name << '\n' << '\n';
         }
+//        if (lengths.first <= graph.get_length(a) and lengths.second <= graph.get_length(b)){
+//            size_t ref_start = graph.get_length(a) - lengths.first;
+//            string formatted_alignment = alignment.create_formatted_alignment_string(graph, {a,b}, ref_start, 0);
+//
+//            for (char c: formatted_alignment){
+//                if (c == '*'){
+//                    cerr << e.source_name << "->" << e.sink_name << '\n';
+//                    cerr << formatted_alignment << '\n' << '\n';
+//                    break;
+//                }
+//            }
+//        }
 
     });
 }
