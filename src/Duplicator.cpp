@@ -69,18 +69,18 @@ void Duplicator::repair_edges(
         handle_t old_handle,
         handle_t old_handle_flipped) {
 
-    cout << "Children generated per biclique:" << '\n';
-    for (const size_t side: {0, 1}) {
-        for (const auto&[biclique_index, child_handle]: biclique_side_to_child[side]) {
-            cout << side << " " << biclique_index << " " << gfa_graph.get_id(child_handle) << " ";
-
-            if (gfa_graph.get_length(child_handle) < 60){
-                cout << gfa_graph.get_sequence(child_handle);
-            }
-
-            cout << '\n';
-        }
-    }
+//    cout << "Children generated per biclique:" << '\n';
+//    for (const size_t side: {0, 1}) {
+//        for (const auto&[biclique_index, child_handle]: biclique_side_to_child[side]) {
+//            cout << side << " " << biclique_index << " " << gfa_graph.get_id(child_handle) << " ";
+//
+//            if (gfa_graph.get_length(child_handle) < 60){
+//                cout << gfa_graph.get_sequence(child_handle);
+//            }
+//
+//            cout << '\n';
+//        }
+//    }
 
 
     for (const size_t side: {0, 1}) {
@@ -133,10 +133,10 @@ void Duplicator::repair_edges(
                 }
 
                 if (edge_found) {
-                    cout << "Creating (" << gfa_graph.get_id(edge.first);
-                    cout << (gfa_graph.get_is_reverse(edge.first) ? "-" : "+");
-                    cout << ") -> (" << gfa_graph.get_id(edge.second);
-                    cout << (gfa_graph.get_is_reverse(edge.second) ? "-" : "+") << ")" << '\n';
+//                    cout << "Creating (" << gfa_graph.get_id(edge.first);
+//                    cout << (gfa_graph.get_is_reverse(edge.first) ? "-" : "+");
+//                    cout << ") -> (" << gfa_graph.get_id(edge.second);
+//                    cout << (gfa_graph.get_is_reverse(edge.second) ? "-" : "+") << ")" << '\n';
                     overlaps.update_edge(old_edge, edge);
                     gfa_graph.create_edge(edge);
                 }
@@ -155,10 +155,10 @@ void Duplicator::remove_participating_edges(
         for (auto& biclique_index: sorted_bicliques_per_side[side]) {
             for (auto& edge: bicliques[biclique_index]) {
                 if (gfa_graph.get_id(edge.first) == parent_node or gfa_graph.get_id(edge.second) == parent_node) {
-                    cout << "Deleting (" << gfa_graph.get_id(edge.first);
-                    cout << (gfa_graph.get_is_reverse(edge.first) ? "-" : "+");
-                    cout << ") -> (" << gfa_graph.get_id(edge.second);
-                    cout << (gfa_graph.get_is_reverse(edge.second) ? "-" : "+") << ")" << '\n';
+//                    cout << "Deleting (" << gfa_graph.get_id(edge.first);
+//                    cout << (gfa_graph.get_is_reverse(edge.first) ? "-" : "+");
+//                    cout << ") -> (" << gfa_graph.get_id(edge.second);
+//                    cout << (gfa_graph.get_is_reverse(edge.second) ? "-" : "+") << ")" << '\n';
                     gfa_graph.destroy_edge(edge);
                 }
             }
@@ -184,14 +184,6 @@ void Duplicator::duplicate_termini(
     // Do left duplication
     if (not sorted_sizes_per_side[0].empty()) {
         duplicate_prefix(gfa_graph, sorted_sizes_per_side[0], left_children, parent_handle);
-
-        if (gfa_graph.get_node_count() < 30) {
-            string test_path_prefix = "test_bluntify_" + std::to_string(node_info.node_id) + "_" + std::to_string(0);
-            handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
-            string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
-                             + test_path_prefix + ".png";
-            run_command(command);
-        }
     } else {
         // If no duplication was performed, then the children are the parent
         left_children = {parent_handle, parent_handle};
@@ -239,30 +231,22 @@ void Duplicator::duplicate_all_node_termini(MutablePathDeletableHandleGraph& gfa
         // Factor the overlaps into hierarchy: side -> biclique -> (overlap, length)
         const NodeInfo node_info(node_to_biclique_edge, bicliques, gfa_graph, overlaps, node_id);
 
-        node_info.print_stats();
-
         // Keep track of which biclique is in which position once sorted
         array <deque <size_t>, 2> sorted_sizes_per_side;
         array <deque <size_t>, 2> sorted_bicliques_per_side;
 
         node_info.get_sorted_biclique_extents(sorted_sizes_per_side, sorted_bicliques_per_side);
 
-        if (gfa_graph.get_node_count() < 30){
-            string test_path_prefix = "test_bluntify_" + std::to_string(node_id) + "_";
-            handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
-            string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
-                             + test_path_prefix + ".png";
-            run_command(command);
-        }
-
         // When repairing edges, which biclique corresponds to which child node?
         array<map<size_t, handle_t>, 2> biclique_side_to_child;
 
+        handle_t parent_handle = gfa_graph.get_handle(node_id, 0);
+        handle_t parent_handle_flipped = gfa_graph.flip(parent_handle);
+
         // If this is an overlapping overlap node, duping is different (and simpler)
         if (not (sorted_sizes_per_side[0].empty() and not sorted_sizes_per_side[1].empty())
-                and (sorted_sizes_per_side[0][0] > sorted_sizes_per_side[1][0])){
+                and (sorted_sizes_per_side[0][0] > gfa_graph.get_length(parent_handle) - sorted_sizes_per_side[1][0])){
 
-            cout << "Processing overlapping overlap node: " << node_id << '\n';
             duplicate_overlapping_termini(
                     gfa_graph,
                     sorted_sizes_per_side,
@@ -279,22 +263,12 @@ void Duplicator::duplicate_all_node_termini(MutablePathDeletableHandleGraph& gfa
                     node_info);
         }
 
-        handle_t parent_handle = gfa_graph.get_handle(node_id, 0);
-        handle_t parent_handle_flipped = gfa_graph.flip(parent_handle);
-
         repair_edges(
             gfa_graph,
             biclique_side_to_child,
             parent_handle,
             parent_handle_flipped);
 
-        if (gfa_graph.get_node_count() < 30){
-            string test_path_prefix = "test_bluntify_" + std::to_string(node_id) + "_" + std::to_string(1);
-            handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
-            string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
-                             + test_path_prefix + ".png";
-            run_command(command);
-        }
     }
 }
 

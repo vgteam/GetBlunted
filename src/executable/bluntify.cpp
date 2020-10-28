@@ -106,29 +106,6 @@ void compute_all_bicliques(
 }
 
 
-//bool is_loop_biclique(
-//        Bicliques& bicliques,
-//        NodeInfo& node_info,
-//        size_t biclique_index,
-//        bool side
-//){
-//    auto& biclique_side = node_info.factored_overlaps[side].at(biclique_index);
-//
-//    bool is_loop = true;
-//    for(auto& info: biclique_side){
-//        auto& e = bicliques.bicliques[biclique_index][info.edge_index];
-//        if (e.first != e.second) {
-//            is_loop = false;
-//            break;
-//        }
-//    }
-//
-//    return is_loop;
-//}
-
-
-
-
 void map_splice_sites_by_node(
         const HandleGraph& gfa_graph,
         const Bicliques& bicliques,
@@ -210,14 +187,7 @@ void bluntify(string gfa_path){
         compute_all_bicliques(i, gfa_graph, overlaps, adjacency_components, bicliques, biclique_mutex);
     }
 
-    for (auto& biclique: bicliques.bicliques){
-        cout << "---\n";
-        for (auto& edge: biclique){
-            cout << gfa_graph.get_id(edge.first) << "->" <<  gfa_graph.get_id(edge.second) << '\n';
-        }
-    }
-
-    // TODO: delete adjacency components
+    // TODO: delete adjacency components vector
 
     map_splice_sites_by_node(gfa_graph, bicliques, node_to_biclique_edge);
 
@@ -226,8 +196,23 @@ void bluntify(string gfa_path){
             bicliques,
             overlaps);
 
+    if (gfa_graph.get_node_count() < 30){
+        string test_path_prefix = "test_bluntify_" + std::to_string(0);
+        handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
+        string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
+                         + test_path_prefix + ".png";
+        run_command(command);
+    }
+
     super_duper.duplicate_all_node_termini(gfa_graph);
 
+    if (gfa_graph.get_node_count() < 30){
+        string test_path_prefix = "test_bluntify_" + std::to_string(1);
+        handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
+        string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
+                         + test_path_prefix + ".png";
+        run_command(command);
+    }
 
 }
 

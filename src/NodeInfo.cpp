@@ -143,8 +143,6 @@ void NodeInfo::get_sorted_biclique_extents(
             auto& biclique_index = biclique.first;
             auto& overlap_infos = biclique.second;
 
-            cout << "longest overlap for biclique " << biclique_index << " is " << overlap_infos[0].length << '\n';
-
             sorted_biclique_extents.emplace_back(biclique_index, overlap_infos[0].length);
         }
 
@@ -156,7 +154,6 @@ void NodeInfo::get_sorted_biclique_extents(
 
         // Unzip the pairs into 2 deques (makes it easier to send the data off to the recursive duplicator)
         for (auto& item: sorted_biclique_extents) {
-            cout << item.first << " " << item.second << '\n';
             sorted_bicliques_per_side[side].emplace_back(item.first);
             sorted_extents_per_side[side].emplace_back(item.second);
         }
