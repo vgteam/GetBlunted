@@ -226,7 +226,7 @@ void bluntify(string gfa_path){
             bicliques,
             overlaps);
 
-    super_duper.duplicate_termini(gfa_graph);
+    super_duper.duplicate_all_node_termini(gfa_graph);
 
 
 }

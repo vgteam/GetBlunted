@@ -1,0 +1,59 @@
+H	VN:Z:1.0
+S	A	AGTAGCATGCCAAGCTC
+S	B	GGCGAAGTAGCATGCCAA
+S	C	TGCCAAGCTCTGACGGCG
+S	D	TGCCAGTAGTAG
+S	E	CTCGATGCCAG
+S	F	GTAGAAAA
+S	G	TTTTCTCG
+L	B	+	A	+	13M
+L	A	+	C	+	10M
+L	D	+	A	+	5M
+L	A	+	E	+	4M
+L	D	+	F	+	4M
+L	G	+	E	+	4M
+
+
+# Node A
+#  D      TGCCAGTAGTAG           .
+#                |||||           .
+#  B        GGCGAAGTAGCATGCCAA   .
+#                |||||||||||||   .
+# -A-            AGTAGCATGCCAAGCTC
+#                01234567890123456
+#                .      ||||||||||
+#  C             .      TGCCAAGCTCTGACGGCG
+#                .             |||
+#  E             .             CTCGATGCCAG
+
+
+# Node B
+#  C      TGCCAAGCTCTGACGGCG             .
+#                       ||||             .
+# -B-                   GGCGAAGTAGCATGCCAA
+#                       .    |||||||||||||
+#  A                    .    AGTAGCATGCCAAGCTC
+
+
+# Node C
+#  A      AGTAGCATGCCAAGCTC       .
+#                ||||||||||       .
+# -C-            TGCCAAGCTCTGACGGCG
+#                .              |||
+#  B             .              GGCGAAGTAGCATGCCAA
+
+
+# Node D
+#  E      CTCGATGCCAG     .
+#              ||||||     .
+# -D-          TGCCAGTAGTAG
+#              .      |||||
+#  A           .      AGTAGCATGCCAAGCTC
+
+
+# Node E
+#  A      AGTAGCATGCCAAGCTC       .
+#                       |||       .
+# -E-                   CTCGATGCCAG
+#                       .    ||||||
+#  D                    .    TGCCAGTAGTAG

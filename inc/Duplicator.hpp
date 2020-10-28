@@ -21,7 +21,7 @@ using bdsg::HashGraph;
 namespace bluntifier{
 
 
-class OverlappingOverlapNode{
+class OverlappingNodeInfo{
 public:
     /// Attributes ///
 
@@ -32,14 +32,14 @@ public:
     // What was the original GFA node id?
     nid_t parent_node;
 
+    // What length was the original node?
+    size_t length;
+
     /// Methods ///
 
-    OverlappingOverlapNode(nid_t parent_node);
-
-    duplicate()
+    OverlappingNodeInfo(nid_t parent_node);
 
 private:
-
 
 };
 
@@ -48,7 +48,7 @@ class Duplicator{
 public:
     /// Attributes ///
     const vector <vector <BicliqueEdgeIndex> >& node_to_biclique_edge;
-    map<nid_t, OverlappingOverlapNode> overlapping_overlap_nodes;
+    map<nid_t, OverlappingNodeInfo> overlapping_overlap_nodes;
     Bicliques& bicliques;
     OverlapMap& overlaps;
 
@@ -59,7 +59,7 @@ public:
             Bicliques& bicliques,
             OverlapMap& overlaps);
 
-    void duplicate_termini(MutablePathDeletableHandleGraph& gfa_graph);
+    void duplicate_all_node_termini(MutablePathDeletableHandleGraph& gfa_graph);
 
 private:
     void repair_edges(
@@ -73,10 +73,18 @@ private:
             MutablePathDeletableHandleGraph& gfa_graph,
             nid_t parent_node);
 
-    void duplicate_overlapping_overlap_node(
+    void duplicate_termini(
+            MutablePathDeletableHandleGraph& gfa_graph,
+            array <deque <size_t>, 2>& sorted_sizes_per_side,
+            const array <deque <size_t>, 2>& sorted_bicliques_per_side,
+            array<map<size_t, handle_t>, 2>& biclique_side_to_child,
+            const NodeInfo& node_info);
+
+    void duplicate_overlapping_termini(
             MutablePathDeletableHandleGraph& gfa_graph,
             const array <deque <size_t>, 2>& sorted_sizes_per_side,
             const array <deque <size_t>, 2>& sorted_bicliques_per_side,
+            array<map<size_t, handle_t>, 2>& biclique_side_to_child,
             const NodeInfo& node_info);
 
 };
