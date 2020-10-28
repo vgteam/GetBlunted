@@ -104,7 +104,7 @@ Alignment::Alignment(const string& s) {
 }
 
 
-void Alignment::compute_lengths(pair<size_t,size_t>& lengths){
+void Alignment::compute_lengths(pair<size_t,size_t>& lengths) const{
     // Reset lengths
     lengths.first = 0;
     lengths.second = 0;
@@ -325,9 +325,13 @@ string Alignment::create_formatted_alignment_string(
         if (Alignment::is_ref_move[code] and Alignment::is_query_move[code] and ref_base == query_base) {
             alignment_symbols += '|';
         } else {
-            alignment_symbols += " ";
+            if (cigar_type[code] == 'M') {
+                alignment_symbols += "*";
+            }
+            else{
+                alignment_symbols += " ";
+            }
         }
-
     }
 
     return aligned_ref + '\n' + alignment_symbols + '\n' + aligned_query;
@@ -368,7 +372,12 @@ string Alignment::create_formatted_alignment_string(
         if (Alignment::is_ref_move[code] and Alignment::is_query_move[code] and ref_base == query_base) {
             alignment_symbols += '|';
         } else {
-            alignment_symbols += " ";
+            if (cigar_type[code] == 'M') {
+                alignment_symbols += "*";
+            }
+            else{
+                alignment_symbols += " ";
+            }
         }
 
     }

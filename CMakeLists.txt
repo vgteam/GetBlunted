@@ -15,11 +15,10 @@ message(STATUS "CMAKE_CXX_COMPILER_VERSION: ${CMAKE_CXX_COMPILER_VERSION}")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-#set(CMAKE_CXX_FLAGS "-fexceptions -fsanitize=address")
-set(ASAN_OPTIONS=check_initialization_order=1)
-set(ASAN_OPTIONS=detect_leaks=1)
+set(CMAKE_CXX_FLAGS "-fexceptions -fsanitize=address")
+#set(ASAN_OPTIONS=check_initialization_order=1)
+#set(ASAN_OPTIONS=detect_leaks=1)
 
-#set(CMAKE_CXX_FLAGS "-fexceptions -fno-new-ttp-matching")
 set(CMAKE_CXX_FLAGS "-fexceptions")
 
 add_definitions(-ggdb3 -O0 -Wall)       # Debugging + No optimization
@@ -40,22 +39,22 @@ include_directories(
 set(SOURCES
         src/AdjacencyComponent.cpp
         src/apply_bulk_modifications.cpp
-	src/BicliqueCover.cpp
-	src/BipartiteGraph.cpp
+	    src/BicliqueCover.cpp
+	    src/BipartiteGraph.cpp
 	    src/copy_graph.cpp
         src/Cigar.cpp
+        src/duplicate_terminus.cpp
         src/find_tips.cpp
-	src/GaloisLattice.cpp
+	    src/GaloisLattice.cpp
         src/gfa_to_handle.cpp
         src/handle_to_gfa.cpp
         src/IncrementalIdMap.cpp
         src/is_single_stranded.cpp
         src/OverlapMap.cpp
-        src/PileupGenerator.cpp
-        src/Pileup.cpp
-	src/ReducedDualGraph.cpp
+	    src/ReducedDualGraph.cpp
         src/SubtractiveHandleGraph.cpp
         src/topological_sort.cpp
+        src/traverse.cpp
         src/unchop.cpp
         src/utility.cpp
         src/VertexColoring.cpp
@@ -303,8 +302,9 @@ find_package(Threads REQUIRED)
 set(TESTS
         test_AdjacencyComponent
         test_bdsg
-	test_BicliqueCover
+	    test_BicliqueCover
         test_cigar
+        test_duplicate_terminus
         test_gfak
         test_handlegraph
         test_handle_to_gfa

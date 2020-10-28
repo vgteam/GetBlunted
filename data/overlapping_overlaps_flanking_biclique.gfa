@@ -4,12 +4,14 @@ S	B	GGCGAAGTAGCATGCCAA
 S	C	TGCCAAGCTCTGACGGCG
 S	D	TGCCAGTAGTAG
 S	E	CTCGATGCCAG
+S	F	GTAGAAAA
+S	G	TTTTCTCG
 L	B	+	A	+	13M
 L	A	+	C	+	10M
 L	D	+	A	+	5M
-L	A	+	E	+	3M
-L	C	+	B	+	4M
-L	E	+	D	+	6M
+L	A	+	E	+	4M
+L	D	+	F	+	4M
+L	G	+	E	+	4M
 
 
 # Node A
@@ -18,6 +20,7 @@ L	E	+	D	+	6M
 #  B        GGCGAAGTAGCATGCCAA   .
 #                |||||||||||||   .
 # -A-            AGTAGCATGCCAAGCTC
+#                01234567890123456
 #                .      ||||||||||
 #  C             .      TGCCAAGCTCTGACGGCG
 #                .             |||

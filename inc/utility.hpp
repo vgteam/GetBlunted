@@ -10,6 +10,8 @@ using std::runtime_error;
 
 namespace bluntifier {
 
+void run_command(string& argument_string);
+
 int64_t find_nth_instance(string& s, char c, size_t n);
 
 int64_t find_nth_instance_from_back(string& s, char c, size_t n);

@@ -4,6 +4,15 @@
 namespace bluntifier {
 
 
+void run_command(string& argument_string){
+    int exit_code = system(argument_string.c_str());
+
+    if (exit_code != 0){
+        throw runtime_error("ERROR: command failed to run: " + argument_string);
+    }
+}
+
+
 int64_t find_nth_instance(string& s, char c, size_t n){
     if (n < 1){
         throw runtime_error("Error: cannot find nth occurrence for n < 1");
