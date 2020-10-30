@@ -29,6 +29,7 @@ using bluntifier::BicliqueCover;
 using bluntifier::BicliqueEdgeIndex;
 using bluntifier::Bicliques;
 using bluntifier::NodeInfo;
+using bluntifier::OverlappingNodeInfo;
 using bluntifier::bipartition;
 using bluntifier::copy_path_handle_graph;
 using bluntifier::duplicate_prefix;
@@ -44,6 +45,32 @@ using bdsg::HashGraph;
 using spoa::AlignmentEngine;
 using spoa::AlignmentType;
 using spoa::Graph;
+
+
+class PathInfo{
+public:
+    path_handle_t path_handle;
+    uint32_t spoa_id;
+    bool biclique_side;
+
+    PathInfo(path_handle_t path_handle, uint32_t spoa_id, bool biclique_side);
+};
+
+
+PathInfo::PathInfo(path_handle_t path_handle, uint32_t spoa_id, bool biclique_side):
+        path_handle(path_handle),
+        spoa_id(spoa_id),
+        biclique_side(biclique_side)
+{}
+
+
+class Subgraph{
+public:
+    HashGraph graph;
+    array <map <handle_t, PathInfo>, 2> paths_per_handle;
+
+    Subgraph()=default;
+};
 
 
 void deduplicate_and_canonicalize_biclique_cover(
@@ -163,9 +190,8 @@ void print_adjacency_components_stats(
 
 void convert_spoa_to_bdsg(
         const HashGraph& gfa_graph,
-        HashGraph& subgraph,
-        Graph& spoa_graph,
-        array <map <handle_t, uint32_t>, 2>& handle_paths_per_side){
+        Subgraph& subgraph,
+        Graph& spoa_graph){
 
     auto& paths = spoa_graph.sequences();
     unordered_map <uint32_t, handle_t> nodes_created;
@@ -177,17 +203,14 @@ void convert_spoa_to_bdsg(
     cout << '\n';
 
     for (size_t side: {0,1}){
-        for (auto& item: handle_paths_per_side[side]){
+        for (auto& item: subgraph.paths_per_handle[side]){
             auto& gfa_handle = item.first;
-            auto spoa_id = item.second;
+            PathInfo& path_info = item.second;
 
             // This points to the first SPOA node within the path that this sequence aligned to in the SPOA graph
-            auto node = paths[spoa_id];
+            auto node = paths[path_info.spoa_id];
 
             size_t base_index = 0;
-
-            string subgraph_path_name = to_string(gfa_graph.get_id(gfa_handle)) + "_" + to_string(side);
-            auto subgraph_path_handle = subgraph.create_path_handle(subgraph_path_name);
 
             cout << gfa_graph.get_sequence(gfa_handle) << '\n';
 
@@ -196,35 +219,35 @@ void convert_spoa_to_bdsg(
                 auto iter = nodes_created.find(node->id);
 
                 if (iter == nodes_created.end()) {
-                    cout << spoa_id << " " << base_index << " ";
+                    cout << path_info.spoa_id << " " << base_index << " ";
 
                     char base = gfa_graph.get_base(gfa_handle, base_index);
 
                     cout << base << '\n';
 
-                    auto new_subgraph_handle = subgraph.create_handle(string(1, base));
+                    auto new_subgraph_handle = subgraph.graph.create_handle(string(1, base));
                     nodes_created.emplace(node->id, new_subgraph_handle);
 
                     if (base_index > 0) {
-                        subgraph.create_edge(previous_subgraph_handle, new_subgraph_handle);
+                        subgraph.graph.create_edge(previous_subgraph_handle, new_subgraph_handle);
                     }
 
                     previous_subgraph_handle = new_subgraph_handle;
                 }
                 else{
                     if (base_index > 0) {
-                        subgraph.create_edge(previous_subgraph_handle, iter->second);
+                        subgraph.graph.create_edge(previous_subgraph_handle, iter->second);
                     }
 
                     previous_subgraph_handle = iter->second;
                 }
 
-                subgraph.append_step(subgraph_path_handle, previous_subgraph_handle);
+                subgraph.graph.append_step(path_info.path_handle, previous_subgraph_handle);
 
                 base_index++;
 
                 // Check if the spoa path has ended
-                if (!(node = node->Successor(spoa_id))) {
+                if (!(node = node->Successor(path_info.spoa_id))) {
                     break;
                 }
             }
@@ -235,32 +258,61 @@ void convert_spoa_to_bdsg(
 
 void add_alignments_to_poa(
         const HashGraph& gfa_graph,
+        Subgraph& subgraph,
         Graph& spoa_graph,
         unique_ptr<AlignmentEngine>& alignment_engine,
-        array <map <handle_t, uint32_t>, 2>& handle_paths_per_side,
         const vector<edge_t>& biclique){
 
-    handle_paths_per_side[0].clear();
-    handle_paths_per_side[1].clear();
+    // Since alignment may be done twice (for iterative POA), path data might need to be cleared
+    subgraph.paths_per_handle[0].clear();
+    subgraph.paths_per_handle[1].clear();
 
     // If the graph already has some sequences in it, then start the id at that number
     uint32_t spoa_id = spoa_graph.sequences().size();
 
     for (auto& edge: biclique){
         cout << gfa_graph.get_id(edge.first) << "->" << gfa_graph.get_id(edge.second) << " handle = " << as_integer(edge.first) << "->" << as_integer(edge.second) << '\n';
-        if (handle_paths_per_side[0].count(edge.first) == 0){
+        if (subgraph.paths_per_handle[0].count(edge.first) == 0){
             cout << gfa_graph.get_id(edge.first) << " L=" << gfa_graph.get_length(edge.first) << " H=" << as_integer(edge.first) << '\n';
 
-            handle_paths_per_side[0].emplace(edge.first, spoa_id++);
+            string path_name = to_string(gfa_graph.get_id(edge.first)) + "_" + to_string(0);
+
+            path_handle_t path_handle;
+
+            // Paths might exist from previous alignment, but will be empty
+            if (not subgraph.graph.has_path(path_name)){
+                path_handle = subgraph.graph.create_path_handle(path_name);
+            }
+            else{
+                path_handle = subgraph.graph.get_path_handle(path_name);
+            }
+
+            PathInfo path_info(path_handle, spoa_id++, 0);
+
+            subgraph.paths_per_handle[0].emplace(edge.first, path_info);
             auto sequence = gfa_graph.get_sequence(edge.first);
 
             auto alignment = alignment_engine->Align(sequence, spoa_graph);
             spoa_graph.AddAlignment(alignment, sequence);
         }
-        if (handle_paths_per_side[1].count(edge.second) == 0){
+        if (subgraph.paths_per_handle[1].count(edge.second) == 0){
             cout << gfa_graph.get_id(edge.second) << " L=" << gfa_graph.get_length(edge.second) << " H=" << as_integer(edge.second) << '\n';
 
-            handle_paths_per_side[1].emplace(edge.second, spoa_id++);
+            string path_name = to_string(gfa_graph.get_id(edge.second)) + "_" + to_string(1);
+
+            path_handle_t path_handle;
+
+            // Paths might exist from previous alignment, but will be empty
+            if (not subgraph.graph.has_path(path_name)){
+                path_handle = subgraph.graph.create_path_handle(path_name);
+            }
+            else{
+                path_handle = subgraph.graph.get_path_handle(path_name);
+            }
+
+            PathInfo path_info(path_handle, spoa_id++, 1);
+
+            subgraph.paths_per_handle[1].emplace(edge.second, path_info);
 
             auto sequence = gfa_graph.get_sequence(edge.second);
 
@@ -274,22 +326,22 @@ void add_alignments_to_poa(
 void align_biclique_overlaps(
         size_t i,
         const HashGraph& gfa_graph,
-        const Bicliques& bicliques){
+        const Bicliques& bicliques,
+        vector <Subgraph>& subgraphs){
 
     // TODO: switch to fetch_add atomic
     const auto& biclique = bicliques[i];
+    auto& subgraph = subgraphs[i];
 
     if (biclique.empty()){
         return;
     }
 
-    array <map <handle_t, uint32_t>, 2> handle_paths_per_side;
-
     auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 5, -3, -3, -1);
 
     spoa::Graph spoa_graph{};
 
-    add_alignments_to_poa(gfa_graph, spoa_graph, alignment_engine, handle_paths_per_side, biclique);
+    add_alignments_to_poa(gfa_graph, subgraph, spoa_graph, alignment_engine, biclique);
 
     cout << '\n';
 
@@ -305,7 +357,7 @@ void align_biclique_overlaps(
     seeded_spoa_graph.AddAlignment(alignment, consensus);
 
     // Iterate a second time on alignment, this time with consensus as the seed
-    add_alignments_to_poa(gfa_graph, seeded_spoa_graph, alignment_engine, handle_paths_per_side, biclique);
+    add_alignments_to_poa(gfa_graph, subgraph, spoa_graph, alignment_engine, biclique);
 
     {
         auto seeded_consensus = seeded_spoa_graph.GenerateConsensus();
@@ -324,28 +376,115 @@ void align_biclique_overlaps(
         std::cout << '\n';
     }
 
-    HashGraph subgraph;
+    convert_spoa_to_bdsg(gfa_graph, subgraph, spoa_graph);
 
-    convert_spoa_to_bdsg(gfa_graph,subgraph,seeded_spoa_graph,handle_paths_per_side);
-
-    if (subgraph.get_node_count() < 200){
+    if (subgraph.graph.get_node_count() < 200){
         string test_path_prefix = "test_bluntify_subgraph_" + std::to_string(i);
-        handle_graph_to_gfa(subgraph, test_path_prefix + ".gfa");
+        handle_graph_to_gfa(subgraph.graph, test_path_prefix + ".gfa");
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";
         run_command(command);
     }
 
-    unchop(&subgraph);
+    unchop(&subgraph.graph);
 
-    if (subgraph.get_node_count() < 200){
+    if (subgraph.graph.get_node_count() < 200){
         string test_path_prefix = "test_bluntify_subgraph_unchopped_" + std::to_string(i);
-        handle_graph_to_gfa(subgraph, test_path_prefix + ".gfa");
+        handle_graph_to_gfa(subgraph.graph, test_path_prefix + ".gfa");
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";
         run_command(command);
     }
 
+}
+
+void splice_subgraphs(HashGraph& gfa_graph,
+                      vector <Subgraph>& subgraphs,
+                      map<nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes){
+
+    for (auto& subgraph: subgraphs){
+
+        if (gfa_graph.get_node_count() < 30){
+            string test_path_prefix = "test_bluntify_copied_" + std::to_string(0);
+            handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
+            string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
+                             + test_path_prefix + ".png";
+            run_command(command);
+        }
+
+        // First, copy the subgraph into the GFA graph
+        subgraph.graph.increment_node_ids(gfa_graph.get_node_count());
+        copy_path_handle_graph(&subgraph.graph, &gfa_graph);
+
+        if (gfa_graph.get_node_count() < 30){
+            string test_path_prefix = "test_bluntify_copied_" + std::to_string(1);
+            handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
+            string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
+                             + test_path_prefix + ".png";
+            run_command(command);
+        }
+
+        // Iterate the suffixes/prefixes that participated in this biclique
+        for (bool side: {0,1}) {
+            for (auto& item: subgraph.paths_per_handle[side]) {
+                auto& handle = item.first;
+                auto& path_info = item.second;
+                auto node_id = gfa_graph.get_id(handle);
+
+                // Check if this is an Overlapping Overlap node
+                auto result = overlapping_overlap_nodes.find(node_id);
+                if (result != overlapping_overlap_nodes.end()){
+                    // Do re-chopping and extra splicing ?
+                    // or just skip for now?
+                    continue;
+                }
+
+                // Find the path handle for the path that was copied into the GFA graph
+                auto path_name = subgraph.graph.get_path_name(path_info.path_handle);
+                auto path_handle = gfa_graph.get_path_handle(path_name);
+
+                cout << "Splicing node " << node_id << '\n';
+                cout << "\tPath sequence:\t";
+                for (const auto& h: gfa_graph.scan_path(path_handle)){
+                    cout << gfa_graph.get_sequence(h);
+                }
+                cout << '\n';
+                cout << "\tNode sequence:\t" << gfa_graph.get_sequence(handle) << '\n';
+
+
+                // Get the parent handle and verify that there is no ambiguity in finding it
+                // Suffixes/prefixes should always have only one edge
+                size_t n_edges = 0;
+                handle_t parent_handle;
+                gfa_graph.follow_edges(handle, 1-side, [&](const handle_t& h){
+                    parent_handle = h;
+                    n_edges++;
+                });
+
+                if (n_edges > 1 or n_edges == 0){
+                    throw runtime_error("ERROR: biclique terminus does not have 1 parent: "
+                                        + to_string(node_id) + " n_edges = " + to_string(n_edges));
+                }
+
+                // Depending on which side of the biclique this node is on, its path in the POA will be spliced
+                // differently
+                if (path_info.biclique_side == 0){
+                    auto& left = parent_handle;
+                    auto right = gfa_graph.get_handle_of_step(gfa_graph.path_begin(path_handle));
+
+                    gfa_graph.create_edge(left, right);
+                }
+                else{
+                    auto left = gfa_graph.get_handle_of_step(gfa_graph.path_back(path_handle));
+                    auto& right = parent_handle;
+
+                    gfa_graph.create_edge(left, right);
+                }
+
+                gfa_graph.destroy_handle(handle);
+            }
+        }
+    }
 }
 
 
@@ -389,10 +528,7 @@ void bluntify(string gfa_path){
 
     map_splice_sites_by_node(gfa_graph, bicliques, node_to_biclique_edge);
 
-    Duplicator super_duper(
-            node_to_biclique_edge,
-            bicliques,
-            overlaps);
+    Duplicator super_duper(node_to_biclique_edge,bicliques,overlaps);
 
     if (gfa_graph.get_node_count() < 30){
         string test_path_prefix = "test_bluntify_" + std::to_string(0);
@@ -414,10 +550,21 @@ void bluntify(string gfa_path){
         run_command(command);
     }
 
+    vector <Subgraph> biclique_subgraphs(bicliques.size());
+
     for (size_t i=0; i<bicliques.size(); i++){
-        align_biclique_overlaps(i, gfa_graph, bicliques);
+        align_biclique_overlaps(i, gfa_graph, bicliques, biclique_subgraphs);
     }
 
+    splice_subgraphs(gfa_graph, biclique_subgraphs, super_duper.overlapping_overlap_nodes);
+
+    if (gfa_graph.get_node_count() < 30){
+        string test_path_prefix = "test_bluntify_spliced_" + std::to_string(1);
+        handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
+        string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
+                         + test_path_prefix + ".png";
+        run_command(command);
+    }
 }
 
 
