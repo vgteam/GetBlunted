@@ -402,10 +402,11 @@ void splice_subgraphs(HashGraph& gfa_graph,
                       vector <Subgraph>& subgraphs,
                       map<nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes){
 
+    size_t i = 0;
     for (auto& subgraph: subgraphs){
 
         if (gfa_graph.get_node_count() < 30){
-            string test_path_prefix = "test_bluntify_copied_" + std::to_string(0);
+            string test_path_prefix = "test_bluntify_copy_" + std::to_string(i) + "_a";
             handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
             string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                              + test_path_prefix + ".png";
@@ -413,16 +414,18 @@ void splice_subgraphs(HashGraph& gfa_graph,
         }
 
         // First, copy the subgraph into the GFA graph
-        subgraph.graph.increment_node_ids(gfa_graph.get_node_count());
+        subgraph.graph.increment_node_ids(gfa_graph.max_node_id());
         copy_path_handle_graph(&subgraph.graph, &gfa_graph);
 
         if (gfa_graph.get_node_count() < 30){
-            string test_path_prefix = "test_bluntify_copied_" + std::to_string(1);
+            string test_path_prefix = "test_bluntify_copy_" + std::to_string(i) + "_b";
             handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
             string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                              + test_path_prefix + ".png";
             run_command(command);
         }
+
+        i++;
 
         // Iterate the suffixes/prefixes that participated in this biclique
         for (bool side: {0,1}) {
