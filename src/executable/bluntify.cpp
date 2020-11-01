@@ -197,10 +197,10 @@ void convert_spoa_to_bdsg(
     unordered_map <uint32_t, handle_t> nodes_created;
     handle_t previous_subgraph_handle;
 
-    gfa_graph.for_each_handle([&](const handle_t& h){
-        cout << as_integer(h) << '\n';
-    });
-    cout << '\n';
+//    gfa_graph.for_each_handle([&](const handle_t& h){
+//        cout << as_integer(h) << '\n';
+//    });
+//    cout << '\n';
 
     for (size_t side: {0,1}){
         for (auto& item: subgraph.paths_per_handle[side]){
@@ -491,6 +491,19 @@ void splice_subgraphs(HashGraph& gfa_graph,
 }
 
 
+/// For all the edges in a biclique, reorient them by attempting to match the orientation of the
+void harmonize_biclique_orientations(Bicliques& bicliques){
+    map <handle_t, uint64_t> n_edges_per_handle;
+
+    for (auto& biclique: bicliques.bicliques){
+        for (auto& edge: biclique){
+            n_edges_per_handle[edge.first]++;
+            n_edges_per_handle[edge.second]++;
+        }
+    }
+}
+
+
 void bluntify(string gfa_path){
     ifstream file(gfa_path);
 
@@ -526,6 +539,18 @@ void bluntify(string gfa_path){
         print_adjacency_components_stats(i,adjacency_components,id_map,gfa_graph);
         compute_all_bicliques(i, gfa_graph, overlaps, adjacency_components, bicliques, biclique_mutex);
     }
+
+    size_t i=0;
+    for (auto& biclique: bicliques.bicliques){
+        cout << "Biclique " << i++ << '\n';
+        for (auto& edge: biclique){
+            cout << "(" << gfa_graph.get_id(edge.first);
+            cout << (gfa_graph.get_is_reverse(edge.first) ? "-" : "+");
+            cout << ") -> (" << gfa_graph.get_id(edge.second);
+            cout << (gfa_graph.get_is_reverse(edge.second) ? "-" : "+") << ")" << '\n';
+        }
+    }
+    cout << '\n' << '\n';
 
     // TODO: delete adjacency components vector if unneeded
 

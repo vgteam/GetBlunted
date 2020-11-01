@@ -51,6 +51,8 @@ public:
     map<nid_t, OverlappingNodeInfo> overlapping_overlap_nodes;
     Bicliques& bicliques;
     OverlapMap& overlaps;
+    map <nid_t, set<nid_t> > parent_to_children;
+    map <nid_t, nid_t> child_to_parent;
 
 
     /// Methods ///
