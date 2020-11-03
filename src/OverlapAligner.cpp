@@ -24,6 +24,10 @@ handle_t& get_side(edge_t& e, bool side){
 /// edges. In the case where there is no such orientation, pick arbitrarily
 void harmonize_biclique_orientations(HandleGraph& gfa_graph, Bicliques& bicliques){
     for (auto& biclique: bicliques.bicliques){
+        if (biclique.size() < 2){
+            continue;
+        }
+
         map <nid_t, array<uint64_t, 2> > n_edges_per_node;
         map <nid_t, vector<size_t> > primary_edge_indexes;
 
@@ -39,22 +43,24 @@ void harmonize_biclique_orientations(HandleGraph& gfa_graph, Bicliques& biclique
             auto iter_left = n_edges_per_node.find(left_node);
             auto iter_right = n_edges_per_node.find(right_node);
 
+            // If the node has not been traversed yet, add a data container
             if (iter_left == n_edges_per_node.end()){
                 array<uint64_t,2> a = {0,0};
                 iter_left = n_edges_per_node.emplace(left_node, a).first;
             }
-
             if (iter_right == n_edges_per_node.end()){
                 array<uint64_t,2> a = {0,0};
                 iter_right = n_edges_per_node.emplace(right_node, a).first;
             }
 
+            // Update the counts for F and R orientations
             iter_left->second[gfa_graph.get_is_reverse(edge.first)]++;
             iter_right->second[gfa_graph.get_is_reverse(edge.second)]++;
 
             uint64_t total_left = iter_left->second[0] + iter_left->second[1];
             uint64_t total_right = iter_right->second[0] + iter_right->second[1];
 
+            // Update the max observed edges
             if (total_left > max_edges){
                 max_edges = total_left;
                 max_node = left_node;
@@ -77,6 +83,8 @@ void harmonize_biclique_orientations(HandleGraph& gfa_graph, Bicliques& biclique
         if (n_reverse > n_forward){
             seed_majority_reversal = true;
         }
+
+        std::cout << max_node << " " << n_forward << " " << n_reverse << '\n';
 
         // Iterate the edges directly linked with the seed node and flip them if necessary
         // Additionally flip (as necessary) all the secondary edges that stem from the seed node's adjacent nodes
@@ -101,6 +109,9 @@ void harmonize_biclique_orientations(HandleGraph& gfa_graph, Bicliques& biclique
                 flipped_edge.first = gfa_graph.flip(edge.second);
                 flipped_edge.second = gfa_graph.flip(edge.first);
             }
+            else{
+                flipped_edge = edge;
+            }
 
             // Find whether the secondary node would be reversed by this operation
             bool secondary_reversal = gfa_graph.get_is_reverse(get_side(flipped_edge, seed_side));
@@ -114,7 +125,7 @@ void harmonize_biclique_orientations(HandleGraph& gfa_graph, Bicliques& biclique
                 }
 
                 bool secondary_seed_side;
-                if (gfa_graph.get_id(secondary_edge.first) == other_node) {
+                if (gfa_graph.get_id(secondary_edge.first) == max_node) {
                     secondary_seed_side = 0;
                 } else {
                     secondary_seed_side = 1;
@@ -130,9 +141,9 @@ void harmonize_biclique_orientations(HandleGraph& gfa_graph, Bicliques& biclique
 
                     biclique[secondary_edge_index] = secondary_flipped_edge;
                 }
-
-                biclique[i] = flipped_edge;
             }
+
+            biclique[i] = flipped_edge;
         }
     }
 }

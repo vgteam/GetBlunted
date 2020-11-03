@@ -3,6 +3,7 @@
 #include "Biclique.hpp"
 #include "OverlapMap.hpp"
 #include "Duplicator.hpp"
+#include "OverlapAligner.hpp"
 #include "gfa_to_handle.hpp"
 #include "utility.hpp"
 
@@ -36,6 +37,7 @@ using bluntifier::duplicate_prefix;
 using bluntifier::duplicate_suffix;
 using bluntifier::run_command;
 using bluntifier::unchop;
+using bluntifier::harmonize_biclique_orientations;
 
 using handlegraph::MutablePathDeletableHandleGraph;
 using handlegraph::as_integer;
@@ -189,7 +191,7 @@ void print_adjacency_components_stats(
 
 
 void convert_spoa_to_bdsg(
-        const HashGraph& gfa_graph,
+        const HandleGraph& gfa_graph,
         Subgraph& subgraph,
         Graph& spoa_graph){
 
@@ -257,7 +259,7 @@ void convert_spoa_to_bdsg(
 
 
 void add_alignments_to_poa(
-        const HashGraph& gfa_graph,
+        const HandleGraph& gfa_graph,
         Subgraph& subgraph,
         Graph& spoa_graph,
         unique_ptr<AlignmentEngine>& alignment_engine,
@@ -325,7 +327,7 @@ void add_alignments_to_poa(
 
 void align_biclique_overlaps(
         size_t i,
-        const HashGraph& gfa_graph,
+        const HandleGraph& gfa_graph,
         const Bicliques& bicliques,
         vector <Subgraph>& subgraphs){
 
@@ -398,27 +400,20 @@ void align_biclique_overlaps(
 
 }
 
+
 void splice_subgraphs(HashGraph& gfa_graph,
                       vector <Subgraph>& subgraphs,
                       map<nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes){
 
     size_t i = 0;
-    for (auto& subgraph: subgraphs){
-
-        if (gfa_graph.get_node_count() < 30){
-            string test_path_prefix = "test_bluntify_copy_" + std::to_string(i) + "_a";
-            handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
-            string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
-                             + test_path_prefix + ".png";
-            run_command(command);
-        }
+    for (auto& subgraph: subgraphs) {
 
         // First, copy the subgraph into the GFA graph
         subgraph.graph.increment_node_ids(gfa_graph.max_node_id());
         copy_path_handle_graph(&subgraph.graph, &gfa_graph);
 
         if (gfa_graph.get_node_count() < 30){
-            string test_path_prefix = "test_bluntify_copy_" + std::to_string(i) + "_b";
+            string test_path_prefix = "test_bluntify_splice_" + std::to_string(i) + "_b";
             handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
             string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                              + test_path_prefix + ".png";
@@ -428,7 +423,7 @@ void splice_subgraphs(HashGraph& gfa_graph,
         i++;
 
         // Iterate the suffixes/prefixes that participated in this biclique
-        for (bool side: {0,1}) {
+        for (bool side: {0, 1}) {
             for (auto& item: subgraph.paths_per_handle[side]) {
                 auto& handle = item.first;
                 auto& path_info = item.second;
@@ -436,7 +431,7 @@ void splice_subgraphs(HashGraph& gfa_graph,
 
                 // Check if this is an Overlapping Overlap node
                 auto result = overlapping_overlap_nodes.find(node_id);
-                if (result != overlapping_overlap_nodes.end()){
+                if (result != overlapping_overlap_nodes.end()) {
                     // Do re-chopping and extra splicing ?
                     // or just skip for now?
                     continue;
@@ -448,40 +443,36 @@ void splice_subgraphs(HashGraph& gfa_graph,
 
                 cout << "Splicing node " << node_id << '\n';
                 cout << "\tPath sequence:\t";
-                for (const auto& h: gfa_graph.scan_path(path_handle)){
+                for (const auto& h: gfa_graph.scan_path(path_handle)) {
                     cout << gfa_graph.get_sequence(h);
                 }
                 cout << '\n';
                 cout << "\tNode sequence:\t" << gfa_graph.get_sequence(handle) << '\n';
 
-
-                // Get the parent handle and verify that there is no ambiguity in finding it
-                // Suffixes/prefixes should always have only one edge
-                size_t n_edges = 0;
-                handle_t parent_handle;
-                gfa_graph.follow_edges(handle, 1-side, [&](const handle_t& h){
-                    parent_handle = h;
-                    n_edges++;
+                set<handle_t> parent_handles;
+                gfa_graph.follow_edges(handle, 1 - side, [&](const handle_t& h) {
+                    parent_handles.emplace(h);
                 });
 
-                if (n_edges > 1 or n_edges == 0){
-                    throw runtime_error("ERROR: biclique terminus does not have 1 parent: "
-                                        + to_string(node_id) + " n_edges = " + to_string(n_edges));
+                if (parent_handles.empty()) {
+                    throw runtime_error("ERROR: biclique terminus does not have any parent: " + to_string(node_id));
                 }
 
-                // Depending on which side of the biclique this node is on, its path in the POA will be spliced
-                // differently
-                if (path_info.biclique_side == 0){
-                    auto& left = parent_handle;
-                    auto right = gfa_graph.get_handle_of_step(gfa_graph.path_begin(path_handle));
+                for (auto& parent_handle: parent_handles) {
+                    // Depending on which side of the biclique this node is on, its path in the POA will be spliced
+                    // differently
+                    if (path_info.biclique_side == 0) {
+                        auto& left = parent_handle;
+                        auto right = gfa_graph.get_handle_of_step(gfa_graph.path_begin(path_handle));
 
-                    gfa_graph.create_edge(left, right);
-                }
-                else{
-                    auto left = gfa_graph.get_handle_of_step(gfa_graph.path_back(path_handle));
-                    auto& right = parent_handle;
+                        gfa_graph.create_edge(left, right);
+                    }
+                    else {
+                        auto left = gfa_graph.get_handle_of_step(gfa_graph.path_back(path_handle));
+                        auto& right = parent_handle;
 
-                    gfa_graph.create_edge(left, right);
+                        gfa_graph.create_edge(left, right);
+                    }
                 }
 
                 gfa_graph.destroy_handle(handle);
@@ -564,6 +555,8 @@ void bluntify(string gfa_path){
                          + test_path_prefix + ".png";
         run_command(command);
     }
+
+    harmonize_biclique_orientations(gfa_graph, bicliques);
 
     vector <Subgraph> biclique_subgraphs(bicliques.size());
 
