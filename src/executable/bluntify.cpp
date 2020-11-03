@@ -491,19 +491,6 @@ void splice_subgraphs(HashGraph& gfa_graph,
 }
 
 
-/// For all the edges in a biclique, reorient them by attempting to match the orientation of the
-void harmonize_biclique_orientations(Bicliques& bicliques){
-    map <handle_t, uint64_t> n_edges_per_handle;
-
-    for (auto& biclique: bicliques.bicliques){
-        for (auto& edge: biclique){
-            n_edges_per_handle[edge.first]++;
-            n_edges_per_handle[edge.second]++;
-        }
-    }
-}
-
-
 void bluntify(string gfa_path){
     ifstream file(gfa_path);
 

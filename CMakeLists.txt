@@ -40,9 +40,11 @@ set(SOURCES
         src/AdjacencyComponent.cpp
         src/apply_bulk_modifications.cpp
 	    src/BicliqueCover.cpp
+	    src/Biclique.cpp
 	    src/BipartiteGraph.cpp
 	    src/copy_graph.cpp
         src/Cigar.cpp
+        src/Duplicator.cpp
         src/duplicate_terminus.cpp
         src/find_tips.cpp
 	    src/GaloisLattice.cpp
@@ -50,7 +52,9 @@ set(SOURCES
         src/handle_to_gfa.cpp
         src/IncrementalIdMap.cpp
         src/is_single_stranded.cpp
+        src/NodeInfo.cpp
         src/OverlapMap.cpp
+        src/OverlapAligner.cpp
 	    src/ReducedDualGraph.cpp
         src/SubtractiveHandleGraph.cpp
         src/topological_sort.cpp
@@ -308,6 +312,7 @@ set(TESTS
         test_gfak
         test_handlegraph
         test_handle_to_gfa
+        test_harmonize_biclique
         test_IncrementalIdMap
         test_overlaps
         test_spoa
