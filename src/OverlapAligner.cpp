@@ -84,7 +84,7 @@ void harmonize_biclique_orientations(HandleGraph& gfa_graph, Bicliques& biclique
             seed_majority_reversal = true;
         }
 
-        std::cout << max_node << " " << n_forward << " " << n_reverse << '\n';
+//        std::cout << max_node << " " << n_forward << " " << n_reverse << '\n';
 
         // Iterate the edges directly linked with the seed node and flip them if necessary
         // Additionally flip (as necessary) all the secondary edges that stem from the seed node's adjacent nodes
@@ -104,17 +104,20 @@ void harmonize_biclique_orientations(HandleGraph& gfa_graph, Bicliques& biclique
             auto other_node = gfa_graph.get_id(other_handle);
 
             edge_t flipped_edge;
+            bool secondary_reversal;
 
             if (gfa_graph.get_is_reverse(seed_handle) != seed_majority_reversal){
                 flipped_edge.first = gfa_graph.flip(edge.second);
                 flipped_edge.second = gfa_graph.flip(edge.first);
+                secondary_reversal = gfa_graph.get_is_reverse(get_side(flipped_edge, seed_side));
+
             }
             else{
                 flipped_edge = edge;
+                secondary_reversal = gfa_graph.get_is_reverse(get_side(flipped_edge, !seed_side));
             }
 
             // Find whether the secondary node would be reversed by this operation
-            bool secondary_reversal = gfa_graph.get_is_reverse(get_side(flipped_edge, seed_side));
 
             for (auto& secondary_edge_index: primary_edge_indexes.at(other_node)) {
                 auto& secondary_edge = biclique[secondary_edge_index];
@@ -125,7 +128,7 @@ void harmonize_biclique_orientations(HandleGraph& gfa_graph, Bicliques& biclique
                 }
 
                 bool secondary_seed_side;
-                if (gfa_graph.get_id(secondary_edge.first) == max_node) {
+                if (gfa_graph.get_id(secondary_edge.first) == other_node) {
                     secondary_seed_side = 0;
                 } else {
                     secondary_seed_side = 1;
