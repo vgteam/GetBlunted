@@ -5,6 +5,7 @@
 #include "Biclique.hpp"
 #include "NodeInfo.hpp"
 #include "OverlapMap.hpp"
+#include "OverlappingOverlap.hpp"
 #include "gfa_to_handle.hpp"
 #include "handle_to_gfa.hpp"
 #include "duplicate_terminus.hpp"
@@ -65,6 +66,11 @@ private:
             array <deque <size_t>, 2>& sorted_bicliques_per_side,
             array<map<size_t, handle_t>, 2>& biclique_side_to_child,
             const NodeInfo& node_info);
+
+    void postprocess_overlapping_overlap(
+            const HandleGraph& gfa_graph,
+            map<nid_t, OverlappingNodeInfo>::iterator iter,
+            array<map<size_t, handle_t>, 2> biclique_side_to_child);
 
     bool contains_overlapping_overlaps(
             const HandleGraph& gfa_graph,

@@ -1,8 +1,12 @@
-#include "OverlapAligner.hpp"
+#include "handle_to_gfa.hpp"
+#include "unchop.hpp"
+#include "align.hpp"
+
 #include <array>
 #include <map>
 
 using handlegraph::nid_t;
+
 using std::array;
 using std::map;
 
@@ -333,7 +337,6 @@ void harmonize_biclique_orientations(HandleGraph& gfa_graph, Bicliques& biclique
                 }
 
                 auto& secondary_seed_handle = get_side(secondary_edge, secondary_seed_side);
-                auto& secondary_other_handle = get_side(secondary_edge, !secondary_seed_side);
 
                 if (gfa_graph.get_is_reverse(secondary_seed_handle) != secondary_reversal) {
                     edge_t secondary_flipped_edge;

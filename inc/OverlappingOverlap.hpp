@@ -3,6 +3,8 @@
 
 #include "handlegraph/handle_graph.hpp"
 
+#include <vector>
+#include <array>
 #include <map>
 
 using handlegraph::HandleGraph;
@@ -10,6 +12,8 @@ using handlegraph::path_handle_t;
 using handlegraph::handle_t;
 using handlegraph::nid_t;
 
+using std::vector;
+using std::array;
 using std::map;
 
 
@@ -19,19 +23,22 @@ class OverlappingChild{
 public:
     const handle_t handle;
     const size_t biclique_index;
-    const bool side;
 
-    OverlappingChild(handle_t handle, size_t biclique_index, bool side);
-    void print(HandleGraph& gfa_graph);
+    OverlappingChild(handle_t handle, size_t biclique_index);
+    void print(HandleGraph& gfa_graph) const;
 };
+
 
 class OverlappingNodeInfo{
 public:
     /// Attributes ///
 
     // Assuming a forward oriented parent node, map each child of this node by its termination index in the parent node
-    map <size_t, OverlappingChild> overlapping_children;
-    array<map<size_t, handle_t>, 2> biclique_side_to_child;
+    array <map <size_t, OverlappingChild>, 2> overlapping_children;
+    array <map <size_t, OverlappingChild>, 2> normal_children;
+
+    // If there is anything leftover of the original node, it goes here
+    vector <handle_t> leftover_parent;
 
     // What was the original GFA node id?
     nid_t parent_node;

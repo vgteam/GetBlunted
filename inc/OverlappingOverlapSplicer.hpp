@@ -6,6 +6,7 @@
 #include "handlegraph/handle_graph.hpp"
 #include "OverlappingOverlap.hpp"
 #include "Subgraph.hpp"
+#include "utility.hpp"
 
 using std::vector;
 using std::string;
@@ -20,8 +21,39 @@ using handlegraph::nid_t;
 namespace bluntifier {
 
 class OverlappingOverlapSplicer {
+public:
+    map<nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes;
+    const vector<Subgraph>& subgraphs;
 
+    OverlappingOverlapSplicer(
+            map<nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes,
+            const vector<Subgraph>& subgraphs);
+
+    void splice_overlapping_overlaps(
+            MutablePathDeletableHandleGraph& gfa_graph);
+
+private:
+    void find_path_info(
+            const HandleGraph& gfa_graph,
+            size_t biclique_index,
+            handle_t handle,
+            PathInfo& path_info,
+            string& path_name);
 };
+
+
+void find_path_info(
+        const vector<Subgraph>& subgraphs,
+        const HandleGraph& gfa_graph,
+        size_t biclique_index,
+        handle_t handle,
+        PathInfo& path_info,
+        string& path_name);
+
+void splice_overlapping_overlaps(
+        MutablePathDeletableHandleGraph& gfa_graph,
+        vector <Subgraph>& subgraphs,
+        map<nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes);
 
 
 }

@@ -2,9 +2,18 @@
 #define BLUNTIFIER_SUBGRAPH_HPP
 
 #include "handlegraph/handle_graph.hpp"
+#include "bdsg/hash_graph.hpp"
+#include "utility.hpp"
 
+#include <array>
+#include <map>
+
+using bdsg::HashGraph;
 using handlegraph::path_handle_t;
 using handlegraph::handle_t;
+
+using std::array;
+using std::map;
 
 
 namespace bluntifier {
@@ -30,7 +39,7 @@ public:
 
     Subgraph()=default;
 };
-;
+
 
 
 }

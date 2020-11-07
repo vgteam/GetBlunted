@@ -54,9 +54,12 @@ set(SOURCES
         src/is_single_stranded.cpp
         src/NodeInfo.cpp
         src/OverlapMap.cpp
-        src/OverlapAligner.cpp
+        src/OverlappingOverlap.cpp
+        src/OverlappingOverlapSplicer.cpp
+        src/align.cpp
 	    src/ReducedDualGraph.cpp
         src/SubtractiveHandleGraph.cpp
+        src/Subgraph.cpp
         src/topological_sort.cpp
         src/traverse.cpp
         src/unchop.cpp
