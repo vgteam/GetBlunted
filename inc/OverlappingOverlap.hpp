@@ -4,6 +4,7 @@
 #include "handlegraph/handle_graph.hpp"
 
 #include <vector>
+#include <deque>
 #include <array>
 #include <map>
 
@@ -13,6 +14,7 @@ using handlegraph::handle_t;
 using handlegraph::nid_t;
 
 using std::vector;
+using std::deque;
 using std::array;
 using std::map;
 
@@ -49,6 +51,11 @@ public:
     /// Methods ///
 
     OverlappingNodeInfo(nid_t parent_node);
+    void print(HandleGraph& graph);
+
+    // Return a vector containing all the children whose extents exceed or match the given index
+    void find_overlapping_children_by_base_index(size_t index, bool side, deque<OverlappingChild>& children);
+    void find_normal_children_by_base_index(size_t index, bool side, deque<OverlappingChild>& children);
 
 private:
 

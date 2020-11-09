@@ -42,6 +42,50 @@ void OverlappingOverlapSplicer::find_path_info(
 }
 
 
+// TODO: if this ever becomes rate limiting, this whole loop could be replaced by a stepwise iterator with a "next"
+// method. Then the base indexes would be iterated, and for all overlaps, the iterators are advanced in sync until they
+// expire
+pair<handle_t, size_t> OverlappingOverlapSplicer::seek_to_path_base(
+        MutablePathDeletableHandleGraph& gfa_graph,
+        OverlappingChild& overlapping_child,
+        size_t target_base_index){
+
+    PathInfo path_info;
+    string path_name;
+    find_path_info(gfa_graph, overlapping_child.biclique_index, overlapping_child.handle, path_info, path_name);
+
+    auto path_handle = gfa_graph.get_path_handle(path_name);
+    auto step = gfa_graph.path_begin(path_handle);
+
+    size_t cumulative_index = 0;
+    size_t intra_handle_index = 0;
+    handle_t step_handle;
+
+    bool fail = true;
+    while (step != gfa_graph.path_end(path_handle)){
+        step_handle = gfa_graph.get_handle_of_step(step);
+        auto step_length = gfa_graph.get_length(step_handle);
+
+        if (cumulative_index + step_length > target_base_index){
+            intra_handle_index = target_base_index - cumulative_index;
+            fail = false;
+            break;
+        }
+        else{
+            gfa_graph.get_next_step(step);
+        }
+
+        cumulative_index += step_length;
+    }
+
+    if (fail){
+        throw runtime_error("ERROR: path base index " + to_string(target_base_index) + " exceeds sum of handle lengths");
+    }
+
+    return {step_handle, intra_handle_index};
+}
+
+
 void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletableHandleGraph& gfa_graph) {
 
     for (auto& item: overlapping_overlap_nodes) {
@@ -52,8 +96,12 @@ void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletable
 
         cout << "Splicing overlapping overlap: " << node_id << '\n';
 
+        overlap_info.print(gfa_graph);
 
-            // Splice into the remaining body of the node if any of the other overlaps don't overlap this one
+        for (size_t i=0; i<overlap_info.length; i++){
+
+//            seek_to_path_base(gfa_graph, )
+        }
     }
 }
 

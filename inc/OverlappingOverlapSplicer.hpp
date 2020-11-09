@@ -7,11 +7,13 @@
 #include "OverlappingOverlap.hpp"
 #include "Subgraph.hpp"
 #include "utility.hpp"
+#include <utility>
 
 using std::vector;
 using std::string;
 using std::runtime_error;
 using std::to_string;
+using std::pair;
 
 using handlegraph::MutablePathDeletableHandleGraph;
 using handlegraph::HandleGraph;
@@ -31,6 +33,11 @@ public:
 
     void splice_overlapping_overlaps(
             MutablePathDeletableHandleGraph& gfa_graph);
+
+    pair<handle_t, size_t> seek_to_path_base(
+            MutablePathDeletableHandleGraph& gfa_graph,
+            OverlappingChild& overlapping_child,
+            size_t target_base_index);
 
 private:
     void find_path_info(
@@ -54,7 +61,6 @@ void splice_overlapping_overlaps(
         MutablePathDeletableHandleGraph& gfa_graph,
         vector <Subgraph>& subgraphs,
         map<nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes);
-
 
 }
 
