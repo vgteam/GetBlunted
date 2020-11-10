@@ -9,11 +9,82 @@ namespace bluntifier {
 
 OverlappingOverlapSplicer::OverlappingOverlapSplicer(
         map<nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes,
+        map <nid_t, set<nid_t> >& parent_to_children,
         const vector<Subgraph>& subgraphs):
     overlapping_overlap_nodes(overlapping_overlap_nodes),
+    parent_to_children(parent_to_children),
     subgraphs(subgraphs)
 {}
 
+
+void OverlappingOverlapSplicer::find_parent_path_bounds(
+        MutablePathDeletableHandleGraph& gfa_graph,
+        nid_t parent_id,
+        pair<size_t, size_t>& bounds) {
+
+    size_t i_step = 0;
+
+    auto parent_path_handle = gfa_graph.get_path_handle(to_string(parent_id));
+    for (auto h: gfa_graph.scan_path(parent_path_handle)) {
+        auto id = gfa_graph.get_id(h);
+        std::cout << id << " " << gfa_graph.get_sequence(h);
+
+        // If this node is not one of the suffixes/prefixes
+        if (parent_to_children.at(parent_id).count(id) == 0) {
+
+        }
+        // Otherwise remember the amount of trimmed sequence
+        else {
+            std::cout << " <- terminus";
+            if (i_step == 0) {
+                bounds.first = gfa_graph.get_length(h);
+            } else {
+            // If it's not the first step and this handle is a prefix/suffix then the path ends
+                bounds.second = gfa_graph.get_length(h);
+                break;
+            }
+        }
+        std::cout << '\n';
+
+        i_step++;
+    }
+    std::cout << '\n';
+    std::cout << '\n';
+
+    gfa_graph.destroy_path(parent_path_handle);
+
+//    if (sorted_extents_per_side[0].empty()) {
+//        if (left_trimmed != 0) {
+//            throw runtime_error("ERROR: parent path trim size does not equal smallest overlap size: " +
+//                                to_string(node_info.node_id) + " on left side\n" +
+//                                "\tTrimmed: " + to_string(left_trimmed) + "\n"
+//                                                                          "\tNo overlap: " +
+//                                to_string(sorted_extents_per_side[0].empty()));
+//        }
+//    }
+//    else if (left_trimmed != sorted_extents_per_side[0].back()){
+//        throw runtime_error("ERROR: parent path trim size does not equal smallest overlap size: " +
+//                            to_string(node_info.node_id) + " on left side\n" +
+//                            "\tTrimmed: " + to_string(left_trimmed) + "\n"
+//                            "\tMin overlap: " + to_string(sorted_extents_per_side[0].back()));
+//    }
+//
+//    if (sorted_extents_per_side[1].empty()) {
+//        if (right_trimmed != 0) {
+//            throw runtime_error("ERROR: parent path trim size does not equal smallest overlap size: " +
+//                                to_string(node_info.node_id) + " on right side\n" +
+//                                "\tTrimmed: " + to_string(right_trimmed) + "\n"
+//                                                                           "\tNo overlap: " +
+//                                to_string(sorted_extents_per_side[1].empty()));
+//        }
+//    }
+//    else if (right_trimmed != sorted_extents_per_side[1].back()){
+//        throw runtime_error("ERROR: parent path trim size does not equal smallest overlap size: " +
+//                            to_string(node_info.node_id) + " on right side\n" +
+//                            "\tTrimmed: " + to_string(right_trimmed) + "\n"
+//                            "\tMin overlap: " + to_string(sorted_extents_per_side[1].back()));
+//    }
+}
 
 void OverlappingOverlapSplicer::find_path_info(
         const HandleGraph& gfa_graph,
@@ -98,10 +169,16 @@ void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletable
 
         overlap_info.print(gfa_graph);
 
+        // Find all division points
         for (size_t i=0; i<overlap_info.length; i++){
+            // check if any (left or right) OO reaches this point
 
-//            seek_to_path_base(gfa_graph, )
+            // If so, check if any non OOs reach this point on the opposite side
+
+            // If so, divide, and record the splice info in terms of base index for a path seek operation
         }
+
+        // For every splice site, seek to that base index for each path and splice (fuck complexity concerns right now)
     }
 }
 

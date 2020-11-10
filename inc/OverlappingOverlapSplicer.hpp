@@ -8,12 +8,14 @@
 #include "Subgraph.hpp"
 #include "utility.hpp"
 #include <utility>
+#include <set>
 
-using std::vector;
-using std::string;
 using std::runtime_error;
 using std::to_string;
+using std::string;
+using std::vector;
 using std::pair;
+using std::set;
 
 using handlegraph::MutablePathDeletableHandleGraph;
 using handlegraph::HandleGraph;
@@ -25,10 +27,12 @@ namespace bluntifier {
 class OverlappingOverlapSplicer {
 public:
     map<nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes;
+    map <nid_t, set<nid_t> >& parent_to_children;
     const vector<Subgraph>& subgraphs;
 
     OverlappingOverlapSplicer(
             map<nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes,
+            map <nid_t, set<nid_t> >& parent_to_children,
             const vector<Subgraph>& subgraphs);
 
     void splice_overlapping_overlaps(
@@ -46,21 +50,12 @@ private:
             handle_t handle,
             PathInfo& path_info,
             string& path_name);
+
+    void find_parent_path_bounds(
+            MutablePathDeletableHandleGraph& gfa_graph,
+            nid_t parent_id,
+            pair<size_t, size_t>& bounds);
 };
-
-
-void find_path_info(
-        const vector<Subgraph>& subgraphs,
-        const HandleGraph& gfa_graph,
-        size_t biclique_index,
-        handle_t handle,
-        PathInfo& path_info,
-        string& path_name);
-
-void splice_overlapping_overlaps(
-        MutablePathDeletableHandleGraph& gfa_graph,
-        vector <Subgraph>& subgraphs,
-        map<nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes);
 
 }
 

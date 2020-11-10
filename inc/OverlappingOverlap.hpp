@@ -3,6 +3,7 @@
 
 #include "handlegraph/handle_graph.hpp"
 
+#include <string>
 #include <vector>
 #include <deque>
 #include <array>
@@ -13,6 +14,7 @@ using handlegraph::path_handle_t;
 using handlegraph::handle_t;
 using handlegraph::nid_t;
 
+using std::string;
 using std::vector;
 using std::deque;
 using std::array;
@@ -39,8 +41,11 @@ public:
     array <map <size_t, OverlappingChild>, 2> overlapping_children;
     array <map <size_t, OverlappingChild>, 2> normal_children;
 
-    // If there is anything leftover of the original node, it goes here
-    vector <handle_t> leftover_parent;
+    // If there is anything leftover of the original node, it is stored as a path
+    string parent_path_name;
+
+    // Also need to know at which index this leftover material starts
+    size_t parent_path_start_index;
 
     // What was the original GFA node id?
     nid_t parent_node;

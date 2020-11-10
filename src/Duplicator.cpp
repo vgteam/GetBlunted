@@ -78,51 +78,51 @@ map<nid_t, OverlappingNodeInfo>::iterator Duplicator::preprocess_overlapping_ove
 }
 
 
-void find_leftover_parent(const HandleGraph& gfa_graph, OverlappingNodeInfo& overlap_info){
-    // Get longest left node
-    nid_t a = 0;
-    if (not overlap_info.normal_children[0].empty()){
-        a = gfa_graph.get_id(overlap_info.normal_children[0].rbegin()->second.handle);
-    }
-
-    // Get longest right node
-    nid_t b = 0;
-    if (not overlap_info.normal_children[1].empty()){
-        b = gfa_graph.get_id(overlap_info.normal_children[1].begin()->second.handle);
-    }
-
-    size_t n_edges_a = 0;
-    handle_t a_right;
-    if (a != 0){
-        gfa_graph.follow_edges(gfa_graph.get_handle(a),false, [&](const auto& h){
-            a_right = h;
-            n_edges_a++;
-        });
-    }
-
-    size_t n_edges_b = 0;
-    handle_t b_left;
-    if (b != 0){
-        gfa_graph.follow_edges(gfa_graph.get_handle(b),true, [&](const auto& h){
-            b_left = h;
-            n_edges_b++;
-        });
-    }
-
-    cout << "OO PARENT info: " << n_edges_a << " " << a << " " << n_edges_b << " " << b << '\n';
-
-    if (n_edges_a == 0 and n_edges_b == 1){
-        overlap_info.leftover_parent.emplace_back(b_left);
-    }
-    else if (n_edges_a == 1 and n_edges_b == 0){
-        overlap_info.leftover_parent.emplace_back(a_right);
-    }
-    else if (n_edges_a == 1 and n_edges_b == 1){
-        if (a_right == b_left){
-            overlap_info.leftover_parent.emplace_back(a_right);
-        }
-    }
-}
+//void find_leftover_parent(const HandleGraph& gfa_graph, OverlappingNodeInfo& overlap_info){
+//    // Get longest left node
+//    nid_t a = 0;
+//    if (not overlap_info.normal_children[0].empty()){
+//        a = gfa_graph.get_id(overlap_info.normal_children[0].rbegin()->second.handle);
+//    }
+//
+//    // Get longest right node
+//    nid_t b = 0;
+//    if (not overlap_info.normal_children[1].empty()){
+//        b = gfa_graph.get_id(overlap_info.normal_children[1].begin()->second.handle);
+//    }
+//
+//    size_t n_edges_a = 0;
+//    handle_t a_right;
+//    if (a != 0){
+//        gfa_graph.follow_edges(gfa_graph.get_handle(a),false, [&](const auto& h){
+//            a_right = h;
+//            n_edges_a++;
+//        });
+//    }
+//
+//    size_t n_edges_b = 0;
+//    handle_t b_left;
+//    if (b != 0){
+//        gfa_graph.follow_edges(gfa_graph.get_handle(b),true, [&](const auto& h){
+//            b_left = h;
+//            n_edges_b++;
+//        });
+//    }
+//
+//    cout << "OO PARENT info: " << n_edges_a << " " << a << " " << n_edges_b << " " << b << '\n';
+//
+//    if (n_edges_a == 0 and n_edges_b == 1){
+//        overlap_info.leftover_parent.emplace_back(b_left);
+//    }
+//    else if (n_edges_a == 1 and n_edges_b == 0){
+//        overlap_info.leftover_parent.emplace_back(a_right);
+//    }
+//    else if (n_edges_a == 1 and n_edges_b == 1){
+//        if (a_right == b_left){
+//            overlap_info.leftover_parent.emplace_back(a_right);
+//        }
+//    }
+//}
 
 
 void Duplicator::postprocess_overlapping_overlap(
@@ -161,7 +161,7 @@ void Duplicator::postprocess_overlapping_overlap(
         }
     }
 
-    find_leftover_parent(gfa_graph, overlapping_node_info);
+//    find_leftover_parent(gfa_graph, overlapping_node_info);
 }
 
 
@@ -283,7 +283,7 @@ void Duplicator::remove_participating_edges(
 
 void Duplicator::duplicate_termini(
         MutablePathDeletableHandleGraph& gfa_graph,
-        array <deque <size_t>, 2>& sorted_sizes_per_side,
+        array <deque <size_t>, 2> sorted_sizes_per_side,
         const array <deque <size_t>, 2>& sorted_bicliques_per_side,
         array<map<size_t, handle_t>, 2>& biclique_side_to_child,
         const NodeInfo& node_info
@@ -339,16 +339,23 @@ void Duplicator::duplicate_termini(
     }
 
     // Update provenance maps
+    auto left_parent = gfa_graph.get_id(left_children[0]);
     for (size_t i=1; i<left_children.size(); i++){
         auto child_node = gfa_graph.get_id(left_children[i]);
-        child_to_parent[child_node] = node_info.node_id;
-        parent_to_children[node_info.node_id].emplace(child_node);
+
+        if (child_node != left_parent) {
+            child_to_parent[child_node] = node_info.node_id;
+            parent_to_children[node_info.node_id].emplace(child_node);
+        }
     }
 
     for (size_t i=1; i<right_children.size(); i++){
         auto child_node = gfa_graph.get_id(right_children[i]);
-        child_to_parent[child_node] = node_info.node_id;
-        parent_to_children[node_info.node_id].emplace(child_node);
+
+        if (child_node != left_parent) {
+            child_to_parent[child_node] = node_info.node_id;
+            parent_to_children[node_info.node_id].emplace(child_node);
+        }
     }
 
 }
@@ -390,6 +397,11 @@ void Duplicator::duplicate_all_node_termini(MutablePathDeletableHandleGraph& gfa
         handle_t parent_handle = gfa_graph.get_handle(node_id, 0);
         handle_t parent_handle_flipped = gfa_graph.flip(parent_handle);
 
+        // Set a path that only describes the parent node
+        string parent_path_name = to_string(node_info.node_id);
+        auto parent_path_handle = gfa_graph.create_path_handle(parent_path_name);
+        gfa_graph.append_step(parent_path_handle, parent_handle);
+
         set <size_t> overlapping_bicliques;
 
         auto overlapping_overlap_iter = overlapping_overlap_nodes.end();
@@ -410,11 +422,18 @@ void Duplicator::duplicate_all_node_termini(MutablePathDeletableHandleGraph& gfa
                 biclique_side_to_child,
                 node_info);
 
+//        trim_parent_path(
+//                gfa_graph,
+//                sorted_sizes_per_side,
+//                sorted_bicliques_per_side,
+//                node_info);
+
         repair_edges(
                 gfa_graph,
                 biclique_side_to_child,
                 parent_handle,
                 parent_handle_flipped);
+
 
         if (overlapping_overlap_iter != overlapping_overlap_nodes.end()){
             postprocess_overlapping_overlap(gfa_graph, overlapping_overlap_iter, biclique_side_to_child);

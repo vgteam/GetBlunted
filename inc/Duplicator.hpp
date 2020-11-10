@@ -55,7 +55,7 @@ private:
 
     void duplicate_termini(
             MutablePathDeletableHandleGraph& gfa_graph,
-            array <deque <size_t>, 2>& sorted_sizes_per_side,
+            array <deque <size_t>, 2> sorted_sizes_per_side,
             const array <deque <size_t>, 2>& sorted_bicliques_per_side,
             array<map<size_t, handle_t>, 2>& biclique_side_to_child,
             const NodeInfo& node_info);

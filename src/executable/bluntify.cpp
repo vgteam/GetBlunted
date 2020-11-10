@@ -244,6 +244,8 @@ void splice_subgraphs(
 
                 cout << "Destroying: " << gfa_graph.get_id(handle) << '\n';
 
+                // TODO: remove node from provenance map
+
                 if (subgraph.paths_per_handle[1-side].count(handle) == 0
                     and subgraph.paths_per_handle[1-side].count(gfa_graph.flip(handle)) == 0) {
                     gfa_graph.destroy_handle(handle);
@@ -355,10 +357,9 @@ void bluntify(string gfa_path){
         run_command(command);
     }
 
-    OverlappingOverlapSplicer oo_splicer(super_duper.overlapping_overlap_nodes, biclique_subgraphs);
+    OverlappingOverlapSplicer oo_splicer(super_duper.overlapping_overlap_nodes, super_duper.parent_to_children, biclique_subgraphs);
 
     oo_splicer.splice_overlapping_overlaps(gfa_graph);
-//    splice_overlapping_overlaps(gfa_graph, biclique_subgraphs, super_duper.overlapping_overlap_nodes);
 }
 
 
