@@ -1,8 +1,8 @@
 #include <iostream>
 #include "utility.hpp"
 
-namespace bluntifier {
 
+namespace bluntifier {
 
 void run_command(string& argument_string){
     int exit_code = system(argument_string.c_str());

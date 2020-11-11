@@ -25,10 +25,12 @@ namespace bluntifier{
 
 class OverlappingChild{
 public:
-    const handle_t handle;
-    const size_t biclique_index;
+    handle_t handle;
+    size_t biclique_index;
+    bool side;
 
-    OverlappingChild(handle_t handle, size_t biclique_index);
+    OverlappingChild(handle_t handle, size_t biclique_index, bool side);
+    OverlappingChild();
     void print(HandleGraph& gfa_graph) const;
 };
 
@@ -57,12 +59,6 @@ public:
 
     OverlappingNodeInfo(nid_t parent_node);
     void print(HandleGraph& graph);
-
-    // Return a vector containing all the children whose extents exceed or match the given index
-    void find_overlapping_children_by_base_index(size_t index, bool side, deque<OverlappingChild>& children);
-    void find_normal_children_by_base_index(size_t index, bool side, deque<OverlappingChild>& children);
-
-private:
 
 };
 }

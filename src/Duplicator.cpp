@@ -39,7 +39,7 @@ map<nid_t, OverlappingNodeInfo>::iterator Duplicator::preprocess_overlapping_ove
             biclique_side_to_child[0].emplace(biclique_index, child);
 
             // More info needs to be stored until AFTER all POA subgraphs are done, to enable splicing within this node
-            OverlappingChild child_info(child, biclique_index);
+            OverlappingChild child_info(child, biclique_index, 0);
             overlap_node_info.overlapping_children[0].emplace(s, child_info);
 
             // Update provenance map
@@ -61,7 +61,7 @@ map<nid_t, OverlappingNodeInfo>::iterator Duplicator::preprocess_overlapping_ove
             biclique_side_to_child[1].emplace(biclique_index, child);
 
             // More info needs to be stored until AFTER all POA subgraphs are done, to enable splicing within this node
-            OverlappingChild child_info(child, biclique_index);
+            OverlappingChild child_info(child, biclique_index, 1);
             overlap_node_info.overlapping_children[1].emplace(start, child_info);
 
             // Update provenance map
@@ -155,7 +155,7 @@ void Duplicator::postprocess_overlapping_overlap(
                     position = overlapping_node_info.length - gfa_graph.get_length(handle);
                 }
 
-                OverlappingChild o(handle, biclique_index);
+                OverlappingChild o(handle, biclique_index, side);
                 overlapping_node_info.normal_children[side].emplace(position, o);
             }
         }

@@ -168,7 +168,7 @@ void splice_subgraphs(
         HashGraph& gfa_graph,
         vector <Subgraph>& subgraphs,
         map <nid_t, nid_t>& child_to_parent,
-        map<nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes){
+        map <nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes){
 
     size_t i = 0;
     for (auto& subgraph: subgraphs) {
@@ -200,8 +200,6 @@ void splice_subgraphs(
                 auto original_gfa_node = child_to_parent[node_id];
                 auto result = overlapping_overlap_nodes.find(original_gfa_node);
                 if (result != overlapping_overlap_nodes.end()) {
-                    // Do re-chopping and extra splicing ?
-                    // or just skip for now?
                     continue;
                 }
 
@@ -349,7 +347,7 @@ void bluntify(string gfa_path){
 
     splice_subgraphs(gfa_graph, biclique_subgraphs, super_duper.child_to_parent, super_duper.overlapping_overlap_nodes);
 
-    if (gfa_graph.get_node_count() < 30){
+    if (gfa_graph.get_node_count() < 200){
         string test_path_prefix = "test_bluntify_spliced_" + std::to_string(1);
         handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
@@ -360,6 +358,17 @@ void bluntify(string gfa_path){
     OverlappingOverlapSplicer oo_splicer(super_duper.overlapping_overlap_nodes, super_duper.parent_to_children, biclique_subgraphs);
 
     oo_splicer.splice_overlapping_overlaps(gfa_graph);
+
+    if (gfa_graph.get_node_count() < 200){
+        string test_path_prefix = "test_bluntify_spliced_oo_" + std::to_string(1);
+        handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
+        string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
+                         + test_path_prefix + ".png";
+
+        cerr << "Running command: " << command << '\n';
+        run_command(command);
+    }
+
 }
 
 

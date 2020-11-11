@@ -24,9 +24,23 @@ using handlegraph::nid_t;
 
 namespace bluntifier {
 
+
+class OverlappingSplicePair{
+public:
+    size_t left_parent_index;
+    size_t left_child_index;
+    OverlappingChild left_child;
+    size_t right_parent_index;
+    size_t right_child_index;
+    OverlappingChild right_child;
+
+    OverlappingSplicePair()=default;
+};
+
+
 class OverlappingOverlapSplicer {
 public:
-    map<nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes;
+    map <nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes;
     map <nid_t, set<nid_t> >& parent_to_children;
     const vector<Subgraph>& subgraphs;
 
@@ -55,6 +69,12 @@ private:
             MutablePathDeletableHandleGraph& gfa_graph,
             nid_t parent_id,
             pair<size_t, size_t>& bounds);
+
+    void find_splice_pairs(
+            HandleGraph& gfa_graph,
+            OverlappingNodeInfo& overlap_info,
+            vector <OverlappingSplicePair>& oo_splice_pairs,
+            size_t i);
 };
 
 }

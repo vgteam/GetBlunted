@@ -6,6 +6,8 @@ using std::cout;
 
 namespace bluntifier {
 
+typedef map <size_t, OverlappingChild>::iterator overlapping_child_iter;
+
 
 OverlappingOverlapSplicer::OverlappingOverlapSplicer(
         map<nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes,
@@ -143,11 +145,14 @@ pair<handle_t, size_t> OverlappingOverlapSplicer::seek_to_path_base(
             break;
         }
         else{
-            gfa_graph.get_next_step(step);
+            cout << gfa_graph.get_id(step_handle) << " " << cumulative_index << " " << target_base_index << " " << gfa_graph.get_sequence(step_handle) << '\n';
+            step = gfa_graph.get_next_step(step);
         }
 
         cumulative_index += step_length;
     }
+    cout << gfa_graph.get_id(step_handle) << " " << gfa_graph.get_sequence(step_handle) << '\n';
+    cout << '\n';
 
     if (fail){
         throw runtime_error("ERROR: path base index " + to_string(target_base_index) + " exceeds sum of handle lengths");
@@ -157,28 +162,145 @@ pair<handle_t, size_t> OverlappingOverlapSplicer::seek_to_path_base(
 }
 
 
+void OverlappingOverlapSplicer::find_splice_pairs(
+        HandleGraph& gfa_graph,
+        OverlappingNodeInfo& overlap_info,
+        vector <OverlappingSplicePair>& oo_splice_pairs,
+        size_t i){
+
+    array <deque <overlapping_child_iter>, 2> oo_children;
+    array <deque <overlapping_child_iter>, 2> normal_children;
+
+    for (auto side: {0,1}) {
+        if (side == 0) {
+            greater_than(overlap_info.overlapping_children[side], i, oo_children[side]);
+        }
+        else{
+            less_than_or_equal(overlap_info.overlapping_children[side], i, oo_children[side]);
+        }
+
+        if (not oo_children[side].empty()) {
+            if (1-side == 0) {
+                greater_than(overlap_info.normal_children[1-side], i, normal_children[1-side]);
+            }
+            else{
+                less_than_or_equal(overlap_info.normal_children[1-side], i, normal_children[1-side]);
+            }
+
+            if (not normal_children[1-side].empty()) {
+                for (auto& normie: normal_children[1 - side]) {
+                    cout << "\tNormal  - side: " << 1 - side << " - " << "Index=" << normie->first << " ";
+                    normie->second.print(gfa_graph);
+                }
+                for (auto& oo: oo_children[side]) {
+                    cout << "\tOverlap - side: " << side << " - " << "Index=" << oo->first << " ";
+                    oo->second.print(gfa_graph);
+                }
+
+                for (auto& oo: oo_children[side]) {
+                    for (auto& n: normal_children[1-side]) {
+                        auto& oo_child = oo->second;
+                        auto& n_child = n->second;
+
+                        OverlappingSplicePair splice_pair;
+
+                        splice_pair.left_parent_index = i;
+                        splice_pair.left_child_index = i;
+
+                        if (side == 0) {
+                            splice_pair.left_child = oo_child;
+                            splice_pair.right_child = n_child;
+
+                            if (i+1 < overlap_info.length) {
+                                // Which index is this in the PARENT coords?
+                                splice_pair.right_parent_index = i + 1;
+
+                                // Which index is this in the CHILD coords?
+                                splice_pair.right_child_index = i - n->first + 1;
+                            }
+                            else{
+                                throw runtime_error("Overlap splice operation exceeds end of parent node: " + to_string(overlap_info.parent_node));
+                            }
+                        }
+                        else{
+                            splice_pair.left_child = n_child;
+                            splice_pair.right_child = oo_child;
+
+                            if (i+1 < overlap_info.length) {
+                                // Which index is this in the PARENT coords?
+                                splice_pair.right_parent_index = i + 1;
+
+                                // Which index is this in the CHILD coords?
+                                splice_pair.right_child_index = i - oo->first + 1;
+                            }
+                            else{
+                                throw runtime_error("Overlap splice operation exceeds end of parent node: " + to_string(overlap_info.parent_node));
+                            }
+                        }
+
+                        oo_splice_pairs.emplace_back(splice_pair);
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletableHandleGraph& gfa_graph) {
 
-    for (auto& item: overlapping_overlap_nodes) {
-        auto node_id = item.first;
+    for (auto& oo_item: overlapping_overlap_nodes) {
+        auto node_id = oo_item.first;
         auto parent_handle = gfa_graph.get_handle(node_id, false);
-        auto& overlap_info = item.second;
+        auto& overlap_info = oo_item.second;
         auto parent_size = overlap_info.length;
 
         cout << "Splicing overlapping overlap: " << node_id << '\n';
 
         overlap_info.print(gfa_graph);
 
-        // Find all division points
-        for (size_t i=0; i<overlap_info.length; i++){
-            // check if any (left or right) OO reaches this point
+        map<handle_t, set<size_t> > division_sites;
+        vector<OverlappingSplicePair> oo_splice_pairs;
 
-            // If so, check if any non OOs reach this point on the opposite side
+        // Find all division points
+        for (size_t parent_index = 0; parent_index < overlap_info.length; parent_index++) {
+            cout << "Splice site: " << parent_index << '\n';
+
+
+            find_splice_pairs(gfa_graph, overlap_info, oo_splice_pairs, parent_index);
+
+            for (auto& splice_pair: oo_splice_pairs) {
+                auto[left_handle, left_index] = seek_to_path_base(gfa_graph, splice_pair.left_child, splice_pair.left_child_index);
+                auto[right_handle, right_index] = seek_to_path_base(gfa_graph, splice_pair.right_child, splice_pair.right_child_index);
+
+                division_sites[left_handle].emplace(left_index);
+                division_sites[right_handle].emplace(right_index);
+            }
 
             // If so, divide, and record the splice info in terms of base index for a path seek operation
         }
 
-        // For every splice site, seek to that base index for each path and splice (fuck complexity concerns right now)
+        for (auto& item: division_sites) {
+            vector<size_t> sites;
+            for (auto& i: item.second){
+                if (i > 0) {
+                    sites.emplace_back(i);
+                }
+            }
+
+            gfa_graph.divide_handle(item.first, sites);
+        }
+
+        for (auto& splice_pair: oo_splice_pairs) {
+            auto[left_handle, left_index] = seek_to_path_base(gfa_graph, splice_pair.left_child,splice_pair.left_child_index);
+            auto[right_handle, right_index] = seek_to_path_base(gfa_graph, splice_pair.right_child,splice_pair.right_child_index);
+
+            cout << "Creating (" << gfa_graph.get_id(left_handle);
+            cout << (gfa_graph.get_is_reverse(left_handle) ? "-" : "+");
+            cout << ") -> (" << gfa_graph.get_id(right_handle);
+            cout << (gfa_graph.get_is_reverse(right_handle) ? "-" : "+") << ")" << '\n';
+            gfa_graph.create_edge(left_handle, right_handle);
+        }
     }
 }
 
