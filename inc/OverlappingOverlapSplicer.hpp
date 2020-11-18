@@ -29,9 +29,11 @@ class OverlappingSplicePair{
 public:
     size_t left_parent_index;
     size_t left_child_index;
+    size_t left_length;
     OverlappingChild left_child;
     size_t right_parent_index;
     size_t right_child_index;
+    size_t right_length;
     OverlappingChild right_child;
 
     OverlappingSplicePair()=default;
@@ -73,8 +75,10 @@ private:
     void find_splice_pairs(
             HandleGraph& gfa_graph,
             OverlappingNodeInfo& overlap_info,
-            vector <OverlappingSplicePair>& oo_splice_pairs,
-            size_t i);
+            vector <OverlappingSplicePair>& oo_splice_pairs);
+
+    void get_all_splice_indexes(const OverlappingNodeInfo& oo_node_info, set <size_t>& splice_indexes);
+
 };
 
 }

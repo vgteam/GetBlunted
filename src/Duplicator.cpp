@@ -40,7 +40,7 @@ map<nid_t, OverlappingNodeInfo>::iterator Duplicator::preprocess_overlapping_ove
 
             // More info needs to be stored until AFTER all POA subgraphs are done, to enable splicing within this node
             OverlappingChild child_info(child, biclique_index, 0);
-            overlap_node_info.overlapping_children[0].emplace(s, child_info);
+            overlap_node_info.overlapping_children[0].emplace(s-1, child_info);
 
             // Update provenance map
             auto child_node = gfa_graph.get_id(child);

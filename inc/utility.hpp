@@ -4,11 +4,11 @@
 #include <stdexcept>
 #include <iostream>
 #include <string>
-#include <deque>
+#include <vector>
 #include <tuple>
 
 using std::string;
-using std::deque;
+using std::vector;
 using std::runtime_error;
 
 
@@ -32,7 +32,7 @@ string join_paths(string a, string b);
 
 
 template<typename Map> void
-less_than(Map& m, typename Map::key_type k, deque<typename Map::iterator>& result) {
+less_than(Map& m, typename Map::key_type k, vector<typename Map::iterator>& result) {
     typename Map::iterator it = m.lower_bound(k);
 
     while(true) {
@@ -49,7 +49,7 @@ less_than(Map& m, typename Map::key_type k, deque<typename Map::iterator>& resul
 
 
 template<typename Map> void
-less_than_or_equal(Map& m, typename Map::key_type k, deque<typename Map::iterator>& result) {
+less_than_or_equal(Map& m, typename Map::key_type k, vector<typename Map::iterator>& result) {
     typename Map::iterator it = m.lower_bound(k);
 
     while(true) {
@@ -67,7 +67,7 @@ less_than_or_equal(Map& m, typename Map::key_type k, deque<typename Map::iterato
 
 
 template<typename Map> void
-greater_than(Map& m, typename Map::key_type k, deque<typename Map::iterator>& result) {
+greater_than(Map& m, typename Map::key_type k, vector<typename Map::iterator>& result) {
     typename Map::iterator it = m.lower_bound(k);
 
     while(it != m.end()) {
@@ -80,7 +80,7 @@ greater_than(Map& m, typename Map::key_type k, deque<typename Map::iterator>& re
 
 
 template<typename Map> void
-greater_than_or_equal(Map& m, typename Map::key_type k, deque<typename Map::iterator>& result) {
+greater_than_or_equal(Map& m, typename Map::key_type k, vector<typename Map::iterator>& result) {
     typename Map::iterator it = m.lower_bound(k);
 
     while(it != m.end()) {

@@ -311,12 +311,14 @@ set(TESTS
         test_bdsg
 	    test_BicliqueCover
         test_cigar
+        test_divide_handle
         test_duplicate_terminus
         test_gfak
         test_handlegraph
         test_handle_to_gfa
         test_harmonize_biclique
         test_IncrementalIdMap
+        test_map_range_methods
         test_overlaps
         test_spoa
         test_utility

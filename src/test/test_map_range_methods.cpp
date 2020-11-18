@@ -30,7 +30,7 @@ int main(){
 
     for (auto k: keys){
         cout << "less_than: " << k << '\n';
-        deque <map<size_t,size_t>::iterator> result;
+        vector <map<size_t,size_t>::iterator> result;
 
         less_than(m, k, result);
 
@@ -42,7 +42,7 @@ int main(){
 
     for (auto k: keys){
         cout << "greater_than: " << k << '\n';
-        deque <map<size_t,size_t>::iterator> result;
+        vector <map<size_t,size_t>::iterator> result;
 
         greater_than(m, k, result);
 
@@ -55,7 +55,7 @@ int main(){
 
     for (auto k: keys){
         cout << "less_than_or_equal: " << k << '\n';
-        deque <map<size_t,size_t>::iterator> result;
+        vector <map<size_t,size_t>::iterator> result;
 
         less_than_or_equal(m, k, result);
 
@@ -68,7 +68,7 @@ int main(){
 
     for (auto k: keys){
         cout << "greater_than_or_equal: " << k << '\n';
-        deque <map<size_t,size_t>::iterator> result;
+        vector <map<size_t,size_t>::iterator> result;
 
         greater_than_or_equal(m, k, result);
 
@@ -80,7 +80,7 @@ int main(){
 
     {
         cout << "less_than: " << 0 << '\n';
-        deque <map<size_t,size_t>::iterator> result;
+        vector <map<size_t,size_t>::iterator> result;
 
         less_than(m, 0, result);
 
@@ -93,7 +93,7 @@ int main(){
 
     {
         cout << "less_than: " << 4 << '\n';
-        deque <map<size_t,size_t>::iterator> result;
+        vector <map<size_t,size_t>::iterator> result;
 
         less_than(m, 4, result);
 
@@ -105,7 +105,7 @@ int main(){
 
     {
         cout << "less_than: " << 6 << '\n';
-        deque <map<size_t,size_t>::iterator> result;
+        vector <map<size_t,size_t>::iterator> result;
 
         less_than(m, 6, result);
 
@@ -117,7 +117,7 @@ int main(){
 
     {
         cout << "greater_than: " << 0 << '\n';
-        deque <map<size_t,size_t>::iterator> result;
+        vector <map<size_t,size_t>::iterator> result;
 
         greater_than(m, 0, result);
 
@@ -130,7 +130,7 @@ int main(){
 
     {
         cout << "greater_than: " << 4 << '\n';
-        deque <map<size_t,size_t>::iterator> result;
+        vector <map<size_t,size_t>::iterator> result;
 
         greater_than(m, 4, result);
 
@@ -142,7 +142,7 @@ int main(){
 
     {
         cout << "greater_than: " << 6 << '\n';
-        deque <map<size_t,size_t>::iterator> result;
+        vector <map<size_t,size_t>::iterator> result;
 
         greater_than(m, 6, result);
 
@@ -155,7 +155,7 @@ int main(){
 
     {
         cout << "less_than_or_equal: " << 0 << '\n';
-        deque <map<size_t,size_t>::iterator> result;
+        vector <map<size_t,size_t>::iterator> result;
 
         less_than_or_equal(m, 0, result);
 
@@ -168,7 +168,7 @@ int main(){
 
     {
         cout << "less_than_or_equal: " << 4 << '\n';
-        deque <map<size_t,size_t>::iterator> result;
+        vector <map<size_t,size_t>::iterator> result;
 
         less_than_or_equal(m, 4, result);
 
@@ -180,7 +180,7 @@ int main(){
 
     {
         cout << "less_than_or_equal: " << 6 << '\n';
-        deque <map<size_t,size_t>::iterator> result;
+        vector <map<size_t,size_t>::iterator> result;
 
         less_than_or_equal(m, 6, result);
 
@@ -193,7 +193,7 @@ int main(){
 
     {
         cout << "greater_than_or_equal: " << 0 << '\n';
-        deque <map<size_t,size_t>::iterator> result;
+        vector <map<size_t,size_t>::iterator> result;
 
         greater_than_or_equal(m, 0, result);
 
@@ -206,7 +206,7 @@ int main(){
 
     {
         cout << "greater_than_or_equal: " << 4 << '\n';
-        deque <map<size_t,size_t>::iterator> result;
+        vector <map<size_t,size_t>::iterator> result;
 
         greater_than_or_equal(m, 4, result);
 
@@ -218,7 +218,7 @@ int main(){
 
     {
         cout << "greater_than_or_equal: " << 6 << '\n';
-        deque <map<size_t,size_t>::iterator> result;
+        vector <map<size_t,size_t>::iterator> result;
 
         greater_than_or_equal(m, 6, result);
 
