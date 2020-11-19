@@ -30,11 +30,11 @@ public:
     size_t left_parent_index;
     size_t left_child_index;
     size_t left_length;
-    OverlappingChild left_child;
+    string left_child_path_name;
     size_t right_parent_index;
     size_t right_child_index;
     size_t right_length;
-    OverlappingChild right_child;
+    string right_child_path_name;
 
     OverlappingSplicePair()=default;
 };
@@ -54,11 +54,6 @@ public:
     void splice_overlapping_overlaps(
             MutablePathDeletableHandleGraph& gfa_graph);
 
-    pair<handle_t, size_t> seek_to_path_base(
-            MutablePathDeletableHandleGraph& gfa_graph,
-            OverlappingChild& overlapping_child,
-            size_t target_base_index);
-
 private:
     void find_path_info(
             const HandleGraph& gfa_graph,
@@ -77,7 +72,18 @@ private:
             OverlappingNodeInfo& overlap_info,
             vector <OverlappingSplicePair>& oo_splice_pairs);
 
-    void get_all_splice_indexes(const OverlappingNodeInfo& oo_node_info, set <size_t>& splice_indexes);
+    // Iterate along a path until the cumulative number of bases iterated would equal "target_base_index" and then
+    // return the handle and intra-handle index
+    pair<handle_t, size_t> seek_to_path_base(
+            MutablePathDeletableHandleGraph& gfa_graph,
+            string& path_name,
+            size_t target_base_index);
+
+    // Convenience wrapper for seek_to_path_base
+    pair<handle_t, size_t> seek_to_child_path_base(
+            MutablePathDeletableHandleGraph& gfa_graph,
+            OverlappingChild& overlapping_child,
+            size_t target_base_index);
 
 };
 
