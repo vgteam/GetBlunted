@@ -161,6 +161,7 @@ void Duplicator::postprocess_overlapping_overlap(
         }
     }
 
+    overlapping_node_info.parent_path_name = to_string(overlapping_node_info.parent_node);
 //    find_leftover_parent(gfa_graph, overlapping_node_info);
 }
 
@@ -312,17 +313,18 @@ void Duplicator::duplicate_termini(
 
     // Check if right dupe is necessary
     bool right_dupe_is_trivial = false;
+    bool no_right_dupes_exist = false;
     if (not sorted_sizes_per_side[1].empty()) {
         if (sorted_sizes_per_side[1].size() == 1 and
             sorted_sizes_per_side[1][0] == gfa_graph.get_length(left_children.front())) {
             right_dupe_is_trivial = true;
         }
     } else {
-        right_dupe_is_trivial = true;
+        no_right_dupes_exist = true;
     }
 
     // Do right duplication if necessary
-    if (not right_dupe_is_trivial) {
+    if (not right_dupe_is_trivial and not no_right_dupes_exist) {
         duplicate_suffix(gfa_graph, sorted_sizes_per_side[1], right_children, left_children.front());
     } else {
         // If no duplication was performed, then the children are the parent (spooky)
@@ -338,6 +340,17 @@ void Duplicator::duplicate_termini(
         biclique_side_to_child[1].try_emplace(biclique, child);
     }
 
+    cout << "Left children:\n";
+    for (auto h: left_children){
+        cout << gfa_graph.get_id(h) << " ";
+    }
+    cout << '\n';
+    cout << "Right children:\n";
+    for (auto h: right_children){
+        cout << gfa_graph.get_id(h) << " ";
+    }
+    cout << '\n';
+
     // Update provenance maps
     auto left_parent = gfa_graph.get_id(left_children[0]);
     for (size_t i=1; i<left_children.size(); i++){
@@ -352,7 +365,7 @@ void Duplicator::duplicate_termini(
     for (size_t i=1; i<right_children.size(); i++){
         auto child_node = gfa_graph.get_id(right_children[i]);
 
-        if (child_node != left_parent) {
+        if (child_node != left_parent or (child_node == left_parent and right_dupe_is_trivial)) {
             child_to_parent[child_node] = node_info.node_id;
             parent_to_children[node_info.node_id].emplace(child_node);
         }

@@ -163,12 +163,75 @@ void print_adjacency_components_stats(
     cout << '\n';
 }
 
+bool is_oo_node_child(
+        const HandleGraph& gfa_graph,
+        const map <nid_t, nid_t>& child_to_parent,
+        const map <nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes,
+        nid_t node_id){
+    bool is_oo = false;
+
+    // Check if this is an Overlapping Overlap node
+    auto is_child_result = child_to_parent.find(node_id);
+
+    if (is_child_result != child_to_parent.end()){
+        auto& original_gfa_node = is_child_result->second;
+
+        auto result = overlapping_overlap_nodes.find(original_gfa_node);
+        if (result != overlapping_overlap_nodes.end()) {
+            // Brute force search of overlapping children in this OO node
+            for (auto s: {0,1}) {
+                for (auto& oo_item: result->second.overlapping_children[s]) {
+                    if (gfa_graph.get_id(oo_item.second.handle) == node_id){
+                        cout << "Skipping OO node: " << original_gfa_node << '\n';
+                        is_oo = true;
+                    }
+                }
+            }
+        }
+    }
+
+
+    return is_oo;
+}
+
+
+bool is_oo_node_parent(
+        const PathHandleGraph& gfa_graph,
+        const map <nid_t, nid_t>& child_to_parent,
+        const map <nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes,
+        nid_t node_id){
+
+    bool is_oo = false;
+
+    // Check if this is an Overlapping Overlap node
+    auto is_child_result = child_to_parent.find(node_id);
+
+    if (is_child_result != child_to_parent.end()) {
+        auto& original_gfa_node = is_child_result->second;
+
+        auto result = overlapping_overlap_nodes.find(original_gfa_node);
+        if (result != overlapping_overlap_nodes.end()) {
+
+            auto parent_path = gfa_graph.get_path_handle(result->second.parent_path_name);
+
+            for (auto h: gfa_graph.scan_path(parent_path)) {
+                if (gfa_graph.get_id(h) == node_id) {
+                    is_oo = true;
+                }
+            }
+        }
+    }
+
+    return is_oo;
+}
+
 
 void splice_subgraphs(
         HashGraph& gfa_graph,
         vector <Subgraph>& subgraphs,
         map <nid_t, nid_t>& child_to_parent,
-        map <nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes){
+        map <nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes,
+        unordered_set <handle_t>& to_be_destroyed){
 
     size_t i = 0;
     for (auto& subgraph: subgraphs) {
@@ -196,10 +259,10 @@ void splice_subgraphs(
 
                 cout << "Splicing node " << node_id << ", side " << side << '\n';
 
-                // Check if this is an Overlapping Overlap node
-                auto original_gfa_node = child_to_parent[node_id];
-                auto result = overlapping_overlap_nodes.find(original_gfa_node);
-                if (result != overlapping_overlap_nodes.end()) {
+                bool is_oo_child = is_oo_node_child(gfa_graph, child_to_parent, overlapping_overlap_nodes, node_id);
+                bool is_oo_parent = is_oo_node_parent(gfa_graph, child_to_parent, overlapping_overlap_nodes, node_id);
+
+                if (is_oo_child){
                     continue;
                 }
 
@@ -216,10 +279,12 @@ void splice_subgraphs(
 
                 set<handle_t> parent_handles;
                 gfa_graph.follow_edges(handle, 1 - side, [&](const handle_t& h) {
-                    parent_handles.emplace(h);
+                    if (to_be_destroyed.count(h) == 0) {
+                        parent_handles.emplace(h);
+                    }
                 });
 
-                if (parent_handles.empty()) {
+                if (parent_handles.empty() and not is_oo_parent) {
                     throw runtime_error("ERROR: biclique terminus does not have any parent: " + to_string(node_id));
                 }
 
@@ -240,13 +305,12 @@ void splice_subgraphs(
                     }
                 }
 
-                cout << "Destroying: " << gfa_graph.get_id(handle) << '\n';
-
-                // TODO: remove node from provenance map
 
                 if (subgraph.paths_per_handle[1-side].count(handle) == 0
                     and subgraph.paths_per_handle[1-side].count(gfa_graph.flip(handle)) == 0) {
-                    gfa_graph.destroy_handle(handle);
+                    cout << "To be destroyed: " << gfa_graph.get_id(handle) << '\n';
+//                    gfa_graph.destroy_handle(handle);
+                    to_be_destroyed.emplace(handle);
                 }
             }
         }
@@ -345,7 +409,9 @@ void bluntify(string gfa_path){
 //    }
 //    cout << '\n';
 
-    splice_subgraphs(gfa_graph, biclique_subgraphs, super_duper.child_to_parent, super_duper.overlapping_overlap_nodes);
+    unordered_set <handle_t> to_be_destroyed;
+
+    splice_subgraphs(gfa_graph, biclique_subgraphs, super_duper.child_to_parent, super_duper.overlapping_overlap_nodes, to_be_destroyed);
 
     if (gfa_graph.get_node_count() < 200){
         string test_path_prefix = "test_bluntify_spliced_" + std::to_string(1);
@@ -361,6 +427,21 @@ void bluntify(string gfa_path){
 
     if (gfa_graph.get_node_count() < 200){
         string test_path_prefix = "test_bluntify_spliced_oo_" + std::to_string(1);
+        handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
+        string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
+                         + test_path_prefix + ".png";
+
+        cerr << "Running command: " << command << '\n';
+        run_command(command);
+    }
+
+    for (auto& h: to_be_destroyed){
+        // TODO: remove node from provenance map
+        gfa_graph.destroy_handle(h);
+    }
+
+    if (gfa_graph.get_node_count() < 200){
+        string test_path_prefix = "test_bluntify_destroyed_" + std::to_string(1);
         handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";

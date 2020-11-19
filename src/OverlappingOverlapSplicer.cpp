@@ -215,7 +215,6 @@ void OverlappingOverlapSplicer::find_splice_pairs(
                         //                \ a         \ b
                         //  other          [0]-[1]-[2]-[3]-[4]
                         //
-                        //
                         //  parent [0] [1] [2] [3] [4] [5] [6]
                         //
 
@@ -237,11 +236,6 @@ void OverlappingOverlapSplicer::find_splice_pairs(
                         splice_pair_a.right_child_index = 0;
                         splice_pair_b.right_child_index = oo.first - splice_pair_a.left_child_index;
 
-                        splice_pair_a.left_length = gfa_graph.get_length(splice_pair_a.left_child.handle);
-                        splice_pair_b.left_length = gfa_graph.get_length(splice_pair_b.left_child.handle);
-
-                        splice_pair_a.right_length = gfa_graph.get_length(splice_pair_a.right_child.handle);
-                        splice_pair_b.right_length = gfa_graph.get_length(splice_pair_b.right_child.handle);
                     }
                     else{
                         //
@@ -269,13 +263,13 @@ void OverlappingOverlapSplicer::find_splice_pairs(
 
                         splice_pair_a.right_child_index = 0;
                         splice_pair_b.right_child_index = other->first - splice_pair_a.left_child_index;
-
-                        splice_pair_a.left_length = gfa_graph.get_length(splice_pair_a.left_child.handle);
-                        splice_pair_b.left_length = gfa_graph.get_length(splice_pair_b.left_child.handle);
-
-                        splice_pair_a.right_length = gfa_graph.get_length(splice_pair_a.right_child.handle);
-                        splice_pair_b.right_length = gfa_graph.get_length(splice_pair_b.right_child.handle);
                     }
+
+                    splice_pair_a.left_length = gfa_graph.get_length(splice_pair_a.left_child.handle);
+                    splice_pair_b.left_length = gfa_graph.get_length(splice_pair_b.left_child.handle);
+
+                    splice_pair_a.right_length = gfa_graph.get_length(splice_pair_a.right_child.handle);
+                    splice_pair_b.right_length = gfa_graph.get_length(splice_pair_b.right_child.handle);
 
                     oo_splice_pairs.emplace_back(splice_pair_a);
                     oo_splice_pairs.emplace_back(splice_pair_b);
@@ -307,11 +301,11 @@ void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletable
 
         // Break the nodes if there is a splice into their midsection
         for (auto& splice_pair: oo_splice_pairs) {
-            if (splice_pair.left_child_index < splice_pair.left_length and splice_pair.left_child_index > 1) {
+            if (splice_pair.left_child_index + 1 < splice_pair.left_length) {
                 auto[left_handle, left_index] = seek_to_path_base(gfa_graph, splice_pair.left_child, splice_pair.left_child_index + 1);
                 division_sites[left_handle].emplace(left_index);
             }
-            if (splice_pair.right_child_index < splice_pair.right_length and splice_pair.right_child_index > 1) {
+            if (splice_pair.right_child_index + 1 < splice_pair.right_length) {
                 auto[right_handle, right_index] = seek_to_path_base(gfa_graph, splice_pair.right_child, splice_pair.right_child_index);
                 division_sites[right_handle].emplace(right_index);
             }
