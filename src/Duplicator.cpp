@@ -149,7 +149,7 @@ void Duplicator::postprocess_overlapping_overlap(
 
                 size_t position;
                 if (side == 0){
-                    position = gfa_graph.get_length(handle);
+                    position = gfa_graph.get_length(handle) - 1;
                 }
                 else{
                     position = overlapping_node_info.length - gfa_graph.get_length(handle);
@@ -379,13 +379,17 @@ bool Duplicator::contains_overlapping_overlaps(
         handle_t parent_handle,
         const array <deque <size_t>, 2>& sorted_sizes_per_side){
 
+    bool contains_oo = false;
+
     // If either side is empty, it's impossible to have an Overlapping Overlap
-    bool a = not (sorted_sizes_per_side[0].empty() and not sorted_sizes_per_side[1].empty());
+    if ((not sorted_sizes_per_side[0].empty()) and (not sorted_sizes_per_side[1].empty())) {
+        // If there are overlaps on both sides, simply test their longest overlaps for conflict
+        if (sorted_sizes_per_side[0][0] > gfa_graph.get_length(parent_handle) - sorted_sizes_per_side[1][0]) {
+            contains_oo = true;
+        }
+    }
 
-    // If there are overlaps on both sides, simply test their longest overlaps for conflict
-    bool b = (sorted_sizes_per_side[0][0] > gfa_graph.get_length(parent_handle) - sorted_sizes_per_side[1][0]);
-
-    return (a and b);
+    return contains_oo;
 }
 
 

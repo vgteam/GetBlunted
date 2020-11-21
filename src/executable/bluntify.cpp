@@ -163,6 +163,7 @@ void print_adjacency_components_stats(
     cout << '\n';
 }
 
+
 bool is_oo_node_child(
         const HandleGraph& gfa_graph,
         const map <nid_t, nid_t>& child_to_parent,
@@ -257,54 +258,44 @@ void splice_subgraphs(
                 auto& path_info = item.second;
                 auto node_id = gfa_graph.get_id(handle);
 
-                cout << "Splicing node " << node_id << ", side " << side << '\n';
+//                cout << "Splicing node " << node_id << ", side " << side << '\n';
 
                 bool is_oo_child = is_oo_node_child(gfa_graph, child_to_parent, overlapping_overlap_nodes, node_id);
                 bool is_oo_parent = is_oo_node_parent(gfa_graph, child_to_parent, overlapping_overlap_nodes, node_id);
 
-                if (is_oo_child){
-                    continue;
-                }
+                if (not is_oo_child) {
 
-                // Find the path handle for the path that was copied into the GFA graph
-                auto path_name = subgraph.graph.get_path_name(path_info.path_handle);
-                auto path_handle = gfa_graph.get_path_handle(path_name);
+                    // Find the path handle for the path that was copied into the GFA graph
+                    auto path_name = subgraph.graph.get_path_name(path_info.path_handle);
+                    auto path_handle = gfa_graph.get_path_handle(path_name);
 
-                cout << "\tPath sequence:\t";
-                for (const auto& h: gfa_graph.scan_path(path_handle)) {
-                    cout << gfa_graph.get_sequence(h);
-                }
-                cout << '\n';
-                cout << "\tNode sequence:\t" << gfa_graph.get_sequence(handle) << '\n';
+                    set<handle_t> parent_handles;
+                    gfa_graph.follow_edges(handle, 1 - side, [&](const handle_t& h) {
+                        if (to_be_destroyed.count(h) == 0) {
+                            parent_handles.emplace(h);
+                        }
+                    });
 
-                set<handle_t> parent_handles;
-                gfa_graph.follow_edges(handle, 1 - side, [&](const handle_t& h) {
-                    if (to_be_destroyed.count(h) == 0) {
-                        parent_handles.emplace(h);
+                    if (parent_handles.empty() and not is_oo_parent) {
+                        throw runtime_error("ERROR: biclique terminus does not have any parent: " + to_string(node_id));
                     }
-                });
 
-                if (parent_handles.empty() and not is_oo_parent) {
-                    throw runtime_error("ERROR: biclique terminus does not have any parent: " + to_string(node_id));
-                }
+                    for (auto& parent_handle: parent_handles) {
+                        // Depending on which side of the biclique this node is on, its path in the POA will be spliced
+                        // differently
+                        if (path_info.biclique_side == 0) {
+                            auto& left = parent_handle;
+                            auto right = gfa_graph.get_handle_of_step(gfa_graph.path_begin(path_handle));
 
-                for (auto& parent_handle: parent_handles) {
-                    // Depending on which side of the biclique this node is on, its path in the POA will be spliced
-                    // differently
-                    if (path_info.biclique_side == 0) {
-                        auto& left = parent_handle;
-                        auto right = gfa_graph.get_handle_of_step(gfa_graph.path_begin(path_handle));
+                            gfa_graph.create_edge(left, right);
+                        } else {
+                            auto left = gfa_graph.get_handle_of_step(gfa_graph.path_back(path_handle));
+                            auto& right = parent_handle;
 
-                        gfa_graph.create_edge(left, right);
-                    }
-                    else {
-                        auto left = gfa_graph.get_handle_of_step(gfa_graph.path_back(path_handle));
-                        auto& right = parent_handle;
-
-                        gfa_graph.create_edge(left, right);
+                            gfa_graph.create_edge(left, right);
+                        }
                     }
                 }
-
 
                 if (subgraph.paths_per_handle[1-side].count(handle) == 0
                     and subgraph.paths_per_handle[1-side].count(gfa_graph.flip(handle)) == 0) {
@@ -401,14 +392,6 @@ void bluntify(string gfa_path){
         align_biclique_overlaps(i, gfa_graph, bicliques, biclique_subgraphs);
     }
 
-//    for (auto& item: super_duper.parent_to_children){
-//        cout << "Children of node " << item.first << " with original name: " << id_map.get_name(item.first) << '\n';
-//        for (auto& child: item.second){
-//            cout << child << " " << gfa_graph.get_sequence(gfa_graph.get_handle(child, false)) << '\n';
-//        }
-//    }
-//    cout << '\n';
-
     unordered_set <handle_t> to_be_destroyed;
 
     splice_subgraphs(gfa_graph, biclique_subgraphs, super_duper.child_to_parent, super_duper.overlapping_overlap_nodes, to_be_destroyed);
@@ -440,13 +423,13 @@ void bluntify(string gfa_path){
         gfa_graph.destroy_handle(h);
     }
 
+    string test_path_prefix = "test_bluntify_final";
+    handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
+
     if (gfa_graph.get_node_count() < 200){
-        string test_path_prefix = "test_bluntify_destroyed_" + std::to_string(1);
-        handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";
 
-        cerr << "Running command: " << command << '\n';
         run_command(command);
     }
 

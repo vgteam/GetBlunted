@@ -66,14 +66,28 @@ void OverlappingOverlapSplicer::find_path_info(
 
     // Don't know which side of the biclique this overlap was on until we search for it in the subgraph
     auto result = subgraph.paths_per_handle[0].find(handle);
-    if (result == subgraph.paths_per_handle[0].end()) {
 
+    if (result == subgraph.paths_per_handle[0].end()) {
         result = subgraph.paths_per_handle[1].find(handle);
 
-        // Sanity check
         if (result == subgraph.paths_per_handle[1].end()) {
-            throw runtime_error("ERROR: node not found in biclique subgraph: " +
-                                to_string(gfa_graph.get_id(handle)));
+            result = subgraph.paths_per_handle[0].find(gfa_graph.flip(handle));
+
+            if (result == subgraph.paths_per_handle[0].end()) {
+                result = subgraph.paths_per_handle[1].find(gfa_graph.flip(handle));
+
+                // Sanity check
+                if (result == subgraph.paths_per_handle[1].end()) {
+                    throw runtime_error("ERROR: node not found in biclique subgraph. Node id: " +
+                                        to_string(gfa_graph.get_id(handle)));
+                }
+                else{
+                    cout << "WARNING: handle flipped w.r.t. path in subgraph. Node id: " << gfa_graph.get_id(handle) << '\n';
+                }
+            }
+            else{
+                cout << "WARNING: handle flipped w.r.t. path in subgraph. Node id: " << gfa_graph.get_id(handle) << '\n';
+            }
         }
     }
 
@@ -153,7 +167,7 @@ void OverlappingOverlapSplicer::find_splice_pairs(
             }
 
             size_t n_normal_children_exceeding_overlap;
-            bool splice_to_parent;
+            bool splice_to_parent = false;
 
             if (1-side == 0) {
                 greater_than_or_equal(overlap_info.normal_children[1-side], oo.first - 1, other_children[1-side]);
@@ -169,9 +183,6 @@ void OverlappingOverlapSplicer::find_splice_pairs(
             }
 
             // Check if there are some overlaps that would be unreachable by this OO
-
-            cout << "# exceeding overlap: " << n_normal_children_exceeding_overlap << '\n';
-            cout << "# total: " << overlap_info.normal_children[1-side].size() << '\n';
             if (n_normal_children_exceeding_overlap < overlap_info.normal_children[1-side].size()){
                 splice_to_parent = true;
             }
@@ -186,12 +197,13 @@ void OverlappingOverlapSplicer::find_splice_pairs(
                 cout << "\tOverlap - side: " << side << " - " << "Index=" << oo.first << " ";
                 oo.second.print(gfa_graph);
 
-                OverlappingChild left_child;
-                OverlappingChild right_child;
 
                 for (auto& other: other_children[1 - side]) {
                     auto& oo_child = oo.second;
                     auto& other_child = other->second;
+
+                    OverlappingChild left_child;
+                    OverlappingChild right_child;
 
                     OverlappingSplicePair splice_pair_a;
                     OverlappingSplicePair splice_pair_b;
@@ -232,17 +244,17 @@ void OverlappingOverlapSplicer::find_splice_pairs(
                         splice_pair_a.right_child_path_name = right_child_path_name;
                         splice_pair_b.right_child_path_name = right_child_path_name;
 
-                        splice_pair_a.left_parent_index = other->first - 1;
-                        splice_pair_b.left_parent_index = oo.first;
+                        splice_pair_a.left_parent_index = other->first - 1;                             // 1
+                        splice_pair_b.left_parent_index = oo.first;                                     // 4
 
-                        splice_pair_a.right_parent_index = splice_pair_a.left_parent_index + 1;
-                        splice_pair_b.right_parent_index = splice_pair_b.left_parent_index + 1;
+                        splice_pair_a.right_parent_index = splice_pair_a.left_parent_index + 1;         // 2
+                        splice_pair_b.right_parent_index = splice_pair_b.left_parent_index + 1;         // 5
 
-                        splice_pair_a.left_child_index = splice_pair_a.left_parent_index;
-                        splice_pair_b.left_child_index = splice_pair_b.left_parent_index;
+                        splice_pair_a.left_child_index = splice_pair_a.left_parent_index;               // 1
+                        splice_pair_b.left_child_index = splice_pair_b.left_parent_index;               // 4
 
-                        splice_pair_a.right_child_index = 0;
-                        splice_pair_b.right_child_index = oo.first - splice_pair_a.left_child_index;
+                        splice_pair_a.right_child_index = 0;                                            // 0
+                        splice_pair_b.right_child_index = oo.first - splice_pair_a.left_parent_index;   // 4 - 1 = 3
 
                     }
                     else{
@@ -254,21 +266,33 @@ void OverlappingOverlapSplicer::find_splice_pairs(
                         //  parent [0] [1] [2] [3] [4] [5] [6]
                         //
 
+                        //
+                        //  other  [0]-[1]-[2]-[3]
+                        //            \ a         \ b
+                        //  oo         [0]-[1]-[2]-[3]
+                        //
+                        //  parent [0] [1] [2] [3] [4]
+                        //
+
+
                         PathInfo path_info;
                         string left_child_path_name;
                         string right_child_path_name;
 
+                        left_child = other_child;
+                        right_child = oo_child;
+
                         find_path_info(
                                 gfa_graph,
-                                other_child.biclique_index,
-                                other_child.handle,
+                                left_child.biclique_index,
+                                left_child.handle,
                                 path_info,
                                 left_child_path_name);
 
                         find_path_info(
                                 gfa_graph,
-                                oo_child.biclique_index,
-                                oo_child.handle,
+                                right_child.biclique_index,
+                                right_child.handle,
                                 path_info,
                                 right_child_path_name);
 
@@ -278,17 +302,17 @@ void OverlappingOverlapSplicer::find_splice_pairs(
                         splice_pair_a.right_child_path_name = right_child_path_name;
                         splice_pair_b.right_child_path_name = right_child_path_name;
 
-                        splice_pair_a.left_parent_index = oo.first - 1;
-                        splice_pair_b.left_parent_index = other->first;
+                        splice_pair_a.left_parent_index = oo.first - 1;                                    // 1
+                        splice_pair_b.left_parent_index = other->first;                                    // 4
 
-                        splice_pair_a.right_parent_index = splice_pair_a.left_parent_index + 1;
-                        splice_pair_b.right_parent_index = splice_pair_b.left_parent_index + 1;
+                        splice_pair_a.right_parent_index = splice_pair_a.left_parent_index + 1;            // 2  1
+                        splice_pair_b.right_parent_index = splice_pair_b.left_parent_index + 1;            // 5  4
 
-                        splice_pair_a.left_child_index = splice_pair_a.left_parent_index;
-                        splice_pair_b.left_child_index = splice_pair_a.left_parent_index;
+                        splice_pair_a.left_child_index = splice_pair_a.left_parent_index;                  // 1  0
+                        splice_pair_b.left_child_index = splice_pair_b.left_parent_index;                  // 4  3
 
                         splice_pair_a.right_child_index = 0;
-                        splice_pair_b.right_child_index = other->first - splice_pair_a.left_child_index;
+                        splice_pair_b.right_child_index = other->first - splice_pair_a.left_parent_index;  // 4 - 1 = 3  3 - 0 = 3
                     }
 
                     splice_pair_a.left_length = gfa_graph.get_length(left_child.handle);
@@ -397,12 +421,14 @@ void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletable
 
         // Aggregate the splice pairs by the handles that they splice
         for (auto& splice_pair: oo_splice_pairs) {
-            if (splice_pair.left_child_index + 1 < splice_pair.left_length) {
-                auto[left_handle, left_index] = seek_to_path_base(gfa_graph, splice_pair.left_child_path_name, splice_pair.left_child_index + 1);
-                division_sites[left_handle].emplace(left_index);
+            auto[left_handle, left_index] = seek_to_path_base(gfa_graph, splice_pair.left_child_path_name, splice_pair.left_child_index);
+            auto[right_handle, right_index] = seek_to_path_base(gfa_graph, splice_pair.right_child_path_name, splice_pair.right_child_index);
+
+            if (left_index + 1 < gfa_graph.get_length(left_handle)) {
+                division_sites[left_handle].emplace(left_index + 1);
             }
-            if (splice_pair.right_child_index + 1 < splice_pair.right_length) {
-                auto[right_handle, right_index] = seek_to_path_base(gfa_graph, splice_pair.right_child_path_name, splice_pair.right_child_index);
+
+            if (right_index < gfa_graph.get_length(right_handle) and right_index > 0) {
                 division_sites[right_handle].emplace(right_index);
             }
         }
@@ -419,8 +445,8 @@ void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletable
             gfa_graph.divide_handle(item.first, sites);
         }
 
-        // Splice each division point (doesn't really need to use seek_path but also this entire project doesn't really
-        // need to exist so... yeah)
+        // Splice each division point
+        // (doesn't really need to use seek_path but also this entire project doesn't really need to exist so...)
         for (auto& splice_pair: oo_splice_pairs) {
             auto[left_handle, left_index] = seek_to_path_base(gfa_graph, splice_pair.left_child_path_name, splice_pair.left_child_index);
             auto[right_handle, right_index] = seek_to_path_base(gfa_graph, splice_pair.right_child_path_name, splice_pair.right_child_index);
