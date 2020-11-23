@@ -2,13 +2,21 @@
 
 namespace bluntifier{
 
+
 Duplicator::Duplicator(
         const vector <vector <BicliqueEdgeIndex> >& node_to_biclique_edge,
+        OverlapMap& overlaps,
         Bicliques& bicliques,
-        OverlapMap& overlaps):
+        map <nid_t, set<nid_t> >& parent_to_children,
+        map <nid_t, nid_t>& child_to_parent,
+        map<nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes
+        ):
         node_to_biclique_edge(node_to_biclique_edge),
+        overlaps(overlaps),
         bicliques(bicliques),
-        overlaps(overlaps)
+        parent_to_children(parent_to_children),
+        child_to_parent(child_to_parent),
+        overlapping_overlap_nodes(overlapping_overlap_nodes)
 {}
 
 
