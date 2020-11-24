@@ -83,6 +83,9 @@ private:
     vector <Subgraph> subgraphs;
     map <nid_t, OverlappingNodeInfo> overlapping_overlap_nodes;
 
+    // Child node -> start_index -> (parent_node, stop_index)
+    unordered_map<nid_t, map <nid_t, pair <size_t, size_t> > > provenance_map;
+
     unordered_set <handle_t> to_be_destroyed;
 
 public:
@@ -90,6 +93,10 @@ public:
     Bluntifier(string gfa_path);
 
     void bluntify();
+
+    void write_provenance(string& output_path);
+
+    void write_to_gfa();
 
 private:
     void deduplicate_and_canonicalize_biclique_cover(
@@ -104,19 +111,27 @@ private:
 
     void harmonize_biclique_orientations();
 
+    void align_biclique_overlaps(size_t i);
+
+    void add_alignments_to_poa(
+            Graph& spoa_graph,
+            unique_ptr<AlignmentEngine>& alignment_engine,
+            size_t i);
+
     void convert_spoa_to_bdsg(Graph& spoa_graph, size_t i);
 
     void splice_subgraphs();
 
-    void add_alignments_to_poa(Graph& spoa_graph,
-                               unique_ptr<AlignmentEngine>& alignment_engine,
-                               size_t i);
-
-    void align_biclique_overlaps(size_t i);
-
     bool is_oo_node_child(nid_t node_id);
 
     bool is_oo_node_parent(nid_t node_id);
+
+    void find_path_info(Subgraph& subgraph, handle_t handle, PathInfo& path_info, string& path_name);
+
+    void compute_provenance();
+
+    void find_child_provenance(nid_t child_node, nid_t parent_node_id, size_t parent_index, bool side);
+
 };
 
 

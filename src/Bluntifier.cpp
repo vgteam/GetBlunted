@@ -1,5 +1,7 @@
 #include "Bluntifier.hpp"
 
+using std::to_string;
+
 namespace bluntifier{
 
 
@@ -342,6 +344,11 @@ void Bluntifier::bluntify(){
         run_command(command);
     }
 
+    compute_provenance();
+
+    string provenance_log_path = "test_bluntify_provenance.txt";
+    write_provenance(provenance_log_path);
+
     for (auto& h: to_be_destroyed){
         // TODO: remove node from provenance map
         gfa_graph.destroy_handle(h);
@@ -356,8 +363,136 @@ void Bluntifier::bluntify(){
 
         run_command(command);
     }
+}
+
+
+void Bluntifier::find_path_info(
+        Subgraph& subgraph,
+        handle_t handle,
+        PathInfo& path_info,
+        string& path_name){
+
+    // Don't know which side of the biclique this overlap was on until we search for it in the subgraph
+    auto result = subgraph.paths_per_handle[0].find(handle);
+
+    if (result == subgraph.paths_per_handle[0].end()) {
+        result = subgraph.paths_per_handle[1].find(handle);
+
+        if (result == subgraph.paths_per_handle[1].end()) {
+            result = subgraph.paths_per_handle[0].find(gfa_graph.flip(handle));
+
+            if (result == subgraph.paths_per_handle[0].end()) {
+                result = subgraph.paths_per_handle[1].find(gfa_graph.flip(handle));
+
+                // Sanity check
+                if (result == subgraph.paths_per_handle[1].end()) {
+                    throw runtime_error("ERROR: node not found in biclique subgraph. Node id: " +
+                                        to_string(gfa_graph.get_id(handle)));
+                }
+                else{
+                    cout << "WARNING: handle flipped w.r.t. path in subgraph. Node id: " << gfa_graph.get_id(handle) << '\n';
+                }
+            }
+            else{
+                cout << "WARNING: handle flipped w.r.t. path in subgraph. Node id: " << gfa_graph.get_id(handle) << '\n';
+            }
+        }
+    }
+
+    path_name = subgraph.graph.get_path_name(result->second.path_handle);
+    path_info = result->second;
+}
+
+
+void Bluntifier::write_provenance(string& output_path){
+    ofstream file(output_path);
+
+    for (auto& [child_node, parents]: provenance_map){
+        file << child_node;
+
+        auto iter = parents.begin();
+        while (true){
+            auto& parent_node = iter->first;
+            auto& bounds = iter->second;
+
+            file << '\t' << parent_node << '[' << bounds.first << ':' << bounds.second << "]+";
+
+            if (++iter == parents.end()){
+                break;
+            }
+
+            file << ',';
+        }
+
+        file << '\n';
+    }
+}
+
+
+void Bluntifier::find_child_provenance(
+        nid_t child_node,
+        nid_t parent_node_id,
+        Subgraph& subgraph,
+        size_t parent_index,
+        bool side){
+
+    auto handle = gfa_graph.get_handle(child_node, false);
+    PathInfo path_info;
+    string path_name;
+
+    find_path_info(subgraph, handle, path_info, path_name);
+    auto path_handle = gfa_graph.get_path_handle(path_name);
+
+    for (auto h: gfa_graph.scan_path(path_handle)){
+        auto id = gfa_graph.get_id(h);
+        size_t length = gfa_graph.get_length(h);
+
+        // Store the provenance info for this node if it's not a terminus
+        pair <size_t, size_t> info = {parent_index, parent_index + length - 1};
+        provenance_map[id].emplace(parent_node_id, info);
+
+        parent_index += length;
+    }
+}
+
+
+void Bluntifier::compute_provenance(){
+    for (int64_t parent_node_id=1; parent_node_id<id_map.names.size(); parent_node_id++){
+        string parent_path_name = to_string(parent_node_id);
+        auto parent_path_handle = gfa_graph.get_path_handle(parent_path_name);
+
+        // TODO: build a map from all the participating bicliques to the children
+
+        size_t i = 0;
+        size_t parent_index = 0;
+        for (auto h: gfa_graph.scan_path(parent_path_handle)){
+            auto id = gfa_graph.get_id(h);
+            size_t length = gfa_graph.get_length(h);
+
+            // Check if this is a duplicated prefix/suffix
+            if (child_to_parent.count(id) > 0){
+                if (i == 0){
+                    find_child_provenance(id, parent_node_id, parent_index, 0);
+                }
+                else{
+                    find_child_provenance(id, parent_node_id, parent_index, 1);
+                    break;
+                }
+            }
+            // Store the provenance info for this node if it's not a terminus
+            else{
+                pair <size_t, size_t> info = {parent_index, parent_index + length - 1};
+                provenance_map[id].emplace(parent_node_id, info);
+            }
+
+            parent_index += length;
+
+            i++;
+        }
+    }
 
 }
+
 
 
 }

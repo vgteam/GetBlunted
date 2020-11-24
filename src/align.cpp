@@ -99,7 +99,6 @@ void Bluntifier::add_alignments_to_poa(
 
     for (auto& edge: bicliques[i]){
         if (subgraphs[i].paths_per_handle[0].count(edge.first) == 0){
-
             string path_name = to_string(gfa_graph.get_id(edge.first)) + "_" + to_string(0);
 
             path_handle_t path_handle;

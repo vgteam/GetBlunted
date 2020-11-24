@@ -405,9 +405,7 @@ void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletable
 
     for (auto& oo_item: overlapping_overlap_nodes) {
         auto node_id = oo_item.first;
-        auto parent_handle = gfa_graph.get_handle(node_id, false);
         auto& overlap_info = oo_item.second;
-        auto parent_size = overlap_info.length;
 
         cout << "Splicing overlapping overlap: " << node_id << '\n';
 
