@@ -42,6 +42,7 @@ set(SOURCES
 	    src/BicliqueCover.cpp
 	    src/Biclique.cpp
 	    src/BipartiteGraph.cpp
+        src/Bluntifier.cpp
 	    src/copy_graph.cpp
         src/Cigar.cpp
         src/Duplicator.cpp
@@ -316,7 +317,6 @@ set(TESTS
         test_gfak
         test_handlegraph
         test_handle_to_gfa
-        test_harmonize_biclique
         test_IncrementalIdMap
         test_map_range_methods
         test_overlaps

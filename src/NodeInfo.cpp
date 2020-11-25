@@ -90,14 +90,27 @@ size_t NodeInfo::get_overlap_length(edge_t edge, bool side) {
 
 
 // For one node, make a mapping: (side -> (biclique_index -> (edge_index,length) ) )
+// Overloaded to find overlaps that involve the original parent node if the graph has been edited
 void NodeInfo::factor_overlaps_by_biclique_and_side(const map <nid_t, nid_t>& child_to_parent) {
 
     for (auto& index: node_to_biclique_edge[node_id]) {
         edge_t edge = bicliques[index];
         edge = overlaps.canonicalize_and_find(edge, gfa_graph)->first;
 
-        auto left_node_id = child_to_parent.at(gfa_graph.get_id(edge.first));
-        auto right_node_id = child_to_parent.at(gfa_graph.get_id(edge.second));
+        // Parent node needs to be found if it exists
+        nid_t left_node_id = gfa_graph.get_id(edge.first);
+        auto left_parent_node_iter = child_to_parent.find(left_node_id);
+
+        if (left_parent_node_iter !=  child_to_parent.end()){
+            left_node_id = left_parent_node_iter->second;
+        }
+
+        nid_t right_node_id = gfa_graph.get_id(edge.second);
+        auto right_parent_node_iter = child_to_parent.find(right_node_id);
+
+        if (right_parent_node_iter !=  child_to_parent.end()){
+            right_node_id = right_parent_node_iter->second;
+        }
 
         // If the node is on the "left" of an edge then the overlap happens on the "right side" of the node...
         if (left_node_id == nid_t(node_id)) {
@@ -123,6 +136,13 @@ void NodeInfo::factor_overlaps_by_biclique_and_side(const map <nid_t, nid_t>& ch
                 // Strictly adding entries to the map, so [] is ok here
                 factored_overlaps[1][index.biclique_index].emplace_back(index.edge_index, length);
             }
+        }
+
+        if (left_node_id != nid_t(node_id) and right_node_id != nid_t(node_id)){
+            throw runtime_error("ERROR: parent node not found on either side of edge.\n"
+                                "\tParent: " + to_string(node_id) + '\n' +
+                                "\tEdge: " + to_string(gfa_graph.get_id(edge.first)) +
+                                "->" + to_string(gfa_graph.get_id(edge.second)));
         }
     }
 }
