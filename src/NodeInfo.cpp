@@ -26,6 +26,24 @@ NodeInfo::NodeInfo(
 }
 
 
+NodeInfo::NodeInfo(
+        const vector<vector<BicliqueEdgeIndex> >& node_to_biclique_edge,
+        const map <nid_t, nid_t>& child_to_parent,
+        const Bicliques& bicliques,
+        const HandleGraph& gfa_graph,
+        const OverlapMap& overlaps,
+        nid_t node_id) :
+        node_to_biclique_edge(node_to_biclique_edge),
+        bicliques(bicliques),
+        gfa_graph(gfa_graph),
+        overlaps(overlaps),
+        node_id(node_id) {
+
+    factor_overlaps_by_biclique_and_side(child_to_parent);
+    sort_factored_overlaps();
+}
+
+
 void NodeInfo::print_stats() const{
     cout << "Node " << node_id << '\n';
 
@@ -68,6 +86,45 @@ size_t NodeInfo::get_overlap_length(edge_t edge, bool side) {
     }
 
     return length;
+}
+
+
+// For one node, make a mapping: (side -> (biclique_index -> (edge_index,length) ) )
+void NodeInfo::factor_overlaps_by_biclique_and_side(const map <nid_t, nid_t>& child_to_parent) {
+
+    for (auto& index: node_to_biclique_edge[node_id]) {
+        edge_t edge = bicliques[index];
+        edge = overlaps.canonicalize_and_find(edge, gfa_graph)->first;
+
+        auto left_node_id = child_to_parent.at(gfa_graph.get_id(edge.first));
+        auto right_node_id = child_to_parent.at(gfa_graph.get_id(edge.second));
+
+        // If the node is on the "left" of an edge then the overlap happens on the "right side" of the node...
+        if (left_node_id == nid_t(node_id)) {
+            auto length = get_overlap_length(edge, 0);
+
+            if (not gfa_graph.get_is_reverse(edge.first)) {
+                // Strictly adding entries to the map, so [] is ok here
+                factored_overlaps[1][index.biclique_index].emplace_back(index.edge_index, length);
+            }
+            else {
+                // Strictly adding entries to the map, so [] is ok here
+                factored_overlaps[0][index.biclique_index].emplace_back(index.edge_index, length);
+            }
+        }
+        if (right_node_id == nid_t(node_id)) {
+            auto length = get_overlap_length(edge, 1);
+
+            if (not gfa_graph.get_is_reverse(edge.second)) {
+                // Strictly adding entries to the map, so [] is ok here
+                factored_overlaps[0][index.biclique_index].emplace_back(index.edge_index, length);
+            }
+            else{
+                // Strictly adding entries to the map, so [] is ok here
+                factored_overlaps[1][index.biclique_index].emplace_back(index.edge_index, length);
+            }
+        }
+    }
 }
 
 

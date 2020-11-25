@@ -61,6 +61,16 @@ using spoa::Graph;
 
 namespace bluntifier {
 
+class ProvenanceInfo{
+public:
+    size_t start;
+    size_t stop;
+    bool reversal;
+
+    ProvenanceInfo(size_t start, size_t stop, bool reversal);
+};
+
+
 class Bluntifier {
 private:
     /// Attributes ///
@@ -84,9 +94,9 @@ private:
     map <nid_t, OverlappingNodeInfo> overlapping_overlap_nodes;
 
     // Child node -> start_index -> (parent_node, stop_index)
-    unordered_map<nid_t, map <nid_t, pair <size_t, size_t> > > provenance_map;
+    unordered_map<nid_t, map <nid_t, ProvenanceInfo> > provenance_map;
 
-    unordered_set <handle_t> to_be_destroyed;
+    unordered_set <nid_t> to_be_destroyed;
 
 public:
     /// Methods ///
