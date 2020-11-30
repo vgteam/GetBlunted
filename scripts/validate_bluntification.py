@@ -18,7 +18,10 @@ class Edge:
         self.rev = rev
         self.length = length
         self.backward_length = backward_length
-        
+    
+    def __repr__(self):
+        return self.__str__()
+    
     def __str__(self):
         if self.rev:
             r = "-"
@@ -32,6 +35,9 @@ class SeqNode:
         self.name = name
         self.left = []
         self.right = []
+        
+    def __repr__(self):
+        return self.__str__()
     
     def __str__(self):
         return "{} {}\n\tleft: {}\n\tright: {}".format(self.name, self.sequence, \
@@ -216,15 +222,15 @@ def adjacencies_are_exhaustive(in_gfa, out_gfa, table):
             rev_table[subseq.name].append((subseq, nodename))
     
     for nodename in in_gfa.nodes:
-        
         in_node = in_gfa.nodes[nodename]
+        
+        full_length_paths = []
         
         stack = []
         for subseq, out_nodename in rev_table[nodename]:
             if subseq.begin == 0:
                 stack.append((subseq, subseq.rev, False))
         
-        full_length_paths = []
         
         while len(stack) != 0:
             subseq, rev, walked = stack[-1]
@@ -234,8 +240,8 @@ def adjacencies_are_exhaustive(in_gfa, out_gfa, table):
             stack[-1] = (subseq, rev, True)
             
             if subseq.end == len(in_node.sequence):
-                full_length_paths.append([(s.node, r) for s, r, w in stack])
-                break
+                full_length_paths.append([(s.node, r) for s, r, w in stack if w])
+                continue
             if rev:
                 adj = subseq.node.left
             else:
@@ -263,7 +269,7 @@ def adjacencies_are_exhaustive(in_gfa, out_gfa, table):
                          if subseq.name == edge.target.name and expect_rev == subseq.rev:
                              found_aligned_base = True
             if not found_aligned_base:
-                print("didn't find any aligned bases in expected orientation between {} and {} despite having overlap edge".format(node.name, edge.target.name), file = sys.stderr)
+                print("didn't find any aligned bases in expected orientation between {} and {} despite having overlap edge".format(nodename, edge.target.name), file = sys.stderr)
                 print("this can happen with unusual POA graphs, but it probably indicates an error", file = sys.stderr)
                 
     

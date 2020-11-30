@@ -56,6 +56,8 @@ vector<bipartition> BicliqueCover::get() const {
             if (return_val.empty() || alt_cover.size() < return_val.size()) {
                 return_val = move(alt_cover);
             }
+            
+            // TODO: for very large components, do a star cover with Dinic's algorithm?
         }
     }
     return return_val;
