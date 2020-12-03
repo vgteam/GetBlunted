@@ -57,7 +57,7 @@ set(SOURCES
         src/OverlapMap.cpp
         src/OverlappingOverlap.cpp
         src/OverlappingOverlapSplicer.cpp
-        src/align.cpp
+        src/BluntifierAlign.cpp
 	    src/ReducedDualGraph.cpp
         src/SubtractiveHandleGraph.cpp
         src/Subgraph.cpp

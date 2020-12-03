@@ -28,7 +28,7 @@ NodeInfo::NodeInfo(
 
 NodeInfo::NodeInfo(
         const vector<vector<BicliqueEdgeIndex> >& node_to_biclique_edge,
-        const map <nid_t, nid_t>& child_to_parent,
+        const map <nid_t, pair<nid_t, bool> >& child_to_parent,
         const Bicliques& bicliques,
         const HandleGraph& gfa_graph,
         const OverlapMap& overlaps,
@@ -45,32 +45,32 @@ NodeInfo::NodeInfo(
 
 
 void NodeInfo::print_stats() const{
-    cout << "Node " << node_id << '\n';
+    cerr << "Node " << node_id << '\n';
 
     for (size_t side: {0, 1}) {
         auto biclique_overlaps = factored_overlaps[side];
 
-        cout << "  Side " << side << '\n';
+        cerr << "  Side " << side << '\n';
 
         for (const auto& item: biclique_overlaps) {
             auto biclique_index = item.first;
             auto overlap_infos = item.second;
 
-            cout << "    Biclique " << biclique_index << '\n';
+            cerr << "    Biclique " << biclique_index << '\n';
 
             for (const auto& overlap_info: overlap_infos) {
                 auto edge = bicliques[biclique_index][overlap_info.edge_index];
                 auto left_id = gfa_graph.get_id(edge.first);
                 auto right_id = gfa_graph.get_id(edge.second);
-                cout << "      " << overlap_info.edge_index << " " << overlap_info.length << " " << left_id << "->"
+                cerr << "      " << overlap_info.edge_index << " " << overlap_info.length << " " << left_id << "->"
                      << right_id << '\n';
             }
         }
 
-        cout << '\n';
+        cerr << '\n';
     }
 
-    cout << '\n';
+    cerr << '\n';
 }
 
 
@@ -91,7 +91,7 @@ size_t NodeInfo::get_overlap_length(edge_t edge, bool side) {
 
 // For one node, make a mapping: (side -> (biclique_index -> (edge_index,length) ) )
 // Overloaded to find overlaps that involve the original parent node if the graph has been edited
-void NodeInfo::factor_overlaps_by_biclique_and_side(const map <nid_t, nid_t>& child_to_parent) {
+void NodeInfo::factor_overlaps_by_biclique_and_side(const map <nid_t, pair<nid_t, bool> >& child_to_parent) {
 
     for (auto& index: node_to_biclique_edge[node_id]) {
         edge_t edge = bicliques[index];
@@ -102,14 +102,14 @@ void NodeInfo::factor_overlaps_by_biclique_and_side(const map <nid_t, nid_t>& ch
         auto left_parent_node_iter = child_to_parent.find(left_node_id);
 
         if (left_parent_node_iter !=  child_to_parent.end()){
-            left_node_id = left_parent_node_iter->second;
+            left_node_id = left_parent_node_iter->second.first;
         }
 
         nid_t right_node_id = gfa_graph.get_id(edge.second);
         auto right_parent_node_iter = child_to_parent.find(right_node_id);
 
         if (right_parent_node_iter !=  child_to_parent.end()){
-            right_node_id = right_parent_node_iter->second;
+            right_node_id = right_parent_node_iter->second.first;
         }
 
         // If the node is on the "left" of an edge then the overlap happens on the "right side" of the node...

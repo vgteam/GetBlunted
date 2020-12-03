@@ -72,18 +72,26 @@ void gfa_to_handle_graph_in_memory(
             graph.create_edge(a, b);
 
             // Update the overlap map
-            Alignment alignment = overlaps.insert(edge, a, b);
+            Alignment alignment(edge.alignment);
 
             pair<size_t, size_t> lengths;
             alignment.compute_lengths(lengths);
 
-            if (lengths.first > graph.get_length(a)){
-                cerr << "WARNING: sum of cigar operations is longer than SOURCE node: "
-                     << edge.source_name << " " << edge.sink_name << '\n';
+            bool valid = true;
+            if (lengths.first >= graph.get_length(a)){
+                cerr << "WARNING: skipping overlap for which sum of cigar operations is >= SOURCE node length: "
+                     << edge.source_name << "->" << edge.sink_name << '\n' << '\n';
+                valid = false;
             }
-            if (lengths.second > graph.get_length(b)){
-                cerr << "WARNING: sum of cigar operations is longer than SINK node: "
-                     << edge.source_name << " " << edge.sink_name << '\n';
+            if (lengths.second >= graph.get_length(b)){
+                cerr << "WARNING: skipping overlap for which sum of cigar operations is >= SINK node length: "
+                     << edge.source_name << "->" << edge.sink_name << '\n' << '\n';
+                valid = false;
+            }
+
+            if (valid) {
+                graph.create_edge(a, b);
+                overlaps.insert(alignment, a, b);
             }
 //            if (lengths.first <= graph.get_length(a) and lengths.second <= graph.get_length(b)){
 //                size_t ref_start = graph.get_length(a) - lengths.first;
@@ -143,22 +151,30 @@ void gfa_to_handle_graph_on_disk(
 
         handle_t a = graph.get_handle(source_id, not e.source_orientation_forward);
         handle_t b = graph.get_handle(sink_id, not e.sink_orientation_forward);
-        graph.create_edge(a, b);
 
         // Update the overlap map
-        Alignment alignment = overlaps.insert(e, a, b);
+        Alignment alignment(e.alignment);
 
         pair<size_t, size_t> lengths;
         alignment.compute_lengths(lengths);
 
-        if (lengths.first > graph.get_length(a)){
-            cerr << "WARNING: sum of cigar operations is longer than SOURCE node: "
+        bool valid = true;
+        if (lengths.first >= graph.get_length(a)){
+            cerr << "WARNING: skipping overlap for which sum of cigar operations is >= SOURCE node length: "
                  << e.source_name << "->" << e.sink_name << '\n' << '\n';
+            valid = false;
         }
-        if (lengths.second > graph.get_length(b)){
-            cerr << "WARNING: sum of cigar operations is longer than SINK node: "
+        if (lengths.second >= graph.get_length(b)){
+            cerr << "WARNING: skipping overlap for which sum of cigar operations is >= SINK node length: "
                  << e.source_name << "->" << e.sink_name << '\n' << '\n';
+            valid = false;
         }
+
+        if (valid) {
+            graph.create_edge(a, b);
+            overlaps.insert(alignment, a, b);
+        }
+
 //        if (lengths.first <= graph.get_length(a) and lengths.second <= graph.get_length(b)){
 //            size_t ref_start = graph.get_length(a) - lengths.first;
 //            string formatted_alignment = alignment.create_formatted_alignment_string(graph, {a,b}, ref_start, 0);

@@ -31,7 +31,7 @@ public:
     Bicliques& bicliques;
 
     map <nid_t, set<nid_t> >& parent_to_children;
-    map <nid_t, nid_t>& child_to_parent;
+    map <nid_t, pair<nid_t, bool> >& child_to_parent;
 
     map<nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes;
 
@@ -42,8 +42,8 @@ public:
             OverlapMap& overlaps,
             Bicliques& bicliques,
             map <nid_t, set<nid_t> >& parent_to_children,
-            map <nid_t, nid_t>& child_to_parent,
-            map<nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes);
+            map <nid_t, pair<nid_t, bool> >& child_to_parent,
+            map <nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes);
 
     void duplicate_all_node_termini(MutablePathDeletableHandleGraph& gfa_graph);
 

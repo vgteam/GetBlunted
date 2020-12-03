@@ -1,4 +1,4 @@
-#include "align.hpp"
+#include "BluntifierAlign.hpp"
 #include "handle_to_gfa.hpp"
 #include "utility.hpp"
 #include "bdsg/hash_graph.hpp"

@@ -1,5 +1,0 @@
-H	VN:Z:1.0
-S	read1	GATTACA
-S	read2	ACAGATT
-L	read1	+	read2	+	3M
-L	read2	+	read1	+	4M

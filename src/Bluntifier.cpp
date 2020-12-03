@@ -18,13 +18,13 @@ Bluntifier::Bluntifier(string gfa_path):
 
 
 void Bluntifier::print_adjacency_components_stats(size_t i){
-    cout << "Component " << i << " of size " << adjacency_components[i].size() << '\n' << std::flush;
-    cout << "NODES IN ADJACENCY COMPONENT:\n";
+    cerr << "Component " << i << " of size " << adjacency_components[i].size() << '\n' << std::flush;
+    cerr << "NODES IN ADJACENCY COMPONENT:\n";
     for (auto& handle: adjacency_components[i]) {
-        std::cout << id_map.get_name(gfa_graph.get_id(handle)) << (gfa_graph.get_is_reverse(handle) ? "-" : "+")
+        std::cerr << id_map.get_name(gfa_graph.get_id(handle)) << (gfa_graph.get_is_reverse(handle) ? "-" : "+")
                   << '\n';
     }
-    cout << '\n';
+    cerr << '\n';
 }
 
 
@@ -113,64 +113,58 @@ void Bluntifier::map_splice_sites_by_node(){
 }
 
 
-bool Bluntifier::is_oo_node_child(nid_t node_id){
-    bool is_oo = false;
+tuple <bool, bool> Bluntifier::is_oo_node(nid_t node_id){
+    bool is_oo_child = false;
+    bool is_oo_parent = false;
 
     // Check if this is an Overlapping Overlap node
     auto is_child_result = child_to_parent.find(node_id);
 
     if (is_child_result != child_to_parent.end()){
-        auto& original_gfa_node = is_child_result->second;
+        auto original_gfa_node = is_child_result->second.first;
+        bool is_terminus = is_child_result->second.second;
+
+        cerr << node_id << " is child of: " << original_gfa_node << '\n';
 
         auto result = overlapping_overlap_nodes.find(original_gfa_node);
         if (result != overlapping_overlap_nodes.end()) {
-            // Brute force search of overlapping children in this OO node
-            for (auto s: {0,1}) {
-                for (auto& oo_item: result->second.overlapping_children[s]) {
-                    if (gfa_graph.get_id(oo_item.second.handle) == node_id){
-                        cout << "Skipping OO node: " << original_gfa_node << '\n';
-                        is_oo = true;
+            auto& overlap_info = result->second;
+
+            cerr << "Parent is OO node\n";
+
+            overlap_info.print(gfa_graph);
+
+            // Check if this node is part of the non-terminal parent material in this OO node
+            if (not is_terminus) {
+                auto parent_path = gfa_graph.get_path_handle(overlap_info.parent_path_name);
+
+                for (auto h: gfa_graph.scan_path(parent_path)) {
+                    if (gfa_graph.get_id(h) == node_id) {
+                        is_oo_parent = true;
+                    }
+                }
+            }
+            else {
+                // Brute force search of overlapping children in this OO node to see if this is onde of the overlaps
+                // that was excluded from splicing
+                for (auto s: {0, 1}) {
+                    for (auto& oo_item: overlap_info.overlapping_children[s]) {
+                        if (gfa_graph.get_id(oo_item.second.handle) == node_id) {
+                            is_oo_child = true;
+                        }
                     }
                 }
             }
         }
     }
 
-
-    return is_oo;
-}
-
-
-bool Bluntifier::is_oo_node_parent(nid_t node_id){
-
-    bool is_oo = false;
-
-    // Check if this is an Overlapping Overlap node
-    auto is_child_result = child_to_parent.find(node_id);
-
-    if (is_child_result != child_to_parent.end()) {
-        auto& original_gfa_node = is_child_result->second;
-
-        auto result = overlapping_overlap_nodes.find(original_gfa_node);
-        if (result != overlapping_overlap_nodes.end()) {
-
-            auto parent_path = gfa_graph.get_path_handle(result->second.parent_path_name);
-
-            for (auto h: gfa_graph.scan_path(parent_path)) {
-                if (gfa_graph.get_id(h) == node_id) {
-                    is_oo = true;
-                }
-            }
-        }
-    }
-
-    return is_oo;
+    return {is_oo_parent, is_oo_child};
 }
 
 
 void Bluntifier::splice_subgraphs(){
 
-    cout << "Splicing " << subgraphs.size() << " subgraphs\n";
+    cerr << "Splicing " << subgraphs.size() << " subgraphs\n";
 
     size_t i = 0;
     for (auto& subgraph: subgraphs) {
@@ -179,7 +173,7 @@ void Bluntifier::splice_subgraphs(){
         subgraph.graph.increment_node_ids(gfa_graph.max_node_id());
         copy_path_handle_graph(&subgraph.graph, &gfa_graph);
 
-        if (gfa_graph.get_node_count() < 30){
+        if (gfa_graph.get_node_count() < 120){
             string test_path_prefix = "test_bluntify_splice_" + std::to_string(i) + "_b";
             handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
             string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
@@ -196,16 +190,19 @@ void Bluntifier::splice_subgraphs(){
                 auto& path_info = item.second;
                 auto node_id = gfa_graph.get_id(handle);
 
-//                cout << "Splicing node " << node_id << ", side " << side << '\n';
+                cerr << "Splicing node " << node_id << ", side " << side << '\n';
 
-                bool is_oo_child = is_oo_node_child(node_id);
-                bool is_oo_parent = is_oo_node_parent(node_id);
+                bool is_oo_parent;
+                bool is_oo_child;
+                tie(is_oo_parent, is_oo_child) = is_oo_node(node_id);
 
                 if (not is_oo_child) {
 
                     // Find the path handle for the path that was copied into the GFA graph
                     auto path_name = subgraph.graph.get_path_name(path_info.path_handle);
                     auto path_handle = gfa_graph.get_path_handle(path_name);
+
+                    cerr << "path name: " << path_name << '\n';
 
                     set<handle_t> parent_handles;
                     gfa_graph.follow_edges(handle, 1 - side, [&](const handle_t& h) {
@@ -235,12 +232,12 @@ void Bluntifier::splice_subgraphs(){
                     }
                 }
                 else{
-                    cout << "Skipping oo child: " << node_id << '\n';
+                    cerr << "Skipping oo child: " << node_id << '\n';
                 }
 
                 if (subgraph.paths_per_handle[1-side].count(handle) == 0
                     and subgraph.paths_per_handle[1-side].count(gfa_graph.flip(handle)) == 0) {
-                    cout << "To be destroyed: " << gfa_graph.get_id(handle) << '\n';
+                    cerr << "To be destroyed: " << gfa_graph.get_id(handle) << '\n';
                     to_be_destroyed.emplace(gfa_graph.get_id(handle));
                 }
             }
@@ -256,7 +253,7 @@ void Bluntifier::bluntify(){
 //    {
 //        size_t id = 1;
 //        for (auto& item: id_map.names) {
-//            cout << id++ << " " << item << '\n';
+//            cerr << id++ << " " << item << '\n';
 //        }
 //    }
 
@@ -267,7 +264,7 @@ void Bluntifier::bluntify(){
     auto size = gfa_graph.get_node_count() + 1;
     node_to_biclique_edge.resize(size);
 
-    std::cout << "Total adjacency components:\t" << adjacency_components.size() << '\n' << '\n';
+    std::cerr << "Total adjacency components:\t" << adjacency_components.size() << '\n' << '\n';
 
     for (size_t i = 0; i<adjacency_components.size(); i++){
         print_adjacency_components_stats(i);
@@ -277,15 +274,15 @@ void Bluntifier::bluntify(){
     {
         size_t i = 0;
         for (auto& biclique: bicliques.bicliques) {
-            cout << "Biclique " << i++ << '\n';
+            cerr << "Biclique " << i++ << '\n';
             for (auto& edge: biclique) {
-                cout << "(" << gfa_graph.get_id(edge.first);
-                cout << (gfa_graph.get_is_reverse(edge.first) ? "-" : "+");
-                cout << ") -> (" << gfa_graph.get_id(edge.second);
-                cout << (gfa_graph.get_is_reverse(edge.second) ? "-" : "+") << ")" << '\n';
+                cerr << "(" << gfa_graph.get_id(edge.first);
+                cerr << (gfa_graph.get_is_reverse(edge.first) ? "-" : "+");
+                cerr << ") -> (" << gfa_graph.get_id(edge.second);
+                cerr << (gfa_graph.get_is_reverse(edge.second) ? "-" : "+") << ")" << '\n';
             }
         }
-        cout << '\n' << '\n';
+        cerr << '\n' << '\n';
     }
 
     // TODO: delete adjacency components vector if unneeded
@@ -328,27 +325,27 @@ void Bluntifier::bluntify(){
 
     splice_subgraphs();
 
-    if (gfa_graph.get_node_count() < 200){
-        string test_path_prefix = "test_bluntify_spliced_" + std::to_string(1);
-        handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
-        string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
-                         + test_path_prefix + ".png";
-        run_command(command);
-    }
+//    if (gfa_graph.get_node_count() < 200){
+//        string test_path_prefix = "test_bluntify_spliced_" + std::to_string(1);
+//        handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
+//        string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
+//                         + test_path_prefix + ".png";
+//        run_command(command);
+//    }
 
     OverlappingOverlapSplicer oo_splicer(overlapping_overlap_nodes, parent_to_children, subgraphs);
 
     oo_splicer.splice_overlapping_overlaps(gfa_graph);
 
-    if (gfa_graph.get_node_count() < 200){
-        string test_path_prefix = "test_bluntify_spliced_oo_" + std::to_string(1);
-        handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
-        string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
-                         + test_path_prefix + ".png";
-
-        cerr << "Running command: " << command << '\n';
-        run_command(command);
-    }
+//    if (gfa_graph.get_node_count() < 200){
+//        string test_path_prefix = "test_bluntify_spliced_oo_" + std::to_string(1);
+//        handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
+//        string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
+//                         + test_path_prefix + ".png";
+//
+//        cerr << "Running command: " << command << '\n';
+//        run_command(command);
+//    }
 
     compute_provenance();
 
@@ -372,44 +369,6 @@ void Bluntifier::bluntify(){
 }
 
 
-//void Bluntifier::find_path_info(
-//        Subgraph& subgraph,
-//        handle_t handle,
-//        PathInfo& path_info,
-//        string& path_name){
-//
-//    // Don't know which side of the biclique this overlap was on until we search for it in the subgraph
-//    auto result = subgraph.paths_per_handle[0].find(handle);
-//
-//    if (result == subgraph.paths_per_handle[0].end()) {
-//        result = subgraph.paths_per_handle[1].find(handle);
-//
-//        if (result == subgraph.paths_per_handle[1].end()) {
-//            result = subgraph.paths_per_handle[0].find(gfa_graph.flip(handle));
-//
-//            if (result == subgraph.paths_per_handle[0].end()) {
-//                result = subgraph.paths_per_handle[1].find(gfa_graph.flip(handle));
-//
-//                // Sanity check
-//                if (result == subgraph.paths_per_handle[1].end()) {
-//                    throw runtime_error("ERROR: node not found in biclique subgraph. Node id: " +
-//                                        to_string(gfa_graph.get_id(handle)));
-//                }
-//                else{
-//                    cout << "WARNING: handle flipped w.r.t. path in subgraph. Node id: " << gfa_graph.get_id(handle) << '\n';
-//                }
-//            }
-//            else{
-//                cout << "WARNING: handle flipped w.r.t. path in subgraph. Node id: " << gfa_graph.get_id(handle) << '\n';
-//            }
-//        }
-//    }
-//
-//    path_name = subgraph.graph.get_path_name(result->second.path_handle);
-//    path_info = result->second;
-//}
-
-
 void Bluntifier::write_provenance(string& output_path){
     ofstream file(output_path);
 
@@ -421,7 +380,7 @@ void Bluntifier::write_provenance(string& output_path){
             auto& parent_node = iter->first;
             auto& info = iter->second;
 
-            file << parent_node << '[' << info.start << ':' << info.stop + 1 << "]" << (info.reversal ? '-':'+');
+            file << id_map.get_name(parent_node) << '[' << info.start << ':' << info.stop + 1 << "]" << (info.reversal ? '-':'+');
 
             if (++iter == parents.end()){
                 break;
@@ -435,36 +394,9 @@ void Bluntifier::write_provenance(string& output_path){
 }
 
 
-//void Bluntifier::find_child_provenance(
-//        nid_t child_node,
-//        nid_t parent_node_id,
-//        Subgraph& subgraph,
-//        size_t parent_index,
-//        bool side){
-//
-//    auto handle = gfa_graph.get_handle(child_node, false);
-//    PathInfo path_info;
-//    string path_name;
-//
-//    find_path_info(subgraph, handle, path_info, path_name);
-//    auto path_handle = gfa_graph.get_path_handle(path_name);
-//
-//    for (auto h: gfa_graph.scan_path(path_handle)){
-//        auto id = gfa_graph.get_id(h);
-//        size_t length = gfa_graph.get_length(h);
-//
-//        // Store the provenance info for this node if it's not a terminus
-//        pair <size_t, size_t> info = {parent_index, parent_index + length - 1};
-//        provenance_map[id].emplace(parent_node_id, info);
-//
-//        parent_index += length;
-//    }
-//}
-
-
 void Bluntifier::compute_provenance(){
     gfa_graph.for_each_path_handle([&](const path_handle_t ph){
-        cout << gfa_graph.get_path_name(ph) << '\n';
+        cerr << gfa_graph.get_path_name(ph) << '\n';
     });
 
     for (int64_t parent_node_id=1; parent_node_id <= id_map.names.size(); parent_node_id++){
@@ -515,7 +447,7 @@ void Bluntifier::compute_provenance(){
                 parent_node_id);
 
         node_info.print_stats();
-        cout << has_left_child << has_right_child << '\n';
+        cerr << has_left_child << has_right_child << '\n';
 
         for (size_t side: {0, 1}) {
             auto biclique_overlaps = node_info.factored_overlaps[side];
@@ -533,7 +465,7 @@ void Bluntifier::compute_provenance(){
                 bool reversal;
                 bool parent_side;
 
-                if (child_to_parent.at(gfa_graph.get_id(canonical_edge.first)) == parent_node_id){
+                if (child_to_parent.at(gfa_graph.get_id(canonical_edge.first)).first == parent_node_id){
                     reversal = gfa_graph.get_is_reverse(canonical_edge.first);
 
                     if (reversal){
@@ -543,6 +475,7 @@ void Bluntifier::compute_provenance(){
                         parent_side = 0;
                         if (canonical_edge != edge){
                             parent_side = 1 - parent_side;
+                            reversal = 1 - reversal;
                         }
                     }
                     else{
@@ -552,6 +485,7 @@ void Bluntifier::compute_provenance(){
                         parent_side = 0;
                         if (canonical_edge != edge){
                             parent_side = 1 - parent_side;
+                            reversal = 1 - reversal;
                         }
                     }
                 }
@@ -565,6 +499,7 @@ void Bluntifier::compute_provenance(){
                         parent_side = 1;
                         if (canonical_edge != edge){
                             parent_side = 1 - parent_side;
+                            reversal = 1 - reversal;
                         }
                     }
                     else{
@@ -574,42 +509,69 @@ void Bluntifier::compute_provenance(){
                         parent_side = 1;
                         if (canonical_edge != edge){
                             parent_side = 1 - parent_side;
+                            reversal = 1 - reversal;
                         }
                     }
                 }
 
-
-//                cout << "parent node: " << parent_node_id << '\n';
-//                cout << "parent side: " << parent_side << '\n';
-//                cout << "reversal: " << reversal << '\n';
-//                cout << "parent length: " << parent_length << '\n';
-//                cout << "overlap length: " << overlap_info.length << '\n';
-//                cout << "parent index: " << parent_index << '\n';
-//                cout << "(" << gfa_graph.get_id(edge.first);
-//                cout << (gfa_graph.get_is_reverse(edge.first) ? "-" : "+");
-//                cout << ") -> (" << gfa_graph.get_id(edge.second);
-//                cout << (gfa_graph.get_is_reverse(edge.second) ? "-" : "+") << ")" << '\n';
-//                cout << '\n';
+                cerr << '\n';
+                cerr << "parent node: " << parent_node_id << '\n';
+                cerr << "parent name: " << id_map.get_name(parent_node_id) << '\n';
+                cerr << "parent side: " << parent_side << '\n';
+                cerr << "reversal: " << reversal << '\n';
+                cerr << "parent length: " << parent_length << '\n';
+                cerr << "overlap length: " << overlap_info.length << '\n';
+                cerr << "parent index: " << parent_index << '\n';
+                cerr << "flipped during harmonization: " << (canonical_edge != edge) << '\n';
+                cerr << "(" << gfa_graph.get_id(edge.first);
+                cerr << (gfa_graph.get_is_reverse(edge.first) ? "-" : "+");
+                cerr << ") -> (" << gfa_graph.get_id(edge.second);
+                cerr << (gfa_graph.get_is_reverse(edge.second) ? "-" : "+") << ")" << '\n';
 
                 string child_path_name = to_string(child_id) + "_" + to_string(parent_side);
                 auto child_path_handle = gfa_graph.get_path_handle(child_path_name);
 
+                cerr << "Child IDs in path: ";
+                size_t cumulative_path_length = 0;
                 for (auto h: gfa_graph.scan_path(child_path_handle)){
                     auto id = gfa_graph.get_id(h);
                     size_t length = gfa_graph.get_length(h);
 
+                    cerr << id << " ";
+
+                    size_t forward_start_index;
+                    size_t forward_stop_index;
+
+                    // Walking forward along a reversed overlap is walking from the middle out of a node
+                    if (reversal){
+                        if (parent_side == 0) {
+                            forward_stop_index = overlap_info.length - cumulative_path_length - 1;
+                            forward_start_index = forward_stop_index - length + 1;
+                        }
+                        else{
+                            forward_start_index = parent_index;
+                            forward_stop_index = parent_index + length - 1;
+                        }
+                    }
+                    // TODO: figure out what the complement of the ^ above is
+                    else{
+                        forward_start_index = parent_index;
+                        forward_stop_index = parent_index + length - 1;
+                    }
+
                     // Store the provenance info for this node
-                    ProvenanceInfo info(parent_index, parent_index + length - 1, reversal);
+                    ProvenanceInfo info(forward_start_index, forward_stop_index, reversal);
                     provenance_map[id].emplace(parent_node_id, info);
 
                     parent_index += length;
+                    cumulative_path_length += length;
 
                     i++;
                 }
-
+                cerr << '\n';
             }
         }
-        cout << '\n';
+        cerr << '\n';
     }
 }
 

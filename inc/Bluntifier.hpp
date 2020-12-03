@@ -7,7 +7,6 @@
 #include "OverlapMap.hpp"
 #include "Duplicator.hpp"
 #include "Subgraph.hpp"
-#include "align.hpp"
 #include "OverlappingOverlap.hpp"
 #include "OverlappingOverlapSplicer.hpp"
 #include "gfa_to_handle.hpp"
@@ -21,34 +20,6 @@
 
 #include "bdsg/hash_graph.hpp"
 
-
-using bluntifier::gfa_to_path_handle_graph_in_memory;
-using bluntifier::gfa_to_path_handle_graph;
-using bluntifier::gfa_to_handle_graph;
-using bluntifier::handle_graph_to_gfa;
-using bluntifier::parent_path;
-using bluntifier::join_paths;
-using bluntifier::IncrementalIdMap;
-using bluntifier::OverlapMap;
-using bluntifier::Duplicator;
-using bluntifier::Alignment;
-using bluntifier::for_each_adjacency_component;
-using bluntifier::AdjacencyComponent;
-using bluntifier::BipartiteGraph;
-using bluntifier::BicliqueCover;
-using bluntifier::BicliqueEdgeIndex;
-using bluntifier::Bicliques;
-using bluntifier::NodeInfo;
-using bluntifier::Subgraph;
-using bluntifier::OverlappingOverlapSplicer;
-using bluntifier::OverlappingNodeInfo;
-using bluntifier::OverlappingChild;
-using bluntifier::bipartition;
-using bluntifier::copy_path_handle_graph;
-using bluntifier::duplicate_prefix;
-using bluntifier::duplicate_suffix;
-using bluntifier::run_command;
-using bluntifier::unchop;
 
 using handlegraph::MutablePathDeletableHandleGraph;
 using handlegraph::as_integer;
@@ -87,7 +58,9 @@ private:
     mutex biclique_mutex;
     vector <vector <BicliqueEdgeIndex> > node_to_biclique_edge;
 
-    map <nid_t, nid_t> child_to_parent;
+    // Store the mapping from children to parent, and a boolean to tell whether that child is a suffix/prefix or the
+    // original node material
+    map <nid_t, pair<nid_t, bool> > child_to_parent;
     map <nid_t, set<nid_t> > parent_to_children;
 
     vector <Subgraph> subgraphs;
@@ -105,8 +78,6 @@ public:
     void bluntify();
 
     void write_provenance(string& output_path);
-
-    void write_to_gfa();
 
 private:
     void deduplicate_and_canonicalize_biclique_cover(
@@ -132,16 +103,9 @@ private:
 
     void splice_subgraphs();
 
-    bool is_oo_node_child(nid_t node_id);
-
-    bool is_oo_node_parent(nid_t node_id);
-
-    void find_path_info(Subgraph& subgraph, handle_t handle, PathInfo& path_info, string& path_name);
+    tuple <bool, bool> is_oo_node(nid_t node_id);
 
     void compute_provenance();
-
-    void find_child_provenance(nid_t child_node, nid_t parent_node_id, size_t parent_index, bool side);
-
 };
 
 

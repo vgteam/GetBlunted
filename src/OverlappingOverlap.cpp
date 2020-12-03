@@ -1,6 +1,6 @@
 #include "OverlappingOverlap.hpp"
 
-using std::cout;
+using std::cerr;
 
 namespace bluntifier{
 
@@ -18,7 +18,7 @@ OverlappingChild::OverlappingChild():
 {}
 
 void OverlappingChild::print(HandleGraph& gfa_graph) const{
-    std::cout << "ID=" << gfa_graph.get_id(handle) << " Biclique=" << biclique_index << " Length=" << gfa_graph.get_length(handle) << '\n';
+    std::cerr << "ID=" << gfa_graph.get_id(handle) << " Biclique=" << biclique_index << " Length=" << gfa_graph.get_length(handle) << '\n';
 }
 
 
@@ -29,22 +29,22 @@ OverlappingNodeInfo::OverlappingNodeInfo(nid_t parent_node):
 
 void OverlappingNodeInfo::print(HandleGraph& graph){
     for (auto side: {0,1}) {
-        cout << "Side: " << side << '\n';
-        cout << "Overlapping:\n";
+        cerr << "Side: " << side << '\n';
+        cerr << "Overlapping:\n";
         for (auto& item1: overlapping_children[side]){
             auto& overlapping_child = item1.second;
-            cout << '\t' << item1.first << " ";
+            cerr << '\t' << item1.first << " ";
             overlapping_child.print(graph);
         }
-        cout << "Normal:\n";
+        cerr << "Normal:\n";
         for (auto& item1: normal_children[side]){
             auto& normal_child = item1.second;
-            cout << '\t' << item1.first << " ";
+            cerr << '\t' << item1.first << " ";
             normal_child.print(graph);
         }
-        cout << '\n';
+        cerr << '\n';
     }
-    cout << '\n';
+    cerr << '\n';
 
 }
 

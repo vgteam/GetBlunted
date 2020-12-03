@@ -46,14 +46,14 @@ public:
 
     NodeInfo(
             const vector<vector<BicliqueEdgeIndex> >& node_to_biclique_edge,
-            const map <nid_t, nid_t>& child_to_parent,
+            const map <nid_t, pair<nid_t, bool> >& child_to_parent,
             const Bicliques& bicliques,
             const HandleGraph& gfa_graph,
             const OverlapMap& overlaps,
             nid_t node_id);
 
     void factor_overlaps_by_biclique_and_side();
-    void factor_overlaps_by_biclique_and_side(const map <nid_t, nid_t>& child_to_parent);
+    void factor_overlaps_by_biclique_and_side(const map <nid_t, pair<nid_t, bool> >& child_to_parent);
 
     void sort_factored_overlaps();
 

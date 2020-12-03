@@ -1,0 +1,22 @@
+H	VN:Z:1.0
+S	read1	GATTACA
+S	read2	AATCTGT
+L	read1	-	read2	+	4M
+L	read2	+	read1	-	3M
+
+# GATTACA TGTAATC
+# AATCTGT ACAGATT
+#
+# GATT|ACA  TGT|AATC
+# 0123 456  654 3210
+#
+# AATC|TGT  ACA|GATT
+#
+# TGTAATC
+#    ||||
+#    AATCTGT
+#
+# AATCTGT
+#     |||
+#     TGTAATC
+#

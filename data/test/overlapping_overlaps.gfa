@@ -1,27 +1,26 @@
 H	VN:Z:1.0
-S	A	AGTAGCATGCCAAGCTC
-S	B	GGCGAAGTAGCATGCCAA
-S	C	TGCCAAGCTCTGACGGCG
-S	D	TGCCAGTAGTAG
-S	E	CTCGATGCCAG
+S	A	AGTAGCATACCAAGCTC
+S	B	GGGGGAGTAGCATGCCAA
+S	C	TCCCAAGCTCAAAAAAAA
+S	D	TTTTTTTAGTAG
+S	E	GCTCCCCCCCCC
 L	B	+	A	+	13M
 L	A	+	C	+	10M
 L	D	+	A	+	5M
 L	A	+	E	+	3M
-L	C	+	B	+	4M
-L	E	+	D	+	6M
 
 
 # Node A
-#  D      TGCCAGTAGTAG           .
+#  D      TTTTTTTAGTAG           .
 #                |||||           .
-#  B        GGCGAAGTAGCATGCCAA   .
-#                |||||||||||||   .
-# -A-            AGTAGCATGCCAAGCTC
-#                .      ||||||||||
-#  C             .      TGCCAAGCTCTGACGGCG
-#                .             |||
-#  E             .             CTCGATGCCAG
+#  B        GGGGGAGTAGCATGCCAA   .
+#                |||||||| ||||   .
+# -A-            AGTAGCATACCAAGCTC
+#                01234567890123456
+#                .      | ||||||||
+#  C             .      TCCCAAGCTCAAAAAAAA
+#                .            ||||
+#  E             .            GCTCCCCCCCCC
 
 
 # Node B

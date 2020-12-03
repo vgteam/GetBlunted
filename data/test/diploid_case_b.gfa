@@ -3,3 +3,9 @@ S	B	TCAGTATAGC
 S	C	TAGTTCAGTA
 L	A	+	B	+	7M
 L	C	+	B	+	6M
+
+# ACGTTCAGAAT
+#     |||| ||
+#     TCAGTATAGC
+#     ||||||
+# TAGTTCAGTA
