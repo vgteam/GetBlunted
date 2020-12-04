@@ -155,7 +155,8 @@ def parse_translation_table(filename, out_gfa):
 
 # every sequence from the input GFA is present at least once
 def sequences_are_exhaustive(in_gfa, table):
-    
+    success = True
+
     intervals = {}
     for nodename in table:
         for subseq in table[nodename]:
@@ -166,21 +167,23 @@ def sequences_are_exhaustive(in_gfa, table):
     for nodename in in_gfa.nodes:
         if nodename not in intervals:
             print("input GFA node {} is missing from translation table".format(nodename), file = sys.stderr)
-            return False
+            success = False
         
         node_intervals = intervals[nodename]
         node_intervals.sort()
         furthest = 0
         for begin, end in node_intervals:
             if begin > furthest:
-                print("sequence {} has no coverage in interval [{}:{})".format(nodename, furthest, begin), file = sys.stderr)
-                return False
+                print("sequence {} of length {} has no coverage in interval [{}:{})".format(nodename, len(in_gfa.nodes[nodename].sequence), furthest, begin), file = sys.stderr)
+                success = False
+
             furthest = max(furthest, end)
         seq_len = len(in_gfa.nodes[nodename].sequence)
         if furthest != seq_len:
-            print("sequence {} has no coverage in interval [{}:{})".format(nodename, furthest, seq_len), file = sys.stderr)
-            return False
-    return True
+            print("sequence {} of length {} has no coverage in interval [{}:{})".format(nodename, len(in_gfa.nodes[nodename].sequence), furthest, seq_len), file = sys.stderr)
+            success = False
+
+    return success
 
 # the sequences that the table indicates are matched between the two GFAs indeed match
 def table_sequences_are_consistent(in_gfa, out_gfa, table):
@@ -209,7 +212,15 @@ def table_sequences_are_consistent(in_gfa, out_gfa, table):
                 out_seq = out_node.sequence
                 strand = "forward"
             if in_node.sequence[subseq.begin:subseq.end] != out_seq:
-                print("sequence {} of output node {} doesn't match interval [{}:{}) of {} strand of input node {} sequence {}: {}".format(out_node.sequence, out_node.name, subseq.begin, subseq.end, strand, in_node.name, in_node.sequence, in_node.sequence[subseq.begin:subseq.end]), file = sys.stderr)
+                if len(out_node.sequence) < 400 and len(in_node.sequence) < 400:
+                    print("sequence {} of output node {} doesn't match interval [{}:{}) of {} strand of input node {} sequence {}: {}".format(out_node.sequence, out_node.name, subseq.begin, subseq.end, strand, in_node.name, in_node.sequence, in_node.sequence[subseq.begin:subseq.end]), file = sys.stderr)
+                elif len(out_node.sequence) < 400 and len(in_node.sequence) > 400:
+                    print("sequence {} of output node {} doesn't match interval [{}:{}) of {} strand of input node {} sequence [too long to print]: {}".format(out_node.sequence, out_node.name, subseq.begin, subseq.end, strand, in_node.name, in_node.sequence[subseq.begin:subseq.end]), file = sys.stderr)
+                elif len(out_node.sequence) > 400 and len(in_node.sequence) < 400:
+                    print("sequence [too long to print] of output node {} doesn't match interval [{}:{}) of {} strand of input node {} sequence {}: {}".format(out_node.name, subseq.begin, subseq.end, strand, in_node.name, in_node.sequence, in_node.sequence[subseq.begin:subseq.end]), file = sys.stderr)
+                else:
+                    print("sequence [too long to print] of output node {} doesn't match interval [{}:{}) of {} strand of input node {} sequence [too long to print]: {}".format(out_node.name, subseq.begin, subseq.end, strand, in_node.name, in_node.sequence[subseq.begin:subseq.end]), file = sys.stderr)
+
                 success = False
 
     return success

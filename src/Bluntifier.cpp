@@ -542,18 +542,17 @@ void Bluntifier::compute_provenance(){
                     size_t forward_start_index;
                     size_t forward_stop_index;
 
-                    // Walking forward along a reversed overlap is walking from the middle out of a node
+                    // Walking forward along a reversed overlap on side 0 is walking from the middle out of a node
                     if (reversal){
                         if (parent_side == 0) {
                             forward_stop_index = overlap_info.length - cumulative_path_length - 1;
                             forward_start_index = forward_stop_index - length + 1;
                         }
                         else{
-                            forward_start_index = parent_index;
-                            forward_stop_index = parent_index + length - 1;
+                            forward_stop_index = parent_length - cumulative_path_length - 1;
+                            forward_start_index = parent_length - cumulative_path_length - length;
                         }
                     }
-                    // TODO: figure out what the complement of the ^ above is
                     else{
                         forward_start_index = parent_index;
                         forward_stop_index = parent_index + length - 1;

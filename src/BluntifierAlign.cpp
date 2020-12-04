@@ -206,13 +206,13 @@ void Bluntifier::align_biclique_overlaps(size_t i){
 
     unchop(&subgraphs[i].graph);
 
-    if (subgraphs[i].graph.get_node_count() < 200){
-        string test_path_prefix = "test_bluntify_subgraph_unchopped_" + std::to_string(i);
-        handle_graph_to_gfa(subgraphs[i].graph, test_path_prefix + ".gfa");
-        string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
-                         + test_path_prefix + ".png";
-        run_command(command);
-    }
+//    if (subgraphs[i].graph.get_node_count() < 200){
+//        string test_path_prefix = "test_bluntify_subgraph_unchopped_" + std::to_string(i);
+//        handle_graph_to_gfa(subgraphs[i].graph, test_path_prefix + ".gfa");
+//        string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
+//                         + test_path_prefix + ".png";
+//        run_command(command);
+//    }
 
 }
 
