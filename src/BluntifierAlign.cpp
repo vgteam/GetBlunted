@@ -100,8 +100,6 @@ void Bluntifier::add_alignments_to_poa(
         if (subgraphs[i].paths_per_handle[0].count(edge.first) == 0){
             string path_name = to_string(gfa_graph.get_id(edge.first)) + "_" + to_string(0);
 
-            cerr << "path name: " << path_name << '\n';
-
             path_handle_t path_handle;
 
             // Paths might exist from previous alignment, but will be empty
@@ -122,8 +120,6 @@ void Bluntifier::add_alignments_to_poa(
         }
         if (subgraphs[i].paths_per_handle[1].count(edge.second) == 0){
             string path_name = to_string(gfa_graph.get_id(edge.second)) + "_" + to_string(1);
-
-            cerr << "path name: " << path_name << '\n';
 
             path_handle_t path_handle;
 
@@ -161,11 +157,7 @@ void Bluntifier::align_biclique_overlaps(size_t i){
 
     add_alignments_to_poa(spoa_graph, alignment_engine, i);
 
-    std::cerr << '\n';
-
     auto consensus = spoa_graph.GenerateConsensus();
-
-//    std::cerr << ">Consensus: " << consensus << std::endl;
 
     spoa::Graph seeded_spoa_graph{};
 
@@ -179,41 +171,12 @@ void Bluntifier::align_biclique_overlaps(size_t i){
 
     {
         auto seeded_consensus = seeded_spoa_graph.GenerateConsensus();
-
-//        string prefix = "spoa_overlap_" + to_string(i);
-//        seeded_spoa_graph.PrintDot(prefix + ".dot");
-//
-//        string command = "dot -Tpng " + prefix + ".dot -o " + prefix + ".png";
-//        run_command(command);
-
         auto msa = seeded_spoa_graph.GenerateMultipleSequenceAlignment();
-
-        for (const auto& it : msa) {
-            std::cerr << it << std::endl;
-        }
-        std::cerr << '\n';
     }
 
     convert_spoa_to_bdsg(seeded_spoa_graph, i);
 
-//    if (subgraph.graph.get_node_count() < 200){
-//        string test_path_prefix = "test_bluntify_subgraph_" + std::to_string(i);
-//        handle_graph_to_gfa(subgraph.graph, test_path_prefix + ".gfa");
-//        string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
-//                         + test_path_prefix + ".png";
-//        run_command(command);
-//    }
-
     unchop(&subgraphs[i].graph);
-
-//    if (subgraphs[i].graph.get_node_count() < 200){
-//        string test_path_prefix = "test_bluntify_subgraph_unchopped_" + std::to_string(i);
-//        handle_graph_to_gfa(subgraphs[i].graph, test_path_prefix + ".gfa");
-//        string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
-//                         + test_path_prefix + ".png";
-//        run_command(command);
-//    }
-
 }
 
 
@@ -281,8 +244,6 @@ void Bluntifier::harmonize_biclique_orientations(){
         if (n_reverse > n_forward){
             seed_majority_reversal = true;
         }
-
-//        std::cerr << max_node << " " << n_forward << " " << n_reverse << '\n';
 
         // Iterate the edges directly linked with the seed node and flip them if necessary
         // Additionally flip (as necessary) all the secondary edges that stem from the seed node's adjacent nodes

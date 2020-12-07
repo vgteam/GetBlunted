@@ -20,42 +20,6 @@ OverlappingOverlapSplicer::OverlappingOverlapSplicer(
 {}
 
 
-//void OverlappingOverlapSplicer::find_parent_path_bounds(
-//        MutablePathDeletableHandleGraph& gfa_graph,
-//        nid_t parent_id,
-//        pair<size_t, size_t>& bounds) {
-//
-//    size_t i_step = 0;
-//
-//    auto parent_path_handle = gfa_graph.get_path_handle(to_string(parent_id));
-//    for (auto h: gfa_graph.scan_path(parent_path_handle)) {
-//        auto id = gfa_graph.get_id(h);
-//        std::cerr << id << " " << gfa_graph.get_sequence(h);
-//
-//        // If this node is not one of the suffixes/prefixes
-//        if (parent_to_children.at(parent_id).count(id) == 0) {
-//
-//        }
-//        // Otherwise remember the amount of trimmed sequence
-//        else {
-//            std::cerr << " <- terminus";
-//            if (i_step == 0) {
-//                bounds.first = gfa_graph.get_length(h);
-//            } else {
-//            // If it's not the first step and this handle is a prefix/suffix then the path ends
-//                bounds.second = gfa_graph.get_length(h);
-//                break;
-//            }
-//        }
-//        std::cerr << '\n';
-//
-//        i_step++;
-//    }
-//    std::cerr << '\n';
-//    std::cerr << '\n';
-//}
-
-
 bool OverlappingOverlapSplicer::find_path_info(
         const HandleGraph& gfa_graph,
         size_t biclique_index,
@@ -86,12 +50,10 @@ bool OverlappingOverlapSplicer::find_path_info(
                 }
                 else{
                     reversal = true;
-                    cerr << "WARNING: handle flipped w.r.t. path in subgraph. Node id: " << gfa_graph.get_id(handle) << '\n';
                 }
             }
             else{
                 reversal = true;
-                cerr << "WARNING: handle flipped w.r.t. path in subgraph. Node id: " << gfa_graph.get_id(handle) << '\n';
             }
         }
     }
@@ -115,8 +77,6 @@ pair<handle_t, size_t> OverlappingOverlapSplicer::seek_to_path_base(
     size_t intra_handle_index = 0;
     handle_t step_handle;
 
-    cerr << "Seeking path base: " << target_base_index << '\n';
-
     bool fail = true;
     while (step != gfa_graph.path_end(path_handle)){
         step_handle = gfa_graph.get_handle_of_step(step);
@@ -128,14 +88,11 @@ pair<handle_t, size_t> OverlappingOverlapSplicer::seek_to_path_base(
             break;
         }
         else{
-            cerr << gfa_graph.get_id(step_handle) << " " << cumulative_index << " " << target_base_index << " " << gfa_graph.get_sequence(step_handle) << '\n';
             step = gfa_graph.get_next_step(step);
         }
 
         cumulative_index += step_length;
     }
-    cerr << gfa_graph.get_id(step_handle) << " " << gfa_graph.get_sequence(step_handle) << '\n';
-    cerr << '\n';
 
     if (fail){
         throw runtime_error("ERROR: path base index " + to_string(target_base_index) + " exceeds sum of handle lengths");
@@ -159,8 +116,6 @@ pair<handle_t, size_t> OverlappingOverlapSplicer::seek_to_reverse_path_base(
     size_t intra_handle_index = 0;
     handle_t step_handle;
 
-    cerr << "Seeking reverse path base: " << target_base_index << '\n';
-
     bool fail = true;
     while (step != gfa_graph.path_front_end(path_handle)){
         step_handle = gfa_graph.flip(gfa_graph.get_handle_of_step(step));
@@ -172,14 +127,11 @@ pair<handle_t, size_t> OverlappingOverlapSplicer::seek_to_reverse_path_base(
             break;
         }
         else{
-            cerr << gfa_graph.get_id(step_handle) << " " << cumulative_index << " " << target_base_index << " " << gfa_graph.get_sequence(step_handle) << '\n';
             step = gfa_graph.get_previous_step(step);
         }
 
         cumulative_index += step_length;
     }
-    cerr << gfa_graph.get_id(step_handle) << " " << gfa_graph.get_sequence(step_handle) << '\n';
-    cerr << '\n';
 
     if (fail){
         throw runtime_error("ERROR: path base index " + to_string(target_base_index) + " exceeds sum of handle lengths");
@@ -227,17 +179,7 @@ void OverlappingOverlapSplicer::find_splice_pairs(
                 splice_to_parent = true;
             }
 
-            cerr << "Splice site: " << oo.first << '\n';
-
             if (not other_children[1-side].empty()) {
-                for (auto& normie: other_children[1 - side]) {
-                    cerr << "\tNormal  - side: " << 1 - side << " - " << "Index=" << normie->first << " ";
-                    normie->second.print(gfa_graph);
-                }
-                cerr << "\tOverlap - side: " << side << " - " << "Index=" << oo.first << " ";
-                oo.second.print(gfa_graph);
-
-
                 for (auto& other: other_children[1 - side]) {
                     auto& oo_child = oo.second;
                     auto& other_child = other->second;
@@ -378,15 +320,12 @@ void OverlappingOverlapSplicer::find_splice_pairs(
 
                     oo_splice_pairs.emplace_back(splice_pair_a);
                     oo_splice_pairs.emplace_back(splice_pair_b);
-                    cerr << "";
                 }
             }
 
             // If there are some overlaps on the other side of the OO that are not reached by the OO,
             // the OO must be spliced into the parent node so they are reachable
             if (splice_to_parent){
-                cerr << "Splicing to parent\n";
-
                 auto& oo_child = oo.second;
                 OverlappingSplicePair splice_pair;
 
@@ -474,10 +413,6 @@ void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletable
     for (auto& oo_item: overlapping_overlap_nodes) {
         auto node_id = oo_item.first;
         auto& overlap_info = oo_item.second;
-
-        cerr << "Splicing overlapping overlap: " << node_id << '\n';
-
-        overlap_info.print(gfa_graph);
 
         map<handle_t, set<size_t> > division_sites;
         vector<OverlappingSplicePair> oo_splice_pairs;
@@ -572,12 +507,6 @@ void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletable
                         splice_pair.right_child_path_name,
                         splice_pair.right_child_index);
             }
-
-            cerr << "Creating (" << gfa_graph.get_id(left_handle);
-            cerr << (gfa_graph.get_is_reverse(left_handle) ? "-" : "+");
-            cerr << ") -> (" << gfa_graph.get_id(right_handle);
-            cerr << (gfa_graph.get_is_reverse(right_handle) ? "-" : "+") << ")" << '\n';
-            gfa_graph.create_edge(left_handle, right_handle);
         }
     }
 }

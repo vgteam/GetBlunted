@@ -133,20 +133,6 @@ void Duplicator::repair_edges(
         handle_t old_handle,
         handle_t old_handle_flipped) {
 
-//    cerr << "Children generated per biclique:" << '\n';
-//    for (const size_t side: {0, 1}) {
-//        for (const auto&[biclique_index, child_handle]: biclique_side_to_child[side]) {
-//            cerr << side << " " << biclique_index << " " << gfa_graph.get_id(child_handle) << " ";
-//
-//            if (gfa_graph.get_length(child_handle) < 60){
-//                cerr << gfa_graph.get_sequence(child_handle);
-//            }
-//
-//            cerr << '\n';
-//        }
-//    }
-
-
     for (const size_t side: {0, 1}) {
         for (const auto&[biclique_index, child_handle]: biclique_side_to_child[side]) {
             for (auto& edge: bicliques[biclique_index]) {
@@ -157,7 +143,6 @@ void Duplicator::repair_edges(
                     if (edge.second == old_handle) {
                         // If this is a loop, look for the corresponding biclique child on the other side of the node
                         if (edge.first == edge.second){
-//                            cerr << "Loop ";
                             edge.first = biclique_side_to_child[1-side].at(biclique_index);
                         }
 
@@ -165,26 +150,21 @@ void Duplicator::repair_edges(
 
                         edge_found = true;
 
-//                        cerr << "Case A\n";
                     } else if (edge.first == old_handle_flipped) {
                         // If this is a loop, look for the corresponding biclique child on the other side of the node
                         if (edge.first == edge.second){
-//                            cerr << "Loop ";
                             edge.second = biclique_side_to_child[1-side].at(biclique_index);
                         }
 
                         edge.first = gfa_graph.flip(child_handle);
 
                         edge_found = true;
-
-//                        cerr << "Case B\n";
                     }
                 }
                 else {
                     if (edge.first == old_handle) {
                         // If this is a loop, look for the corresponding biclique child on the other side of the node
                         if (edge.first == edge.second){
-//                            cerr << "Loop ";
                             edge.second = biclique_side_to_child[1-side].at(biclique_index);
                         }
 
@@ -192,27 +172,19 @@ void Duplicator::repair_edges(
 
                         edge_found = true;
 
-//                        cerr << "Case C\n";
                     } else if (edge.second == old_handle_flipped) {
                         // If this is a loop, look for the corresponding biclique child on the other side of the node
                         if (edge.first == edge.second){
-//                            cerr << "Loop ";
                             edge.first = biclique_side_to_child[1-side].at(biclique_index);
                         }
 
                         edge.second = gfa_graph.flip(child_handle);
 
                         edge_found = true;
-
-//                        cerr << "Case D\n";
                     }
                 }
 
                 if (edge_found) {
-                    cerr << "Creating (" << gfa_graph.get_id(edge.first);
-                    cerr << (gfa_graph.get_is_reverse(edge.first) ? "-" : "+");
-                    cerr << ") -> (" << gfa_graph.get_id(edge.second);
-                    cerr << (gfa_graph.get_is_reverse(edge.second) ? "-" : "+") << ")" << '\n';
                     overlaps.update_edge(old_edge, edge);
                     gfa_graph.create_edge(edge);
                 }
@@ -231,10 +203,6 @@ void Duplicator::remove_participating_edges(
         for (auto& biclique_index: sorted_bicliques_per_side[side]) {
             for (auto& edge: bicliques[biclique_index]) {
                 if (gfa_graph.get_id(edge.first) == parent_node or gfa_graph.get_id(edge.second) == parent_node) {
-                    cerr << "Deleting (" << gfa_graph.get_id(edge.first);
-                    cerr << (gfa_graph.get_is_reverse(edge.first) ? "-" : "+");
-                    cerr << ") -> (" << gfa_graph.get_id(edge.second);
-                    cerr << (gfa_graph.get_is_reverse(edge.second) ? "-" : "+") << ")" << '\n';
                     gfa_graph.destroy_edge(edge);
                 }
             }
@@ -303,17 +271,6 @@ void Duplicator::duplicate_termini(
         biclique_side_to_child[1].try_emplace(biclique, child);
     }
 
-    cerr << "Left children:\n";
-    for (auto h: left_children){
-        cerr << gfa_graph.get_id(h) << " ";
-    }
-    cerr << '\n';
-    cerr << "Right children:\n";
-    for (auto h: right_children){
-        cerr << gfa_graph.get_id(h) << " ";
-    }
-    cerr << '\n';
-
     // Update provenance maps
     if (left_dupes_exist) {
         auto parent_node = gfa_graph.get_id(left_children[0]);
@@ -364,8 +321,6 @@ void Duplicator::duplicate_all_node_termini(MutablePathDeletableHandleGraph& gfa
         // Factor the overlaps into hierarchy: side -> biclique -> (overlap, length)
         const NodeInfo node_info(node_to_biclique_edge, bicliques, gfa_graph, overlaps, node_id);
 
-        node_info.print_stats();
-
         // Keep track of which biclique is in which position once sorted
         array <deque <size_t>, 2> sorted_sizes_per_side;
         array <deque <size_t>, 2> sorted_bicliques_per_side;
@@ -415,15 +370,6 @@ void Duplicator::duplicate_all_node_termini(MutablePathDeletableHandleGraph& gfa
         if (overlapping_overlap_iter != overlapping_overlap_nodes.end()){
             postprocess_overlapping_overlap(gfa_graph, overlapping_overlap_iter, biclique_side_to_child);
         }
-
-        if (gfa_graph.get_node_count() < 30){
-            string test_path_prefix = "test_bluntify_duplication_" + std::to_string(node_info.node_id);
-            handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
-            string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
-                             + test_path_prefix + ".png";
-            run_command(command);
-        }
-
     }
 }
 

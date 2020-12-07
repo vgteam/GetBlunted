@@ -30,6 +30,8 @@ void write_edge_to_gfa(const HandleGraph& graph, const edge_t& edge, ofstream& o
 
 /// With no consideration for directionality, just dump all the edges/nodes into GFA format
 void handle_graph_to_gfa(const HandleGraph& graph, const string& output_path){
+    std::cerr << "Writing GFA to file: " << output_path << '\n';
+
     ofstream output_gfa(output_path);
 
     if (not output_gfa.good()){

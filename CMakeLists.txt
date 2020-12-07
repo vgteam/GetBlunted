@@ -21,8 +21,8 @@ set(CMAKE_CXX_FLAGS "-fexceptions -fsanitize=address")
 
 set(CMAKE_CXX_FLAGS "-fexceptions")
 
-add_definitions(-ggdb3 -O0 -Wall)       # Debugging + No optimization
-#add_definitions(-O3 -Wall)              # Much optimization
+#add_definitions(-ggdb3 -O0 -Wall)       # Debugging + No optimization
+add_definitions(-O3 -Wall)              # Much optimization
 
 #########################################
 # ------------------------------------- #
