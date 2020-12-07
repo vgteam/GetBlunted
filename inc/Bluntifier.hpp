@@ -67,7 +67,7 @@ private:
     map <nid_t, OverlappingNodeInfo> overlapping_overlap_nodes;
 
     // Child node -> start_index -> (parent_node, stop_index)
-    unordered_map<nid_t, map <nid_t, ProvenanceInfo> > provenance_map;
+    unordered_map<nid_t, multimap <nid_t, ProvenanceInfo> > provenance_map;
 
     unordered_set <nid_t> to_be_destroyed;
 
@@ -106,6 +106,18 @@ private:
     tuple <bool, bool> is_oo_node(nid_t node_id);
 
     void compute_provenance();
+
+    // Lol
+    void update_path_provenances(
+            nid_t parent_node_id,
+            size_t parent_index,
+            bool parent_side,
+            bool reversal,
+            size_t parent_length,
+            OverlapInfo& overlap_info,
+            edge_t& canonical_edge,
+            edge_t& edge,
+            nid_t child_id);
 };
 
 

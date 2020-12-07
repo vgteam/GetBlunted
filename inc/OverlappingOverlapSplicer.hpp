@@ -36,6 +36,9 @@ public:
     size_t right_length;
     string right_child_path_name;
 
+    bool left_reversal;
+    bool right_reversal;
+
     OverlappingSplicePair()=default;
 };
 
@@ -55,17 +58,12 @@ public:
             MutablePathDeletableHandleGraph& gfa_graph);
 
 private:
-    void find_path_info(
+    bool find_path_info(
             const HandleGraph& gfa_graph,
             size_t biclique_index,
             handle_t handle,
             PathInfo& path_info,
             string& path_name);
-
-    void find_parent_path_bounds(
-            MutablePathDeletableHandleGraph& gfa_graph,
-            nid_t parent_id,
-            pair<size_t, size_t>& bounds);
 
     void find_splice_pairs(
             HandleGraph& gfa_graph,
@@ -79,10 +77,9 @@ private:
             string& path_name,
             size_t target_base_index);
 
-    // Convenience wrapper for seek_to_path_base
-    pair<handle_t, size_t> seek_to_child_path_base(
+    pair<handle_t, size_t> seek_to_reverse_path_base(
             MutablePathDeletableHandleGraph& gfa_graph,
-            OverlappingChild& overlapping_child,
+            string& path_name,
             size_t target_base_index);
 
 };

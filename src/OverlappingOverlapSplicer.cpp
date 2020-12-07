@@ -3,6 +3,7 @@
 
 
 using std::cerr;
+using std::tie;
 
 namespace bluntifier {
 
@@ -55,7 +56,7 @@ OverlappingOverlapSplicer::OverlappingOverlapSplicer(
 //}
 
 
-void OverlappingOverlapSplicer::find_path_info(
+bool OverlappingOverlapSplicer::find_path_info(
         const HandleGraph& gfa_graph,
         size_t biclique_index,
         handle_t handle,
@@ -63,6 +64,8 @@ void OverlappingOverlapSplicer::find_path_info(
         string& path_name){
 
     auto& subgraph = subgraphs[biclique_index];
+
+    bool reversal = false;
 
     // Don't know which side of the biclique this overlap was on until we search for it in the subgraph
     auto result = subgraph.paths_per_handle[0].find(handle);
@@ -82,10 +85,12 @@ void OverlappingOverlapSplicer::find_path_info(
                                         to_string(gfa_graph.get_id(handle)));
                 }
                 else{
+                    reversal = true;
                     cerr << "WARNING: handle flipped w.r.t. path in subgraph. Node id: " << gfa_graph.get_id(handle) << '\n';
                 }
             }
             else{
+                reversal = true;
                 cerr << "WARNING: handle flipped w.r.t. path in subgraph. Node id: " << gfa_graph.get_id(handle) << '\n';
             }
         }
@@ -93,19 +98,8 @@ void OverlappingOverlapSplicer::find_path_info(
 
     path_name = subgraph.graph.get_path_name(result->second.path_handle);
     path_info = result->second;
-}
 
-
-pair<handle_t, size_t> OverlappingOverlapSplicer::seek_to_child_path_base(
-        MutablePathDeletableHandleGraph& gfa_graph,
-        OverlappingChild& overlapping_child,
-        size_t target_base_index) {
-
-    PathInfo path_info;
-    string path_name;
-    find_path_info(gfa_graph, overlapping_child.biclique_index, overlapping_child.handle, path_info, path_name);
-
-    return OverlappingOverlapSplicer::seek_to_path_base(gfa_graph, path_name, target_base_index);;
+    return reversal;
 }
 
 
@@ -149,6 +143,51 @@ pair<handle_t, size_t> OverlappingOverlapSplicer::seek_to_path_base(
 
     return {step_handle, intra_handle_index};
 }
+
+
+
+
+pair<handle_t, size_t> OverlappingOverlapSplicer::seek_to_reverse_path_base(
+        MutablePathDeletableHandleGraph& gfa_graph,
+        string& path_name,
+        size_t target_base_index){
+
+    auto path_handle = gfa_graph.get_path_handle(path_name);
+    auto step = gfa_graph.path_back(path_handle);
+
+    size_t cumulative_index = 0;
+    size_t intra_handle_index = 0;
+    handle_t step_handle;
+
+    cerr << "Seeking reverse path base: " << target_base_index << '\n';
+
+    bool fail = true;
+    while (step != gfa_graph.path_front_end(path_handle)){
+        step_handle = gfa_graph.flip(gfa_graph.get_handle_of_step(step));
+        auto step_length = gfa_graph.get_length(step_handle);
+
+        if (cumulative_index + step_length > target_base_index){
+            intra_handle_index = target_base_index - cumulative_index;
+            fail = false;
+            break;
+        }
+        else{
+            cerr << gfa_graph.get_id(step_handle) << " " << cumulative_index << " " << target_base_index << " " << gfa_graph.get_sequence(step_handle) << '\n';
+            step = gfa_graph.get_previous_step(step);
+        }
+
+        cumulative_index += step_length;
+    }
+    cerr << gfa_graph.get_id(step_handle) << " " << gfa_graph.get_sequence(step_handle) << '\n';
+    cerr << '\n';
+
+    if (fail){
+        throw runtime_error("ERROR: path base index " + to_string(target_base_index) + " exceeds sum of handle lengths");
+    }
+
+    return {step_handle, intra_handle_index};
+}
+
 
 
 void OverlappingOverlapSplicer::find_splice_pairs(
@@ -209,6 +248,9 @@ void OverlappingOverlapSplicer::find_splice_pairs(
                     OverlappingSplicePair splice_pair_a;
                     OverlappingSplicePair splice_pair_b;
 
+                    bool left_reversal;
+                    bool right_reversal;
+
                     if (side == 0) {
                         //
                         //  oo     [0]-[1]-[2]-[3]-[4]
@@ -225,19 +267,25 @@ void OverlappingOverlapSplicer::find_splice_pairs(
                         left_child = oo_child;
                         right_child = other_child;
 
-                        find_path_info(
+                        left_reversal = find_path_info(
                                 gfa_graph,
                                 left_child.biclique_index,
                                 left_child.handle,
                                 path_info,
                                 left_child_path_name);
 
-                        find_path_info(
+                        right_reversal = find_path_info(
                                 gfa_graph,
                                 right_child.biclique_index,
                                 right_child.handle,
                                 path_info,
                                 right_child_path_name);
+
+                        splice_pair_a.left_reversal = left_reversal;
+                        splice_pair_b.left_reversal = left_reversal;
+
+                        splice_pair_a.right_reversal = right_reversal;
+                        splice_pair_b.right_reversal = right_reversal;
 
                         splice_pair_a.left_child_path_name = left_child_path_name;
                         splice_pair_b.left_child_path_name = left_child_path_name;
@@ -283,19 +331,25 @@ void OverlappingOverlapSplicer::find_splice_pairs(
                         left_child = other_child;
                         right_child = oo_child;
 
-                        find_path_info(
+                        left_reversal = find_path_info(
                                 gfa_graph,
                                 left_child.biclique_index,
                                 left_child.handle,
                                 path_info,
                                 left_child_path_name);
 
-                        find_path_info(
+                        right_reversal = find_path_info(
                                 gfa_graph,
                                 right_child.biclique_index,
                                 right_child.handle,
                                 path_info,
                                 right_child_path_name);
+
+                        splice_pair_a.left_reversal = left_reversal;
+                        splice_pair_b.left_reversal = left_reversal;
+
+                        splice_pair_a.right_reversal = right_reversal;
+                        splice_pair_b.right_reversal = right_reversal;
 
                         splice_pair_a.left_child_path_name = left_child_path_name;
                         splice_pair_b.left_child_path_name = left_child_path_name;
@@ -336,6 +390,9 @@ void OverlappingOverlapSplicer::find_splice_pairs(
                 auto& oo_child = oo.second;
                 OverlappingSplicePair splice_pair;
 
+                bool left_reversal;
+                bool right_reversal;
+
                 if (side == 0) {
                     //
                     //  oo     [0]-[1]
@@ -346,12 +403,17 @@ void OverlappingOverlapSplicer::find_splice_pairs(
                     PathInfo path_info;
                     string left_child_path_name;
 
-                    find_path_info(
+                    left_reversal = find_path_info(
                             gfa_graph,
                             oo_child.biclique_index,
                             oo_child.handle,
                             path_info,
                             left_child_path_name);
+
+                    right_reversal = false;
+
+                    splice_pair.left_reversal = left_reversal;
+                    splice_pair.right_reversal = right_reversal;
 
                     splice_pair.left_child_path_name = left_child_path_name;
                     splice_pair.right_child_path_name = overlap_info.parent_path_name;
@@ -375,12 +437,17 @@ void OverlappingOverlapSplicer::find_splice_pairs(
                     PathInfo path_info;
                     string right_child_path_name;
 
-                    find_path_info(
+                    right_reversal = find_path_info(
                             gfa_graph,
                             oo_child.biclique_index,
                             oo_child.handle,
                             path_info,
                             right_child_path_name);
+
+                    left_reversal = false;
+
+                    splice_pair.left_reversal = left_reversal;
+                    splice_pair.right_reversal = right_reversal;
 
                     splice_pair.left_child_path_name = overlap_info.parent_path_name;
                     splice_pair.right_child_path_name = right_child_path_name;
@@ -420,8 +487,36 @@ void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletable
 
         // Aggregate the splice pairs by the handles that they splice
         for (auto& splice_pair: oo_splice_pairs) {
-            auto[left_handle, left_index] = seek_to_path_base(gfa_graph, splice_pair.left_child_path_name, splice_pair.left_child_index);
-            auto[right_handle, right_index] = seek_to_path_base(gfa_graph, splice_pair.right_child_path_name, splice_pair.right_child_index);
+            handle_t left_handle;
+            handle_t right_handle;
+            size_t left_index;
+            size_t right_index;
+
+            if (splice_pair.left_reversal) {
+                tie(left_handle, left_index) = seek_to_reverse_path_base(
+                        gfa_graph,
+                        splice_pair.left_child_path_name,
+                        splice_pair.left_child_index);
+            }
+            else{
+                tie(left_handle, left_index) = seek_to_path_base(
+                        gfa_graph,
+                        splice_pair.left_child_path_name,
+                        splice_pair.left_child_index);
+            }
+
+            if (splice_pair.right_reversal) {
+                tie(right_handle, right_index) = seek_to_reverse_path_base(
+                        gfa_graph,
+                        splice_pair.right_child_path_name,
+                        splice_pair.right_child_index);
+            }
+            else{
+                tie(right_handle, right_index) = seek_to_path_base(
+                        gfa_graph,
+                        splice_pair.right_child_path_name,
+                        splice_pair.right_child_index);
+            }
 
             if (left_index + 1 < gfa_graph.get_length(left_handle)) {
                 division_sites[left_handle].emplace(left_index + 1);
@@ -447,8 +542,36 @@ void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletable
         // Splice each division point
         // (doesn't really need to use seek_path but also this entire project doesn't really need to exist so...)
         for (auto& splice_pair: oo_splice_pairs) {
-            auto[left_handle, left_index] = seek_to_path_base(gfa_graph, splice_pair.left_child_path_name, splice_pair.left_child_index);
-            auto[right_handle, right_index] = seek_to_path_base(gfa_graph, splice_pair.right_child_path_name, splice_pair.right_child_index);
+            handle_t left_handle;
+            handle_t right_handle;
+            size_t left_index;
+            size_t right_index;
+
+            if (splice_pair.left_reversal) {
+                tie(left_handle, left_index) = seek_to_reverse_path_base(
+                        gfa_graph,
+                        splice_pair.left_child_path_name,
+                        splice_pair.left_child_index);
+            }
+            else{
+                tie(left_handle, left_index) = seek_to_path_base(
+                        gfa_graph,
+                        splice_pair.left_child_path_name,
+                        splice_pair.left_child_index);
+            }
+
+            if (splice_pair.right_reversal) {
+                tie(right_handle, right_index) = seek_to_reverse_path_base(
+                        gfa_graph,
+                        splice_pair.right_child_path_name,
+                        splice_pair.right_child_index);
+            }
+            else{
+                tie(right_handle, right_index) = seek_to_path_base(
+                        gfa_graph,
+                        splice_pair.right_child_path_name,
+                        splice_pair.right_child_index);
+            }
 
             cerr << "Creating (" << gfa_graph.get_id(left_handle);
             cerr << (gfa_graph.get_is_reverse(left_handle) ? "-" : "+");

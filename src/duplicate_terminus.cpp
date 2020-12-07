@@ -65,7 +65,16 @@ void duplicate_prefix(
 
         // Copy the left fragment and connect it to the right side
         auto dupe = graph.create_handle(graph.get_sequence(fragments.first));
-        graph.create_edge(dupe, fragments.second);
+
+        // Mimic the connectivity of the template node by iterating its right neighbors and creating edges from the
+        // new node to them
+        deque<handle_t> right_neighbors;
+        graph.follow_edges(fragments.first, false, [&](const handle_t right_neighbor){
+            right_neighbors.emplace_back(right_neighbor);
+        });
+        for (auto& right_neighbor: right_neighbors) {
+            graph.create_edge(dupe, right_neighbor);
+        }
 
         children.emplace_back(dupe);
 
@@ -141,7 +150,16 @@ void duplicate_suffix(
 
         // Copy the Right fragment and connect it to the Left side
         auto dupe = graph.create_handle(graph.get_sequence(fragments.second));
-        graph.create_edge(fragments.first, dupe);
+
+        // Mimic the connectivity of the template node by iterating its left neighbors and creating edges from them to
+        // the new node
+        deque<handle_t> left_neighbors;
+        graph.follow_edges(fragments.second, true, [&](const handle_t left_neighbor){
+            left_neighbors.emplace_back(left_neighbor);
+        });
+        for (auto& left_neighbor: left_neighbors) {
+            graph.create_edge(left_neighbor, dupe);
+        }
 
         children.emplace_back(dupe);
 

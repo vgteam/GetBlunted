@@ -222,10 +222,22 @@ void Bluntifier::splice_subgraphs(){
                             auto& left = parent_handle;
                             auto right = gfa_graph.get_handle_of_step(gfa_graph.path_begin(path_handle));
 
+                            cerr << "creating: " << '\n';
+                            cerr << "(" << gfa_graph.get_id(left);
+                            cerr << (gfa_graph.get_is_reverse(left) ? "-" : "+");
+                            cerr << ") -> (" << gfa_graph.get_id(right);
+                            cerr << (gfa_graph.get_is_reverse(right) ? "-" : "+") << ")" << '\n';
+
                             gfa_graph.create_edge(left, right);
                         } else {
                             auto left = gfa_graph.get_handle_of_step(gfa_graph.path_back(path_handle));
                             auto& right = parent_handle;
+
+                            cerr << "creating: " << '\n';
+                            cerr << "(" << gfa_graph.get_id(left);
+                            cerr << (gfa_graph.get_is_reverse(left) ? "-" : "+");
+                            cerr << ") -> (" << gfa_graph.get_id(right);
+                            cerr << (gfa_graph.get_is_reverse(right) ? "-" : "+") << ")" << '\n';
 
                             gfa_graph.create_edge(left, right);
                         }
@@ -394,6 +406,71 @@ void Bluntifier::write_provenance(string& output_path){
 }
 
 
+void Bluntifier::update_path_provenances(
+        nid_t parent_node_id,
+        size_t parent_index,
+        bool parent_side,
+        bool reversal,
+        size_t parent_length,
+        OverlapInfo& overlap_info,
+        edge_t& canonical_edge,
+        edge_t& edge,
+        nid_t child_id){
+
+    string child_path_name = to_string(child_id) + "_" + to_string(parent_side);
+    auto child_path_handle = gfa_graph.get_path_handle(child_path_name);
+
+    cerr << '\n';
+    cerr << "parent node: " << parent_node_id << '\n';
+    cerr << "parent name: " << id_map.get_name(parent_node_id) << '\n';
+    cerr << "parent side: " << parent_side << '\n';
+    cerr << "reversal: " << reversal << '\n';
+    cerr << "parent length: " << parent_length << '\n';
+    cerr << "overlap length: " << overlap_info.length << '\n';
+    cerr << "parent index: " << parent_index << '\n';
+    cerr << "flipped during harmonization: " << (canonical_edge != edge) << '\n';
+    cerr << "(" << gfa_graph.get_id(edge.first);
+    cerr << (gfa_graph.get_is_reverse(edge.first) ? "-" : "+");
+    cerr << ") -> (" << gfa_graph.get_id(edge.second);
+    cerr << (gfa_graph.get_is_reverse(edge.second) ? "-" : "+") << ")" << '\n';
+    cerr << "path_name: " << child_path_name << '\n';
+
+
+    cerr << "Child IDs in path: ";
+    size_t cumulative_path_length = 0;
+    for (auto h: gfa_graph.scan_path(child_path_handle)) {
+        auto id = gfa_graph.get_id(h);
+        size_t length = gfa_graph.get_length(h);
+
+        cerr << id << " ";
+
+        size_t forward_start_index;
+        size_t forward_stop_index;
+
+        // Walking forward along a reversed overlap on side 0 is walking from the middle out of a node
+        if (reversal) {
+            if (parent_side == 0) {
+                forward_stop_index = overlap_info.length - cumulative_path_length - 1;
+                forward_start_index = forward_stop_index - length + 1;
+            } else {
+                forward_stop_index = parent_length - cumulative_path_length - 1;
+                forward_start_index = parent_length - cumulative_path_length - length;
+            }
+        } else {
+            forward_start_index = parent_index;
+            forward_stop_index = parent_index + length - 1;
+        }
+
+        // Store the provenance info for this node
+        ProvenanceInfo info(forward_start_index, forward_stop_index, reversal);
+        provenance_map[id].emplace(parent_node_id, info);
+
+        parent_index += length;
+        cumulative_path_length += length;
+    }
+}
+
+
 void Bluntifier::compute_provenance(){
     gfa_graph.for_each_path_handle([&](const path_handle_t ph){
         cerr << gfa_graph.get_path_name(ph) << '\n';
@@ -449,6 +526,8 @@ void Bluntifier::compute_provenance(){
         node_info.print_stats();
         cerr << has_left_child << has_right_child << '\n';
 
+        set<edge_t> visited;
+
         for (size_t side: {0, 1}) {
             auto biclique_overlaps = node_info.factored_overlaps[side];
 
@@ -460,6 +539,15 @@ void Bluntifier::compute_provenance(){
                 auto& overlap_info = overlap_infos[0];
                 edge_t& edge = bicliques[biclique_index][overlap_info.edge_index];
                 edge_t canonical_edge = overlaps.canonicalize_and_find(edge, gfa_graph)->first;
+
+                // In the case of a loop, its possible to visit the same edge twice (once for each side of the node),
+                // but this would lead to duplicate key/value pairs in the provenance multimap
+                if (visited.count(canonical_edge) == 0){
+                    visited.emplace(canonical_edge);
+                }
+                else{
+                    continue;
+                }
 
                 nid_t child_id;
                 bool reversal;
@@ -488,8 +576,22 @@ void Bluntifier::compute_provenance(){
                             reversal = 1 - reversal;
                         }
                     }
+
+                    update_path_provenances(
+                            parent_node_id,
+                            parent_index,
+                            parent_side,
+                            reversal,
+                            parent_length,
+                            overlap_info,
+                            canonical_edge,
+                            edge,
+                            child_id);
+                    cerr << '\n';
+
                 }
-                else{
+                // Its possible for the same edge to be on both "sides" of a node if it is a loop
+                if (child_to_parent.at(gfa_graph.get_id(canonical_edge.second)).first == parent_node_id){
                     reversal = gfa_graph.get_is_reverse(canonical_edge.second);
 
                     if (reversal){
@@ -512,62 +614,22 @@ void Bluntifier::compute_provenance(){
                             reversal = 1 - reversal;
                         }
                     }
+
+                    update_path_provenances(
+                            parent_node_id,
+                            parent_index,
+                            parent_side,
+                            reversal,
+                            parent_length,
+                            overlap_info,
+                            canonical_edge,
+                            edge,
+                            child_id);
+                    cerr << '\n';
+
                 }
 
-                cerr << '\n';
-                cerr << "parent node: " << parent_node_id << '\n';
-                cerr << "parent name: " << id_map.get_name(parent_node_id) << '\n';
-                cerr << "parent side: " << parent_side << '\n';
-                cerr << "reversal: " << reversal << '\n';
-                cerr << "parent length: " << parent_length << '\n';
-                cerr << "overlap length: " << overlap_info.length << '\n';
-                cerr << "parent index: " << parent_index << '\n';
-                cerr << "flipped during harmonization: " << (canonical_edge != edge) << '\n';
-                cerr << "(" << gfa_graph.get_id(edge.first);
-                cerr << (gfa_graph.get_is_reverse(edge.first) ? "-" : "+");
-                cerr << ") -> (" << gfa_graph.get_id(edge.second);
-                cerr << (gfa_graph.get_is_reverse(edge.second) ? "-" : "+") << ")" << '\n';
-
-                string child_path_name = to_string(child_id) + "_" + to_string(parent_side);
-                auto child_path_handle = gfa_graph.get_path_handle(child_path_name);
-
-                cerr << "Child IDs in path: ";
-                size_t cumulative_path_length = 0;
-                for (auto h: gfa_graph.scan_path(child_path_handle)){
-                    auto id = gfa_graph.get_id(h);
-                    size_t length = gfa_graph.get_length(h);
-
-                    cerr << id << " ";
-
-                    size_t forward_start_index;
-                    size_t forward_stop_index;
-
-                    // Walking forward along a reversed overlap on side 0 is walking from the middle out of a node
-                    if (reversal){
-                        if (parent_side == 0) {
-                            forward_stop_index = overlap_info.length - cumulative_path_length - 1;
-                            forward_start_index = forward_stop_index - length + 1;
-                        }
-                        else{
-                            forward_stop_index = parent_length - cumulative_path_length - 1;
-                            forward_start_index = parent_length - cumulative_path_length - length;
-                        }
-                    }
-                    else{
-                        forward_start_index = parent_index;
-                        forward_stop_index = parent_index + length - 1;
-                    }
-
-                    // Store the provenance info for this node
-                    ProvenanceInfo info(forward_start_index, forward_stop_index, reversal);
-                    provenance_map[id].emplace(parent_node_id, info);
-
-                    parent_index += length;
-                    cumulative_path_length += length;
-
-                    i++;
-                }
-                cerr << '\n';
+                i++;
             }
         }
         cerr << '\n';

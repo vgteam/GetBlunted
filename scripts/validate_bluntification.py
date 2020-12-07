@@ -185,6 +185,7 @@ def sequences_are_exhaustive(in_gfa, table):
 
     return success
 
+
 # the sequences that the table indicates are matched between the two GFAs indeed match
 def table_sequences_are_consistent(in_gfa, out_gfa, table):
     success = True
@@ -234,6 +235,7 @@ def is_blunt(out_gfa):
                 print("node {} has edge {}, which is not blunt".format(nodename, edge), file = sys.stderr)
                 return False
     return True
+
 
 def adjacencies_are_exhaustive(in_gfa, out_gfa, table):
     
@@ -294,9 +296,9 @@ def adjacencies_are_exhaustive(in_gfa, out_gfa, table):
             if not found_aligned_base:
                 print("didn't find any aligned bases in expected orientation between {} and {} despite having overlap edge".format(nodename, edge.target.name), file = sys.stderr)
                 print("this can happen with unusual POA graphs, but it probably indicates an error", file = sys.stderr)
-                
-    
+
     return True
+
 
 if __name__ == "__main__":
     
@@ -318,6 +320,4 @@ if __name__ == "__main__":
     assert(adjacencies_are_exhaustive(in_gfa, out_gfa, table))
     
     print("No invalid output detected")
-    
-        
-    
+

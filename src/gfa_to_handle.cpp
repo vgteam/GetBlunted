@@ -66,6 +66,17 @@ void gfa_to_handle_graph_in_memory(
             const nid_t source_id = parse_gfa_sequence_id(edge.source_name, id_map);
             const nid_t sink_id = parse_gfa_sequence_id(edge.sink_name, id_map);
 
+            if (not graph.has_node(source_id)){
+                throw runtime_error("ERROR: gfa link (" + edge.source_name + "->" + edge.sink_name + ") "
+                                         "contains non-existent node: " + edge.source_name);
+            }
+
+            if (not graph.has_node(sink_id)){
+                throw runtime_error("ERROR: gfa link (" + edge.source_name + "->" + edge.sink_name + ") "
+                                         "contains non-existent node: " + edge.sink_name);
+            }
+
+
             // note: we're counting on implementations de-duplicating edges
             handle_t a = graph.get_handle(source_id, not edge.source_orientation_forward);
             handle_t b = graph.get_handle(sink_id, not edge.sink_orientation_forward);
@@ -148,6 +159,16 @@ void gfa_to_handle_graph_on_disk(
 
         const nid_t source_id = parse_gfa_sequence_id(e.source_name, id_map);
         const nid_t sink_id = parse_gfa_sequence_id(e.sink_name, id_map);
+
+        if (not graph.has_node(source_id)){
+            throw runtime_error("ERROR: gfa link (" + e.source_name + "->" + e.sink_name + ") "
+                                    "contains non-existent node: " + e.source_name);
+        }
+
+        if (not graph.has_node(sink_id)){
+            throw runtime_error("ERROR: gfa link (" + e.source_name + "->" + e.sink_name + ") "
+                                     "contains non-existent node: " + e.sink_name);
+        }
 
         handle_t a = graph.get_handle(source_id, not e.source_orientation_forward);
         handle_t b = graph.get_handle(sink_id, not e.sink_orientation_forward);
