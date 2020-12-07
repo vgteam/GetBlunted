@@ -516,7 +516,7 @@ void Bluntifier::bluntify(){
 
     compute_provenance();
 
-    string provenance_log_path = "test_bluntify_provenance.txt";
+    string provenance_log_path = "provenance.txt";
 
     write_provenance(provenance_log_path);
 
@@ -527,7 +527,7 @@ void Bluntifier::bluntify(){
         gfa_graph.destroy_handle(gfa_graph.get_handle(id));
     }
 
-    string test_path_prefix = "test_bluntify_final";
+    string test_path_prefix = "blunt";
     handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
 
     if (gfa_graph.get_node_count() < 200){
