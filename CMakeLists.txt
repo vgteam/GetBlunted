@@ -21,8 +21,8 @@ set(CMAKE_CXX_FLAGS "-fexceptions -fsanitize=address")
 
 set(CMAKE_CXX_FLAGS "-fexceptions")
 
-add_definitions(-ggdb3 -O0 -Wall)       # Debugging + No optimization
-#add_definitions(-O3 -Wall)              # Much optimization
+#add_definitions(-ggdb3 -O0 -Wall)       # Debugging + No optimization
+add_definitions(-O3 -Wall)              # Much optimization
 
 #########################################
 # ------------------------------------- #
@@ -40,9 +40,12 @@ set(SOURCES
         src/AdjacencyComponent.cpp
         src/apply_bulk_modifications.cpp
 	    src/BicliqueCover.cpp
+	    src/Biclique.cpp
 	    src/BipartiteGraph.cpp
+        src/Bluntifier.cpp
 	    src/copy_graph.cpp
         src/Cigar.cpp
+        src/Duplicator.cpp
         src/duplicate_terminus.cpp
         src/find_tips.cpp
 	    src/GaloisLattice.cpp
@@ -50,9 +53,14 @@ set(SOURCES
         src/handle_to_gfa.cpp
         src/IncrementalIdMap.cpp
         src/is_single_stranded.cpp
+        src/NodeInfo.cpp
         src/OverlapMap.cpp
+        src/OverlappingOverlap.cpp
+        src/OverlappingOverlapSplicer.cpp
+        src/BluntifierAlign.cpp
 	    src/ReducedDualGraph.cpp
         src/SubtractiveHandleGraph.cpp
+        src/Subgraph.cpp
         src/topological_sort.cpp
         src/traverse.cpp
         src/unchop.cpp
@@ -304,11 +312,13 @@ set(TESTS
         test_bdsg
 	    test_BicliqueCover
         test_cigar
+        test_divide_handle
         test_duplicate_terminus
         test_gfak
         test_handlegraph
         test_handle_to_gfa
         test_IncrementalIdMap
+        test_map_range_methods
         test_overlaps
         test_spoa
         test_utility

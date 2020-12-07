@@ -26,33 +26,51 @@ NodeInfo::NodeInfo(
 }
 
 
+NodeInfo::NodeInfo(
+        const vector<vector<BicliqueEdgeIndex> >& node_to_biclique_edge,
+        const map <nid_t, pair<nid_t, bool> >& child_to_parent,
+        const Bicliques& bicliques,
+        const HandleGraph& gfa_graph,
+        const OverlapMap& overlaps,
+        nid_t node_id) :
+        node_to_biclique_edge(node_to_biclique_edge),
+        bicliques(bicliques),
+        gfa_graph(gfa_graph),
+        overlaps(overlaps),
+        node_id(node_id) {
+
+    factor_overlaps_by_biclique_and_side(child_to_parent);
+    sort_factored_overlaps();
+}
+
+
 void NodeInfo::print_stats() const{
-    cout << "Node " << node_id << '\n';
+    cerr << "Node " << node_id << '\n';
 
     for (size_t side: {0, 1}) {
         auto biclique_overlaps = factored_overlaps[side];
 
-        cout << "  Side " << side << '\n';
+        cerr << "  Side " << side << '\n';
 
         for (const auto& item: biclique_overlaps) {
             auto biclique_index = item.first;
             auto overlap_infos = item.second;
 
-            cout << "    Biclique " << biclique_index << '\n';
+            cerr << "    Biclique " << biclique_index << '\n';
 
             for (const auto& overlap_info: overlap_infos) {
                 auto edge = bicliques[biclique_index][overlap_info.edge_index];
                 auto left_id = gfa_graph.get_id(edge.first);
                 auto right_id = gfa_graph.get_id(edge.second);
-                cout << "      " << overlap_info.edge_index << " " << overlap_info.length << " " << left_id << "->"
+                cerr << "      " << overlap_info.edge_index << " " << overlap_info.length << " " << left_id << "->"
                      << right_id << '\n';
             }
         }
 
-        cout << '\n';
+        cerr << '\n';
     }
 
-    cout << '\n';
+    cerr << '\n';
 }
 
 
@@ -68,6 +86,65 @@ size_t NodeInfo::get_overlap_length(edge_t edge, bool side) {
     }
 
     return length;
+}
+
+
+// For one node, make a mapping: (side -> (biclique_index -> (edge_index,length) ) )
+// Overloaded to find overlaps that involve the original parent node if the graph has been edited
+void NodeInfo::factor_overlaps_by_biclique_and_side(const map <nid_t, pair<nid_t, bool> >& child_to_parent) {
+
+    for (auto& index: node_to_biclique_edge[node_id]) {
+        edge_t edge = bicliques[index];
+        edge = overlaps.canonicalize_and_find(edge, gfa_graph)->first;
+
+        // Parent node needs to be found if it exists
+        nid_t left_node_id = gfa_graph.get_id(edge.first);
+        auto left_parent_node_iter = child_to_parent.find(left_node_id);
+
+        if (left_parent_node_iter !=  child_to_parent.end()){
+            left_node_id = left_parent_node_iter->second.first;
+        }
+
+        nid_t right_node_id = gfa_graph.get_id(edge.second);
+        auto right_parent_node_iter = child_to_parent.find(right_node_id);
+
+        if (right_parent_node_iter !=  child_to_parent.end()){
+            right_node_id = right_parent_node_iter->second.first;
+        }
+
+        // If the node is on the "left" of an edge then the overlap happens on the "right side" of the node...
+        if (left_node_id == nid_t(node_id)) {
+            auto length = get_overlap_length(edge, 0);
+
+            if (not gfa_graph.get_is_reverse(edge.first)) {
+                // Strictly adding entries to the map, so [] is ok here
+                factored_overlaps[1][index.biclique_index].emplace_back(index.edge_index, length);
+            }
+            else {
+                // Strictly adding entries to the map, so [] is ok here
+                factored_overlaps[0][index.biclique_index].emplace_back(index.edge_index, length);
+            }
+        }
+        if (right_node_id == nid_t(node_id)) {
+            auto length = get_overlap_length(edge, 1);
+
+            if (not gfa_graph.get_is_reverse(edge.second)) {
+                // Strictly adding entries to the map, so [] is ok here
+                factored_overlaps[0][index.biclique_index].emplace_back(index.edge_index, length);
+            }
+            else{
+                // Strictly adding entries to the map, so [] is ok here
+                factored_overlaps[1][index.biclique_index].emplace_back(index.edge_index, length);
+            }
+        }
+
+        if (left_node_id != nid_t(node_id) and right_node_id != nid_t(node_id)){
+            throw runtime_error("ERROR: parent node not found on either side of edge.\n"
+                                "\tParent: " + to_string(node_id) + '\n' +
+                                "\tEdge: " + to_string(gfa_graph.get_id(edge.first)) +
+                                "->" + to_string(gfa_graph.get_id(edge.second)));
+        }
+    }
 }
 
 

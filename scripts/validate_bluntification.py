@@ -9,9 +9,12 @@ import re
 import sys
 
 comp = {"A":"T", "C":"G", "G":"C", "T":"A"}
+
+
 def rev_comp(seq):
     return "".join(comp[n] for n in reversed(seq))
- 
+
+
 class Edge:
     def __init__(self, target, rev, length, backward_length):
         self.target = target
@@ -29,6 +32,7 @@ class Edge:
             r = "+"
         return "({}, {}, {}, {})".format(self.target.name, r, self.length, self.backward_length)
 
+
 class SeqNode:
     def __init__(self, sequence, name):
         self.sequence = sequence
@@ -44,15 +48,18 @@ class SeqNode:
                 " ".join(str(e) for e in self.left), " ".join(str(e) for e in self.right))
             
 
-
 class GFA:
     def __init__(self, filename):
         self.nodes = {}
         with open(filename) as f:
-            for line in f:
+            for l,line in enumerate(f):
                 if line.startswith("S"):
-                    linetype, name, seq = line.strip().split()
-                    self.add_node(seq, name)
+                    try:
+                        linetype, name, seq = line.strip().split()[0:3]
+                        self.add_node(seq, name)
+                    except Exception as e:
+                        sys.stderr.write(str(e))
+                        exit("Error parsing line %d\n\t%s" % (l,line))
         with open(filename) as f:
             for line in f:
                 if line.startswith("L"):
@@ -124,7 +131,8 @@ class Subsequence:
 
     def __repr__(self):
         return self.__str__()
-        
+
+
 def parse_translation_table(filename, out_gfa):
     table = {}
     with open(filename) as f:
@@ -147,7 +155,8 @@ def parse_translation_table(filename, out_gfa):
 
 # every sequence from the input GFA is present at least once
 def sequences_are_exhaustive(in_gfa, table):
-    
+    success = True
+
     intervals = {}
     for nodename in table:
         for subseq in table[nodename]:
@@ -158,36 +167,41 @@ def sequences_are_exhaustive(in_gfa, table):
     for nodename in in_gfa.nodes:
         if nodename not in intervals:
             print("input GFA node {} is missing from translation table".format(nodename), file = sys.stderr)
-            return False
+            success = False
         
         node_intervals = intervals[nodename]
         node_intervals.sort()
         furthest = 0
         for begin, end in node_intervals:
             if begin > furthest:
-                print("sequence {} has no coverage in interval [{}:{})".format(nodename, furthest, begin), file = sys.stderr)
-                return False
+                print("sequence {} of length {} has no coverage in interval [{}:{})".format(nodename, len(in_gfa.nodes[nodename].sequence), furthest, begin), file = sys.stderr)
+                success = False
+
             furthest = max(furthest, end)
         seq_len = len(in_gfa.nodes[nodename].sequence)
         if furthest != seq_len:
-            print("sequence {} has no coverage in interval [{}:{})".format(nodename, furthest, seq_len), file = sys.stderr)
-            return False
-    return True
+            print("sequence {} of length {} has no coverage in interval [{}:{})".format(nodename, len(in_gfa.nodes[nodename].sequence), furthest, seq_len), file = sys.stderr)
+            success = False
+
+    return success
+
 
 # the sequences that the table indicates are matched between the two GFAs indeed match
 def table_sequences_are_consistent(in_gfa, out_gfa, table):
+    success = True
+
     for nodename in table:
         if nodename not in out_gfa.nodes:
             print("translation table node {} is not in output GFA".format(nodename), file = sys.stderr)
-            return False
+            success = False
         if len(out_gfa.nodes[nodename].sequence) == 0:
             print("output node {} does not have a sequence".format(nodename), file = sys.stderr)
-            return False
+            success = False
         
     for nodename in out_gfa.nodes:
         if nodename not in table:
             print("output GFA node {} is missing from translation table".format(nodename), file = sys.stderr)
-            return False
+            success = False
         
         out_node = out_gfa.nodes[nodename]
         for subseq in table[nodename]:
@@ -199,9 +213,19 @@ def table_sequences_are_consistent(in_gfa, out_gfa, table):
                 out_seq = out_node.sequence
                 strand = "forward"
             if in_node.sequence[subseq.begin:subseq.end] != out_seq:
-                print("sequence {} of output node {} doesn't match interval [{}:{}) of {} strand of input node {} sequence {}".format(out_node.sequence, out_node.name, subseq.begin, subseq.end, strand, in_node.name, in_node.sequence), file = sys.stderr)
-                return False
-    return True
+                if len(out_node.sequence) < 400 and len(in_node.sequence) < 400:
+                    print("sequence {} of output node {} doesn't match interval [{}:{}) of {} strand of input node {} sequence {}: {}".format(out_node.sequence, out_node.name, subseq.begin, subseq.end, strand, in_node.name, in_node.sequence, in_node.sequence[subseq.begin:subseq.end]), file = sys.stderr)
+                elif len(out_node.sequence) < 400 and len(in_node.sequence) > 400:
+                    print("sequence {} of output node {} doesn't match interval [{}:{}) of {} strand of input node {} sequence [too long to print]: {}".format(out_node.sequence, out_node.name, subseq.begin, subseq.end, strand, in_node.name, in_node.sequence[subseq.begin:subseq.end]), file = sys.stderr)
+                elif len(out_node.sequence) > 400 and len(in_node.sequence) < 400:
+                    print("sequence [too long to print] of output node {} doesn't match interval [{}:{}) of {} strand of input node {} sequence {}: {}".format(out_node.name, subseq.begin, subseq.end, strand, in_node.name, in_node.sequence, in_node.sequence[subseq.begin:subseq.end]), file = sys.stderr)
+                else:
+                    print("sequence [too long to print] of output node {} doesn't match interval [{}:{}) of {} strand of input node {} sequence [too long to print]: {}".format(out_node.name, subseq.begin, subseq.end, strand, in_node.name, in_node.sequence[subseq.begin:subseq.end]), file = sys.stderr)
+
+                success = False
+
+    return success
+
 
 def is_blunt(out_gfa):
     for nodename in out_gfa.nodes:
@@ -211,6 +235,7 @@ def is_blunt(out_gfa):
                 print("node {} has edge {}, which is not blunt".format(nodename, edge), file = sys.stderr)
                 return False
     return True
+
 
 def adjacencies_are_exhaustive(in_gfa, out_gfa, table):
     
@@ -271,9 +296,9 @@ def adjacencies_are_exhaustive(in_gfa, out_gfa, table):
             if not found_aligned_base:
                 print("didn't find any aligned bases in expected orientation between {} and {} despite having overlap edge".format(nodename, edge.target.name), file = sys.stderr)
                 print("this can happen with unusual POA graphs, but it probably indicates an error", file = sys.stderr)
-                
-    
+
     return True
+
 
 if __name__ == "__main__":
     
@@ -295,6 +320,4 @@ if __name__ == "__main__":
     assert(adjacencies_are_exhaustive(in_gfa, out_gfa, table))
     
     print("No invalid output detected")
-    
-        
-    
+

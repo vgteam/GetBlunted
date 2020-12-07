@@ -2,11 +2,15 @@
 #define BLUNTIFIER_UTILITY_HPP
 
 #include <stdexcept>
+#include <iostream>
 #include <string>
+#include <vector>
 #include <tuple>
 
 using std::string;
+using std::vector;
 using std::runtime_error;
+
 
 namespace bluntifier {
 
@@ -25,6 +29,67 @@ string parent_path(string s);
 string parent_path(string s, uint64_t n);
 
 string join_paths(string a, string b);
+
+
+template<typename Map> void
+less_than(Map& m, typename Map::key_type k, vector<typename Map::iterator>& result) {
+    typename Map::iterator it = m.lower_bound(k);
+
+    while(true) {
+        it--;
+        if (it->first < k and it != m.end()) {
+            result.push_back(it);
+        }
+
+        if (it == m.begin()){
+            break;
+        }
+    }
+}
+
+
+template<typename Map> void
+less_than_or_equal(Map& m, typename Map::key_type k, vector<typename Map::iterator>& result) {
+    typename Map::iterator it = m.lower_bound(k);
+
+    while(true) {
+        if (it->first <= k and it != m.end()) {
+            result.push_back(it);
+        }
+
+        if (it == m.begin()){
+            break;
+        }
+
+        it--;
+    }
+}
+
+
+template<typename Map> void
+greater_than(Map& m, typename Map::key_type k, vector<typename Map::iterator>& result) {
+    typename Map::iterator it = m.lower_bound(k);
+
+    while(it != m.end()) {
+        if (it->first > k) {
+            result.push_back(it);
+        }
+        it++;
+    }
+}
+
+
+template<typename Map> void
+greater_than_or_equal(Map& m, typename Map::key_type k, vector<typename Map::iterator>& result) {
+    typename Map::iterator it = m.lower_bound(k);
+
+    while(it != m.end()) {
+        if (it->first >= k) {
+            result.push_back(it);
+        }
+        it++;
+    }
+}
 
 
 }

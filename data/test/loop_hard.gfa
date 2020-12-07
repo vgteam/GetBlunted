@@ -1,0 +1,12 @@
+H	VN:Z:1.0
+S	read1	CCCGA
+S	read2	GAGA
+S	read3	GAGGG
+S	read5	CCCTC
+S	read4	GATTT
+L	read1	+	read2	+	2M
+L	read1	+	read4	+	2M
+L	read2	+	read3	+	2M
+L	read5	+	read2	-	2M
+L	read2	+	read2	+	2M
+

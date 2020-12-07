@@ -17,6 +17,11 @@ Alignment OverlapMap::insert(const gfak::edge_elem& e, handle_t source, handle_t
 }
 
 
+void OverlapMap::insert(Alignment& alignment, handle_t source, handle_t sink){
+    overlaps.emplace(make_pair(source, sink), alignment);
+}
+
+
 Alignment OverlapMap::insert(const gfak::edge_elem& e, const edge_t& edge_handle){
     Alignment alignment(e.alignment);
     overlaps.emplace(edge_handle, alignment);

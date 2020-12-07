@@ -1,14 +1,9 @@
 H	VN:Z:1.0
 S	read1	GATTACA
 S	read2	AATCTGT
-S	read3	CCCGAT
-S	read4	GATGGG
 L	read1	-	read2	+	4M
 L	read2	+	read1	-	3M
-L	read3	+	read1	+	3M
-L	read3	+	read4	+	3M
 
-#
 # GATTACA TGTAATC
 # AATCTGT ACAGATT
 #

@@ -25,7 +25,7 @@ public:
 
 class Bicliques {
 public:
-    vector <vector<edge_t>> bicliques;
+    vector <vector <edge_t> > bicliques;
 
     edge_t& operator[](BicliqueEdgeIndex i);
 

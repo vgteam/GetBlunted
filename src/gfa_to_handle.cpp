@@ -66,37 +66,44 @@ void gfa_to_handle_graph_in_memory(
             const nid_t source_id = parse_gfa_sequence_id(edge.source_name, id_map);
             const nid_t sink_id = parse_gfa_sequence_id(edge.sink_name, id_map);
 
+            if (not graph.has_node(source_id)){
+                throw runtime_error("ERROR: gfa link (" + edge.source_name + "->" + edge.sink_name + ") "
+                                         "contains non-existent node: " + edge.source_name);
+            }
+
+            if (not graph.has_node(sink_id)){
+                throw runtime_error("ERROR: gfa link (" + edge.source_name + "->" + edge.sink_name + ") "
+                                         "contains non-existent node: " + edge.sink_name);
+            }
+
+
             // note: we're counting on implementations de-duplicating edges
             handle_t a = graph.get_handle(source_id, not edge.source_orientation_forward);
             handle_t b = graph.get_handle(sink_id, not edge.sink_orientation_forward);
             graph.create_edge(a, b);
 
             // Update the overlap map
-            Alignment alignment = overlaps.insert(edge, a, b);
+            Alignment alignment(edge.alignment);
 
             pair<size_t, size_t> lengths;
             alignment.compute_lengths(lengths);
 
-            if (lengths.first > graph.get_length(a)){
-                cerr << "WARNING: sum of cigar operations is longer than SOURCE node: "
-                     << edge.source_name << " " << edge.sink_name << '\n';
+            bool valid = true;
+            if (lengths.first >= graph.get_length(a)){
+                cerr << "WARNING: skipping overlap for which sum of cigar operations is >= SOURCE node length: "
+                     << edge.source_name << "->" << edge.sink_name << '\n' << '\n';
+                valid = false;
             }
-            if (lengths.second > graph.get_length(b)){
-                cerr << "WARNING: sum of cigar operations is longer than SINK node: "
-                     << edge.source_name << " " << edge.sink_name << '\n';
+            if (lengths.second >= graph.get_length(b)){
+                cerr << "WARNING: skipping overlap for which sum of cigar operations is >= SINK node length: "
+                     << edge.source_name << "->" << edge.sink_name << '\n' << '\n';
+                valid = false;
             }
-//            if (lengths.first <= graph.get_length(a) and lengths.second <= graph.get_length(b)){
-//                size_t ref_start = graph.get_length(a) - lengths.first;
-//                string formatted_alignment = alignment.create_formatted_alignment_string(graph, {a,b}, ref_start, 0);
-//
-//                for (char c: formatted_alignment){
-//                    if (c == '*'){
-//                        cerr << edge.source_name << "->" << edge.sink_name << '\n';
-//                        cerr << formatted_alignment << '\n' << '\n';
-//                        break;
-//                    }
-//                }
-//            }
+
+            if (valid) {
+                graph.create_edge(a, b);
+                overlaps.insert(alignment, a, b);
+            }
         }
     }
 }
@@ -141,37 +148,41 @@ void gfa_to_handle_graph_on_disk(
         const nid_t source_id = parse_gfa_sequence_id(e.source_name, id_map);
         const nid_t sink_id = parse_gfa_sequence_id(e.sink_name, id_map);
 
+        if (not graph.has_node(source_id)){
+            throw runtime_error("ERROR: gfa link (" + e.source_name + "->" + e.sink_name + ") "
+                                    "contains non-existent node: " + e.source_name);
+        }
+
+        if (not graph.has_node(sink_id)){
+            throw runtime_error("ERROR: gfa link (" + e.source_name + "->" + e.sink_name + ") "
+                                     "contains non-existent node: " + e.sink_name);
+        }
+
         handle_t a = graph.get_handle(source_id, not e.source_orientation_forward);
         handle_t b = graph.get_handle(sink_id, not e.sink_orientation_forward);
-        graph.create_edge(a, b);
 
         // Update the overlap map
-        Alignment alignment = overlaps.insert(e, a, b);
+        Alignment alignment(e.alignment);
 
         pair<size_t, size_t> lengths;
         alignment.compute_lengths(lengths);
 
-        if (lengths.first > graph.get_length(a)){
-            cerr << "WARNING: sum of cigar operations is longer than SOURCE node: "
+        bool valid = true;
+        if (lengths.first >= graph.get_length(a)){
+            cerr << "WARNING: skipping overlap for which sum of cigar operations is >= SOURCE node length: "
                  << e.source_name << "->" << e.sink_name << '\n' << '\n';
+            valid = false;
         }
-        if (lengths.second > graph.get_length(b)){
-            cerr << "WARNING: sum of cigar operations is longer than SINK node: "
+        if (lengths.second >= graph.get_length(b)){
+            cerr << "WARNING: skipping overlap for which sum of cigar operations is >= SINK node length: "
                  << e.source_name << "->" << e.sink_name << '\n' << '\n';
+            valid = false;
         }
-//        if (lengths.first <= graph.get_length(a) and lengths.second <= graph.get_length(b)){
-//            size_t ref_start = graph.get_length(a) - lengths.first;
-//            string formatted_alignment = alignment.create_formatted_alignment_string(graph, {a,b}, ref_start, 0);
-//
-//            for (char c: formatted_alignment){
-//                if (c == '*'){
-//                    cerr << e.source_name << "->" << e.sink_name << '\n';
-//                    cerr << formatted_alignment << '\n' << '\n';
-//                    break;
-//                }
-//            }
-//        }
 
+        if (valid) {
+            graph.create_edge(a, b);
+            overlaps.insert(alignment, a, b);
+        }
     });
 }
 

@@ -3,25 +3,27 @@
 namespace bluntifier{
 
 
-OverlappingNodeInfo::OverlappingNodeInfo(nid_t parent_node):
-    parent_node(parent_node)
-{}
-
-
 Duplicator::Duplicator(
         const vector <vector <BicliqueEdgeIndex> >& node_to_biclique_edge,
+        OverlapMap& overlaps,
         Bicliques& bicliques,
-        OverlapMap& overlaps):
+        map <nid_t, set<nid_t> >& parent_to_children,
+        map <nid_t, pair<nid_t, bool> >& child_to_parent,
+        map<nid_t, OverlappingNodeInfo>& overlapping_overlap_nodes
+        ):
         node_to_biclique_edge(node_to_biclique_edge),
+        overlaps(overlaps),
         bicliques(bicliques),
-        overlaps(overlaps)
+        parent_to_children(parent_to_children),
+        child_to_parent(child_to_parent),
+        overlapping_overlap_nodes(overlapping_overlap_nodes)
 {}
 
 
-void Duplicator::duplicate_overlapping_termini(
+map<nid_t, OverlappingNodeInfo>::iterator Duplicator::preprocess_overlapping_overlaps(
         MutablePathDeletableHandleGraph& gfa_graph,
-        const array <deque <size_t>, 2>& sorted_sizes_per_side,
-        const array <deque <size_t>, 2>& sorted_bicliques_per_side,
+        array <deque <size_t>, 2>& sorted_sizes_per_side,
+        array <deque <size_t>, 2>& sorted_bicliques_per_side,
         array<map<size_t, handle_t>, 2>& biclique_side_to_child,
         const NodeInfo& node_info){
 
@@ -29,37 +31,99 @@ void Duplicator::duplicate_overlapping_termini(
     auto& overlap_node_info = result.first->second;
 
     auto parent_handle = gfa_graph.get_handle(node_info.node_id, false);
-
-    // Duplicate all the LEFT side biclique overlaps (using only the maximum length)
-    for (size_t i=0; i<sorted_sizes_per_side[0].size(); i++){
-        size_t s = sorted_sizes_per_side[0][i];
-        string sequence = gfa_graph.get_subsequence(parent_handle, 0, s);
-
-        auto child = gfa_graph.create_handle(sequence);
-
-        size_t biclique_index = sorted_bicliques_per_side[0][i];
-        biclique_side_to_child[0].emplace(biclique_index, child);
-    }
-
-    // Duplicate all the RIGHT side biclique overlaps (using only the maximum length)
-    for (size_t i=0; i<sorted_sizes_per_side[1].size(); i++){
-        size_t start = gfa_graph.get_length(parent_handle) - sorted_sizes_per_side[1][i];
-        string sequence = gfa_graph.get_subsequence(parent_handle, start, sorted_sizes_per_side[1][i]);
-
-        auto child = gfa_graph.create_handle(sequence);
-
-        size_t biclique_index = sorted_bicliques_per_side[1][i];
-        biclique_side_to_child[1].emplace(biclique_index, child);
-    }
-
-    // Copy the mapping from side -> biclique -> child node into the overlapping_node_info so that it can be used later
-    // because each child is an orphan of the others until after POA and re-splicing
-    // This could be done without copying but I just really dgaf anymore
-    overlap_node_info.biclique_side_to_child = biclique_side_to_child;
     overlap_node_info.length = gfa_graph.get_length(parent_handle);
 
-    // Die a horrible death you vile monster
-    gfa_graph.destroy_handle(parent_handle);
+    // Iteratively remove and document the longest overlaps, until the node is effectively a normal node
+    // Additionally, duplicate orphan segments from the parent node for the overlapping overlaps
+    while (contains_overlapping_overlaps(gfa_graph, parent_handle, sorted_sizes_per_side)){
+        if (sorted_sizes_per_side[0][0] > sorted_sizes_per_side[1][0]){
+            size_t s = sorted_sizes_per_side[0][0];
+            string sequence = gfa_graph.get_subsequence(parent_handle, 0, s);
+
+            auto child = gfa_graph.create_handle(sequence);
+
+            // Storing this child so the other participant in the overlap can be spliced
+            size_t biclique_index = sorted_bicliques_per_side[0][0];
+            biclique_side_to_child[0].emplace(biclique_index, child);
+
+            // More info needs to be stored until AFTER all POA subgraphs are done, to enable splicing within this node
+            OverlappingChild child_info(child, biclique_index, 0);
+            overlap_node_info.overlapping_children[0].emplace(s-1, child_info);
+
+            // Update provenance map
+            auto child_node = gfa_graph.get_id(child);
+            child_to_parent[child_node] = {node_info.node_id, true};
+            parent_to_children[node_info.node_id].emplace(child_node);
+
+            sorted_sizes_per_side[0].pop_front();
+            sorted_bicliques_per_side[0].pop_front();
+        }
+        else{
+            size_t start = gfa_graph.get_length(parent_handle) - sorted_sizes_per_side[1][0];
+            string sequence = gfa_graph.get_subsequence(parent_handle, start, sorted_sizes_per_side[1][0]);
+
+            auto child = gfa_graph.create_handle(sequence);
+
+            // Storing this child so the other participant in the overlap can be spliced
+            size_t biclique_index = sorted_bicliques_per_side[1][0];
+            biclique_side_to_child[1].emplace(biclique_index, child);
+
+            // More info needs to be stored until AFTER all POA subgraphs are done, to enable splicing within this node
+            OverlappingChild child_info(child, biclique_index, 1);
+            overlap_node_info.overlapping_children[1].emplace(start, child_info);
+
+            // Update provenance map
+            auto child_node = gfa_graph.get_id(child);
+            child_to_parent[child_node] = {node_info.node_id, true};
+            parent_to_children[node_info.node_id].emplace(child_node);
+
+            sorted_sizes_per_side[1].pop_front();
+            sorted_bicliques_per_side[1].pop_front();
+        }
+    }
+
+    return result.first;
+}
+
+
+void Duplicator::postprocess_overlapping_overlap(
+        const HandleGraph& gfa_graph,
+        map<nid_t, OverlappingNodeInfo>::iterator iter,
+        array<map<size_t, handle_t>, 2> biclique_side_to_child){
+
+    auto& overlapping_node_info = iter->second;
+
+    // Deduplicate the non-OO biclique info
+    array<set<size_t>, 2> oo_biclique_indexes;
+    for (auto side: {0,1}) {
+        for (auto& item:overlapping_node_info.overlapping_children[side]) {
+            oo_biclique_indexes[side].emplace(item.second.biclique_index);
+        }
+    }
+
+    // Refactor the "biclique_side_to_child" object to match the structure of the overlapping children (mapped by pos)
+    for (auto side: {0,1}) {
+        for (auto& item: biclique_side_to_child[side]){
+            auto biclique_index = item.first;
+            if (oo_biclique_indexes[side].count(biclique_index) == 0){
+                auto handle = item.second;
+
+                size_t position;
+                if (side == 0){
+                    position = gfa_graph.get_length(handle) - 1;
+                }
+                else{
+                    position = overlapping_node_info.length - gfa_graph.get_length(handle);
+                }
+
+                OverlappingChild o(handle, biclique_index, side);
+                overlapping_node_info.normal_children[side].emplace(position, o);
+            }
+        }
+    }
+
+    overlapping_node_info.parent_path_name = to_string(overlapping_node_info.parent_node);
+//    find_leftover_parent(gfa_graph, overlapping_node_info);
 }
 
 
@@ -69,20 +133,6 @@ void Duplicator::repair_edges(
         handle_t old_handle,
         handle_t old_handle_flipped) {
 
-//    cout << "Children generated per biclique:" << '\n';
-//    for (const size_t side: {0, 1}) {
-//        for (const auto&[biclique_index, child_handle]: biclique_side_to_child[side]) {
-//            cout << side << " " << biclique_index << " " << gfa_graph.get_id(child_handle) << " ";
-//
-//            if (gfa_graph.get_length(child_handle) < 60){
-//                cout << gfa_graph.get_sequence(child_handle);
-//            }
-//
-//            cout << '\n';
-//        }
-//    }
-
-
     for (const size_t side: {0, 1}) {
         for (const auto&[biclique_index, child_handle]: biclique_side_to_child[side]) {
             for (auto& edge: bicliques[biclique_index]) {
@@ -91,52 +141,50 @@ void Duplicator::repair_edges(
                 bool edge_found = false;
                 if (side == 0) {
                     if (edge.second == old_handle) {
-                        edge.second = child_handle;
-
                         // If this is a loop, look for the corresponding biclique child on the other side of the node
                         if (edge.first == edge.second){
                             edge.first = biclique_side_to_child[1-side].at(biclique_index);
                         }
 
-                        edge_found = true;
-                    } else if (edge.first == old_handle_flipped) {
-                        edge.first = gfa_graph.flip(child_handle);
+                        edge.second = child_handle;
 
+                        edge_found = true;
+
+                    } else if (edge.first == old_handle_flipped) {
                         // If this is a loop, look for the corresponding biclique child on the other side of the node
                         if (edge.first == edge.second){
                             edge.second = biclique_side_to_child[1-side].at(biclique_index);
                         }
+
+                        edge.first = gfa_graph.flip(child_handle);
 
                         edge_found = true;
                     }
                 }
                 else {
                     if (edge.first == old_handle) {
-                        edge.first = child_handle;
-
                         // If this is a loop, look for the corresponding biclique child on the other side of the node
                         if (edge.first == edge.second){
                             edge.second = biclique_side_to_child[1-side].at(biclique_index);
                         }
 
-                        edge_found = true;
-                    } else if (edge.second == old_handle_flipped) {
-                        edge.second = gfa_graph.flip(child_handle);
+                        edge.first = child_handle;
 
+                        edge_found = true;
+
+                    } else if (edge.second == old_handle_flipped) {
                         // If this is a loop, look for the corresponding biclique child on the other side of the node
                         if (edge.first == edge.second){
                             edge.first = biclique_side_to_child[1-side].at(biclique_index);
                         }
+
+                        edge.second = gfa_graph.flip(child_handle);
 
                         edge_found = true;
                     }
                 }
 
                 if (edge_found) {
-//                    cout << "Creating (" << gfa_graph.get_id(edge.first);
-//                    cout << (gfa_graph.get_is_reverse(edge.first) ? "-" : "+");
-//                    cout << ") -> (" << gfa_graph.get_id(edge.second);
-//                    cout << (gfa_graph.get_is_reverse(edge.second) ? "-" : "+") << ")" << '\n';
                     overlaps.update_edge(old_edge, edge);
                     gfa_graph.create_edge(edge);
                 }
@@ -155,10 +203,6 @@ void Duplicator::remove_participating_edges(
         for (auto& biclique_index: sorted_bicliques_per_side[side]) {
             for (auto& edge: bicliques[biclique_index]) {
                 if (gfa_graph.get_id(edge.first) == parent_node or gfa_graph.get_id(edge.second) == parent_node) {
-//                    cout << "Deleting (" << gfa_graph.get_id(edge.first);
-//                    cout << (gfa_graph.get_is_reverse(edge.first) ? "-" : "+");
-//                    cout << ") -> (" << gfa_graph.get_id(edge.second);
-//                    cout << (gfa_graph.get_is_reverse(edge.second) ? "-" : "+") << ")" << '\n';
                     gfa_graph.destroy_edge(edge);
                 }
             }
@@ -169,7 +213,7 @@ void Duplicator::remove_participating_edges(
 
 void Duplicator::duplicate_termini(
         MutablePathDeletableHandleGraph& gfa_graph,
-        array <deque <size_t>, 2>& sorted_sizes_per_side,
+        array <deque <size_t>, 2> sorted_sizes_per_side,
         const array <deque <size_t>, 2>& sorted_bicliques_per_side,
         array<map<size_t, handle_t>, 2>& biclique_side_to_child,
         const NodeInfo& node_info
@@ -179,14 +223,14 @@ void Duplicator::duplicate_termini(
     deque<handle_t> left_children;
     deque<handle_t> right_children;
 
-    remove_participating_edges(sorted_bicliques_per_side, gfa_graph, node_info.node_id);
-
     // Do left duplication
+    bool left_dupes_exist = true;
     if (not sorted_sizes_per_side[0].empty()) {
         duplicate_prefix(gfa_graph, sorted_sizes_per_side[0], left_children, parent_handle);
     } else {
         // If no duplication was performed, then the children are the parent
         left_children = {parent_handle, parent_handle};
+        left_dupes_exist = false;
     }
 
     // Update edge repair info
@@ -194,22 +238,24 @@ void Duplicator::duplicate_termini(
         auto& biclique = sorted_bicliques_per_side[0][i];
         auto& child = left_children.at(i + 1);
 
-        biclique_side_to_child[0][biclique] = child;
+        // The Overlapping Overlap preprocessing step may have already added something here
+        biclique_side_to_child[0].try_emplace(biclique, child);
     }
 
     // Check if right dupe is necessary
     bool right_dupe_is_trivial = false;
+    bool right_dupes_exist = true;
     if (not sorted_sizes_per_side[1].empty()) {
         if (sorted_sizes_per_side[1].size() == 1 and
             sorted_sizes_per_side[1][0] == gfa_graph.get_length(left_children.front())) {
             right_dupe_is_trivial = true;
         }
     } else {
-        right_dupe_is_trivial = true;
+        right_dupes_exist = false;
     }
 
     // Do right duplication if necessary
-    if (not right_dupe_is_trivial) {
+    if (not right_dupe_is_trivial and right_dupes_exist) {
         duplicate_suffix(gfa_graph, sorted_sizes_per_side[1], right_children, left_children.front());
     } else {
         // If no duplication was performed, then the children are the parent (spooky)
@@ -221,8 +267,52 @@ void Duplicator::duplicate_termini(
         auto& biclique = sorted_bicliques_per_side[1][i];
         auto& child = right_children[i + 1];
 
-        biclique_side_to_child[1][biclique] = child;
+        // The Overlapping Overlap preprocessing step may have already added something here
+        biclique_side_to_child[1].try_emplace(biclique, child);
     }
+
+    // Update provenance maps
+    if (left_dupes_exist) {
+        auto parent_node = gfa_graph.get_id(left_children[0]);
+
+        for (size_t i = 1; i < left_children.size(); i++) {
+            auto child_node = gfa_graph.get_id(left_children[i]);
+
+            child_to_parent[child_node] = {node_info.node_id, child_node != parent_node};
+            parent_to_children[node_info.node_id].emplace(child_node);
+        }
+    }
+
+    if (right_dupes_exist) {
+        auto parent_node = gfa_graph.get_id(right_children[0]);
+
+        for (size_t i = 1; i < right_children.size(); i++) {
+            auto child_node = gfa_graph.get_id(right_children[i]);
+
+            child_to_parent[child_node] = {node_info.node_id, child_node != parent_node};
+            parent_to_children[node_info.node_id].emplace(child_node);
+        }
+    }
+
+}
+
+
+bool Duplicator::contains_overlapping_overlaps(
+        const HandleGraph& gfa_graph,
+        handle_t parent_handle,
+        const array <deque <size_t>, 2>& sorted_sizes_per_side){
+
+    bool contains_oo = false;
+
+    // If either side is empty, it's impossible to have an Overlapping Overlap
+    if ((not sorted_sizes_per_side[0].empty()) and (not sorted_sizes_per_side[1].empty())) {
+        // If there are overlaps on both sides, simply test their longest overlaps for conflict
+        if (sorted_sizes_per_side[0][0] > gfa_graph.get_length(parent_handle) - sorted_sizes_per_side[1][0]) {
+            contains_oo = true;
+        }
+    }
+
+    return contains_oo;
 }
 
 
@@ -237,38 +327,49 @@ void Duplicator::duplicate_all_node_termini(MutablePathDeletableHandleGraph& gfa
 
         node_info.get_sorted_biclique_extents(sorted_sizes_per_side, sorted_bicliques_per_side);
 
+        remove_participating_edges(sorted_bicliques_per_side, gfa_graph, node_info.node_id);
+
         // When repairing edges, which biclique corresponds to which child node?
         array<map<size_t, handle_t>, 2> biclique_side_to_child;
 
         handle_t parent_handle = gfa_graph.get_handle(node_id, 0);
         handle_t parent_handle_flipped = gfa_graph.flip(parent_handle);
 
-        // If this is an overlapping overlap node, duping is different (and simpler)
-        if (not (sorted_sizes_per_side[0].empty() and not sorted_sizes_per_side[1].empty())
-                and (sorted_sizes_per_side[0][0] > gfa_graph.get_length(parent_handle) - sorted_sizes_per_side[1][0])){
+        // Set a path that only describes the parent node
+        string parent_path_name = to_string(node_info.node_id);
+        auto parent_path_handle = gfa_graph.create_path_handle(parent_path_name);
+        gfa_graph.append_step(parent_path_handle, parent_handle);
 
-            duplicate_overlapping_termini(
+        set <size_t> overlapping_bicliques;
+
+        auto overlapping_overlap_iter = overlapping_overlap_nodes.end();
+        // If this is an overlapping overlap node, the offending overlaps need to be processed separately
+        if (contains_overlapping_overlaps(gfa_graph, parent_handle, sorted_sizes_per_side)){
+            overlapping_overlap_iter = preprocess_overlapping_overlaps(
                     gfa_graph,
                     sorted_sizes_per_side,
                     sorted_bicliques_per_side,
                     biclique_side_to_child,
                     node_info);
         }
-        else {
-            duplicate_termini(
-                    gfa_graph,
-                    sorted_sizes_per_side,
-                    sorted_bicliques_per_side,
-                    biclique_side_to_child,
-                    node_info);
-        }
+
+        duplicate_termini(
+                gfa_graph,
+                sorted_sizes_per_side,
+                sorted_bicliques_per_side,
+                biclique_side_to_child,
+                node_info);
 
         repair_edges(
-            gfa_graph,
-            biclique_side_to_child,
-            parent_handle,
-            parent_handle_flipped);
+                gfa_graph,
+                biclique_side_to_child,
+                parent_handle,
+                parent_handle_flipped);
 
+
+        if (overlapping_overlap_iter != overlapping_overlap_nodes.end()){
+            postprocess_overlapping_overlap(gfa_graph, overlapping_overlap_iter, biclique_side_to_child);
+        }
     }
 }
 

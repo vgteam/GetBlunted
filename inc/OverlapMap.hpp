@@ -28,6 +28,7 @@ public:
     OverlapMap();
 
     Alignment insert(const gfak::edge_elem& e, handle_t source, handle_t sink);
+    void insert(Alignment& alignment, handle_t source, handle_t sink);
     Alignment insert(const gfak::edge_elem& e, const edge_t& edge_handle);
     void update_edge(const edge_t& old_edge, const edge_t& new_edge);
     unordered_map<edge_t,Alignment>::iterator at(handle_t source, handle_t sink);
