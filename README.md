@@ -20,7 +20,7 @@ GetBlunted is compatible with Ubuntu (tested on 18.04) and MacOS
 
 External dependencies: `libomp`, `cmake`
 
-1. Clone the repo
+1. Clone the repo and `cd GetBlunted/`
 2. `mkdir build`
 3. `cd build`
 4. `cmake ..`
