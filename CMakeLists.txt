@@ -5,7 +5,7 @@
 ######################################
 
 cmake_minimum_required(VERSION 3.0)
-project(Bluntifier VERSION 0.0.0)
+project(GetBlunted VERSION 0.0.0)
 
 message(STATUS "CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "CMAKE_CXX_COMPILER_VERSION: ${CMAKE_CXX_COMPILER_VERSION}")
@@ -69,15 +69,15 @@ set(SOURCES
         )
 
 
-project(Bluntifier)
-add_library(Bluntifier STATIC ${SOURCES}) 
+project(GetBlunted)
+add_library(GetBlunted STATIC ${SOURCES}) 
 
 # To make sure the library is named Name.so,
 # get rid of the "lib" prefix.
-set_target_properties(Bluntifier PROPERTIES PREFIX "")
+set_target_properties(GetBlunted PROPERTIES PREFIX "")
 
 # Eliminate an extraneous -D during compilation.
-set_target_properties(Bluntifier PROPERTIES DEFINE_SYMBOL "")
+set_target_properties(GetBlunted PROPERTIES DEFINE_SYMBOL "")
 
 
 ##############################################
@@ -167,13 +167,13 @@ ExternalProject_Get_Property(project_gfak INSTALL_DIR)
 
 
 # Define main library as dependent on the downloaded project (transitively)
-add_dependencies(Bluntifier project_gfak)
+add_dependencies(GetBlunted project_gfak)
 
 # Ensure that main library has access to primary dependencies' and secondary dependencies' headers
 include_directories(external/gfak/include/)
 
 # Add runtime path for main library so it can access external library
-#set_property(TARGET Bluntifier PROPERTY INSTALL_RPATH "$ORIGIN" "${INSTALL_DIR}/bin/gfak")
+#set_property(TARGET GetBlunted PROPERTY INSTALL_RPATH "$ORIGIN" "${INSTALL_DIR}/bin/gfak")
 
 message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 
@@ -229,7 +229,7 @@ add_dependencies(bdsg
         divsufsort)
 
 # Define main library as dependent on the downloaded project (transitively)
-add_dependencies(Bluntifier bdsg)
+add_dependencies(GetBlunted bdsg)
 
 # Ensure that main library has access to primary dependencies' and secondary dependencies' headers
 include_directories(external/bdsg/include/
@@ -237,7 +237,7 @@ include_directories(external/bdsg/include/
         external/bdsg/include/bdsg/)
 
 # Add runtime path for main library so it can access external library
-#set_property(TARGET Bluntifier PROPERTY INSTALL_RPATH "$ORIGIN" "${INSTALL_DIR}/bin/bdsg")
+#set_property(TARGET GetBlunted PROPERTY INSTALL_RPATH "$ORIGIN" "${INSTALL_DIR}/bin/bdsg")
 
 message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 
@@ -279,7 +279,7 @@ add_dependencies(spoa
         )
 
 # Define main library as dependent on the downloaded project (transitively)
-add_dependencies(Bluntifier spoa)
+add_dependencies(GetBlunted spoa)
 
 # Ensure that main library has access to primary dependencies' and secondary dependencies' headers
 include_directories(external/spoa/include/
@@ -291,7 +291,7 @@ include_directories(external/spoa/include/
         )
 
 # Add runtime path for main library so it can access external library
-#set_property(TARGET Bluntifier PROPERTY INSTALL_RPATH "$ORIGIN" "${INSTALL_DIR}/bin/spoa")
+#set_property(TARGET GetBlunted PROPERTY INSTALL_RPATH "$ORIGIN" "${INSTALL_DIR}/bin/spoa")
 
 message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 
@@ -328,7 +328,7 @@ foreach(FILENAME_PREFIX ${TESTS})
     add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
     set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
     target_link_libraries(${FILENAME_PREFIX}
-            Bluntifier
+            GetBlunted
             Threads::Threads
             bdsg
             spoa
@@ -346,14 +346,14 @@ endforeach()
 # -------- EXECUTABLES --------
 
 set(EXECUTABLES
-        bluntify
+        get_blunted
         )
 
 foreach(FILENAME_PREFIX ${EXECUTABLES})
     add_executable(${FILENAME_PREFIX} src/executable/${FILENAME_PREFIX}.cpp)
     set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
     target_link_libraries(${FILENAME_PREFIX}
-            Bluntifier
+            GetBlunted
             Threads::Threads
             bdsg
             spoa
@@ -374,7 +374,7 @@ set(BINARY_INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/bin)
 
 # The shared library goes to the bin directory.
 install(TARGETS
-        Bluntifier
+        GetBlunted
         DESTINATION ${BINARY_INSTALL_DIR})
 
 # Some potentially helpful messages
