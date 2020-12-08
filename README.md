@@ -1,6 +1,6 @@
 # GetBlunted
 
-For converting GFAs with overlapped sequences into blunt-ended GFAs, with no overlaps.
+For converting GFAs with overlapped sequences into blunt-ended GFAs with no overlaps.
 
 ## Method
 
