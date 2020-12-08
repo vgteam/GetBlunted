@@ -13,10 +13,10 @@ void print_usage() {
     cerr << "usage: get_blunted [options] overlap_graph.gfa > blunt_graph.gfa" << endl;
     cerr << endl;
     cerr << "options:" << endl;
-    cerr << " -p, --provenance FILEPATH track origin of bluntified sequences in a table here" << endl;
-    cerr << " -V, --verbose             log progress to stderr during execution" << endl;
-    cerr << " -v, --version             print the version to stdout and exit" << endl;
-    cerr << " -h, --help                print this help message to stderr and exit" << endl;
+    cerr << " -p, --provenance FILEPATH   track origin of bluntified sequences in a table here" << endl;
+    cerr << " -V, --verbose               log progress to stderr during execution" << endl;
+    cerr << " -v, --version               print the version to stdout and exit" << endl;
+    cerr << " -h, --help                  print this help message to stderr and exit" << endl;
 }
 
 void print_version() {
