@@ -4,6 +4,8 @@
 #include "handle_to_gfa.hpp"
 #include "bdsg/hash_graph.hpp"
 
+#include <iostream>
+
 using bluntifier::duplicate_prefix;
 using bluntifier::duplicate_suffix;
 using bluntifier::handle_graph_to_gfa;
@@ -13,6 +15,7 @@ using bdsg::HashGraph;
 
 using std::string;
 using std::deque;
+using std::ofstream;
 
 
 void test_adjacent_same_lengths_prefix(){
@@ -30,7 +33,8 @@ void test_adjacent_same_lengths_prefix(){
 
     {
         string test_path_prefix = "test_adjacent_same_lengths_prefix_" + std::to_string(0);
-        handle_graph_to_gfa(graph, test_path_prefix + ".gfa");
+        ofstream out(test_path_prefix + ".gfa");
+        handle_graph_to_gfa(graph, out);
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";
         run_command(command);
@@ -40,7 +44,8 @@ void test_adjacent_same_lengths_prefix(){
 
     {
         string test_path_prefix = "test_adjacent_same_lengths_prefix_" + std::to_string(1);
-        handle_graph_to_gfa(graph, test_path_prefix + ".gfa");
+        ofstream out(test_path_prefix + ".gfa");
+        handle_graph_to_gfa(graph, out);
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";
         run_command(command);
@@ -79,7 +84,8 @@ void test_single_value_prefix(){
 
     {
         string test_path_prefix = "test_single_value_prefix_" + std::to_string(0);
-        handle_graph_to_gfa(graph, test_path_prefix + ".gfa");
+        ofstream out(test_path_prefix + ".gfa");
+        handle_graph_to_gfa(graph, out);
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";
         run_command(command);
@@ -89,7 +95,8 @@ void test_single_value_prefix(){
 
     {
         string test_path_prefix = "test_single_value_prefix_" + std::to_string(0);
-        handle_graph_to_gfa(graph, test_path_prefix + ".gfa");
+        ofstream out(test_path_prefix + ".gfa");
+        handle_graph_to_gfa(graph, out);
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";
         run_command(command);
@@ -129,7 +136,8 @@ void test_zero_value_prefix(){
 
     {
         string test_path_prefix = "test_zero_value_prefix_" + std::to_string(0);
-        handle_graph_to_gfa(graph, test_path_prefix + ".gfa");
+        ofstream out(test_path_prefix + ".gfa");
+        handle_graph_to_gfa(graph, out);
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";
         run_command(command);
@@ -139,7 +147,8 @@ void test_zero_value_prefix(){
 
     {
         string test_path_prefix = "test_zero_value_prefix_" + std::to_string(1);
-        handle_graph_to_gfa(graph, test_path_prefix + ".gfa");
+        ofstream out(test_path_prefix + ".gfa");
+        handle_graph_to_gfa(graph, out);
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";
         run_command(command);
@@ -178,7 +187,8 @@ void test_full_length_value_prefix(){
 
     {
         string test_path_prefix = "test_full_length_value_prefix_" + std::to_string(0);
-        handle_graph_to_gfa(graph, test_path_prefix + ".gfa");
+        ofstream out(test_path_prefix + ".gfa");
+        handle_graph_to_gfa(graph, out);
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";
         run_command(command);
@@ -188,7 +198,8 @@ void test_full_length_value_prefix(){
 
     {
         string test_path_prefix = "test_full_length_value_prefix_" + std::to_string(1);
-        handle_graph_to_gfa(graph, test_path_prefix + ".gfa");
+        ofstream out(test_path_prefix + ".gfa");
+        handle_graph_to_gfa(graph, out);
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";
         run_command(command);
@@ -231,7 +242,8 @@ void test_adjacent_same_lengths_suffix(){
 
     {
         string test_path_prefix = "test_adjacent_same_lengths_suffix_" + std::to_string(0);
-        handle_graph_to_gfa(graph, test_path_prefix + ".gfa");
+        ofstream out(test_path_prefix + ".gfa");
+        handle_graph_to_gfa(graph, out);
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";
         run_command(command);
@@ -241,7 +253,8 @@ void test_adjacent_same_lengths_suffix(){
 
     {
         string test_path_prefix = "test_adjacent_same_lengths_suffix_" + std::to_string(1);
-        handle_graph_to_gfa(graph, test_path_prefix + ".gfa");
+        ofstream out(test_path_prefix + ".gfa");
+        handle_graph_to_gfa(graph, out);
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";
         run_command(command);
@@ -280,7 +293,8 @@ void test_single_value_suffix(){
 
     {
         string test_path_prefix = "test_single_value_suffix_" + std::to_string(0);
-        handle_graph_to_gfa(graph, test_path_prefix + ".gfa");
+        ofstream out(test_path_prefix + ".gfa");
+        handle_graph_to_gfa(graph, out);
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";
         run_command(command);
@@ -290,7 +304,8 @@ void test_single_value_suffix(){
 
     {
         string test_path_prefix = "test_single_value_suffix_" + std::to_string(1);
-        handle_graph_to_gfa(graph, test_path_prefix + ".gfa");
+        ofstream out(test_path_prefix + ".gfa");
+        handle_graph_to_gfa(graph, out);
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";
         run_command(command);
@@ -330,7 +345,8 @@ void test_zero_value_suffix(){
 
     {
         string test_path_prefix = "test_zero_value_suffix_" + std::to_string(0);
-        handle_graph_to_gfa(graph, test_path_prefix + ".gfa");
+        ofstream out(test_path_prefix + ".gfa");
+        handle_graph_to_gfa(graph, out);
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";
         run_command(command);
@@ -340,7 +356,8 @@ void test_zero_value_suffix(){
 
     {
         string test_path_prefix = "test_zero_value_suffix_" + std::to_string(1);
-        handle_graph_to_gfa(graph, test_path_prefix + ".gfa");
+        ofstream out(test_path_prefix + ".gfa");
+        handle_graph_to_gfa(graph, out);
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";
         run_command(command);
@@ -379,7 +396,8 @@ void test_full_length_value_suffix(){
 
     {
         string test_path_prefix = "test_full_length_value_suffix_" + std::to_string(0);
-        handle_graph_to_gfa(graph, test_path_prefix + ".gfa");
+        ofstream out(test_path_prefix + ".gfa");
+        handle_graph_to_gfa(graph, out);
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";
         run_command(command);
@@ -389,7 +407,8 @@ void test_full_length_value_suffix(){
 
     {
         string test_path_prefix = "test_full_length_value_suffix_" + std::to_string(1);
-        handle_graph_to_gfa(graph, test_path_prefix + ".gfa");
+        ofstream out(test_path_prefix + ".gfa");
+        handle_graph_to_gfa(graph, out);
         string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                          + test_path_prefix + ".png";
         run_command(command);

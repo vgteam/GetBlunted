@@ -17,6 +17,7 @@
 #include "spoa/graph.hpp"
 
 #include <unordered_map>
+#include <ctime>
 
 #include "bdsg/hash_graph.hpp"
 
@@ -46,6 +47,9 @@ class Bluntifier {
 private:
     /// Attributes ///
     string gfa_path;
+    string provenance_path;
+    bool verbose;
+    time_t time_start;
 
     HashGraph gfa_graph;
     IncrementalIdMap<string> id_map;
@@ -73,11 +77,13 @@ private:
 
 public:
     /// Methods ///
-    Bluntifier(string gfa_path);
+    Bluntifier(const string& gfa_path,
+               const string& provenance_path,
+               bool verbose);
 
     void bluntify();
 
-    void write_provenance(string& output_path);
+    void write_provenance();
 
 private:
     void deduplicate_and_canonicalize_biclique_cover(
@@ -118,6 +124,8 @@ private:
             edge_t& canonical_edge,
             edge_t& edge,
             nid_t child_id);
+    
+    void log_progress(const string& msg) const;
 };
 
 
