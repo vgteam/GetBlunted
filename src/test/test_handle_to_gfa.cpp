@@ -8,6 +8,7 @@
 using handlegraph::handle_t;
 using bdsg::PackedGraph;
 using std::ifstream;
+using std::ofstream;
 
 using bluntifier::gfa_to_path_handle_graph_in_memory;
 using bluntifier::gfa_to_path_handle_graph;
@@ -38,7 +39,8 @@ int main(){
 
     string output_dir = join_paths(project_directory, "data/");
     string output_path = join_paths(output_dir, "handle_to_gfa_test_output.gfa");
-    handle_graph_to_gfa(g, output_path);
+    ofstream out(output_path);
+    handle_graph_to_gfa(g, out);
 
     return 0;
 }

@@ -2,12 +2,15 @@
 #include "handle_to_gfa.hpp"
 #include "bdsg/hash_graph.hpp"
 
+#include <iostream>
+
 using bluntifier::handle_graph_to_gfa;
 using bluntifier::run_command;
 using bdsg::HashGraph;
 
 using std::string;
 using std::vector;
+using std::ofstream;
 
 int main(){
 
@@ -21,7 +24,8 @@ int main(){
 
         {
             string test_path_prefix = "test_divide_handle" + std::to_string(o);
-            handle_graph_to_gfa(graph, test_path_prefix + ".gfa");
+            ofstream out(test_path_prefix + ".gfa");
+            handle_graph_to_gfa(graph, out);
             string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
                              + test_path_prefix + ".png";
             run_command(command);

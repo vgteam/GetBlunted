@@ -12,19 +12,56 @@ ProvenanceInfo::ProvenanceInfo(size_t start, size_t stop, bool reversal):
 {}
 
 
-Bluntifier::Bluntifier(string gfa_path):
-    gfa_path(gfa_path)
-{}
+Bluntifier::Bluntifier(const string& gfa_path,
+                       const string& provenance_path,
+                       bool verbose):
+    gfa_path(gfa_path),
+    provenance_path(provenance_path),
+    verbose(verbose)
+{
+    // start our clock
+    time(&time_start);
+}
 
+void Bluntifier::log_progress(const string& msg) const {
+    if (verbose) {
+        stringstream strm;
+        strm.precision(1);
+        strm << fixed;
+        
+        time_t time_now;
+        time(&time_now);
+        double secs = (double) difftime(time_now, time_start);
+        if (secs <= 60.0) {
+            strm << secs << " s";
+        }
+        else {
+            double mins = secs / 60.0;
+            if (mins <= 60.0) {
+                strm << mins << " m";
+            }
+            else {
+                double hrs = mins / 60.0;
+                if (hrs <= 24.0) {
+                    strm << hrs << " h";
+                }
+                else {
+                    strm << (hrs / 24.0) << " d";
+                }
+            }
+        }
+        cerr << "[get_blunted : " << strm.str() << " elapsed] " << msg << endl;
+    }
+}
 
 void Bluntifier::print_adjacency_components_stats(size_t i){
-    cerr << "Component " << i << " of size " << adjacency_components[i].size() << '\n' << std::flush;
-    cerr << "NODES IN ADJACENCY COMPONENT:\n";
+    cerr << "Component " << i << " of size " << adjacency_components[i].size() << endl;
+    cerr << "NODES IN ADJACENCY COMPONENT:" << endl;
     for (auto& handle: adjacency_components[i]) {
-        std::cerr << id_map.get_name(gfa_graph.get_id(handle)) << (gfa_graph.get_is_reverse(handle) ? "-" : "+")
-                  << '\n';
+        cerr << id_map.get_name(gfa_graph.get_id(handle)) << (gfa_graph.get_is_reverse(handle) ? "-" : "+")
+                  << endl;
     }
-    cerr << '\n';
+    cerr << endl;
 }
 
 
@@ -224,12 +261,23 @@ void Bluntifier::splice_subgraphs(){
 }
 
 
-void Bluntifier::write_provenance(string& output_path){
-    cerr << "Writing provenance to file: " << output_path << '\n';
+void Bluntifier::write_provenance(){
+    
 
-    ofstream file(output_path);
+    ofstream file(provenance_path);
+    
+    if (!file) {
+        cerr << "error: couldn't open provenance file " << provenance_path << endl;
+        exit(EXIT_FAILURE);
+    }
 
+    file << "#bluntified_sequence\tinput_sequences" << endl;
     for (auto& [child_node, parents]: provenance_map){
+        
+        if (to_be_destroyed.count(child_node)) {
+            // no need to write provenance for nodes that will be removed from the graph
+            continue;
+        }
         file << child_node << '\t';
 
         auto iter = parents.begin();
@@ -237,7 +285,7 @@ void Bluntifier::write_provenance(string& output_path){
             auto& parent_node = iter->first;
             auto& info = iter->second;
 
-            file << id_map.get_name(parent_node) << '[' << info.start << ':' << info.stop + 1 << "]" << (info.reversal ? '-':'+');
+            file << id_map.get_name(parent_node) << '[' << info.start << ':' << info.stop + 1 << ']' << (info.reversal ? '-':'+');
 
             if (++iter == parents.end()){
                 break;
@@ -246,7 +294,7 @@ void Bluntifier::write_provenance(string& output_path){
             file << ',';
         }
 
-        file << '\n';
+        file << endl;
     }
 }
 
@@ -453,11 +501,12 @@ void Bluntifier::compute_provenance(){
 
 
 void Bluntifier::bluntify(){
-    cerr << "Reading GFA...\n";
+    
+    log_progress("Reading GFA...");
 
     gfa_to_handle_graph(gfa_path, gfa_graph, id_map, overlaps);
-
-    cerr << "Computing adjacency components...\n";
+    
+    log_progress("Computing adjacency components...");
 
     // Compute Adjacency Components and store in vector
     compute_all_adjacency_components(gfa_graph, adjacency_components);
@@ -466,9 +515,8 @@ void Bluntifier::bluntify(){
     auto size = gfa_graph.get_node_count() + 1;
     node_to_biclique_edge.resize(size);
 
-    cerr << "Total adjacency components:\t" << adjacency_components.size() << '\n';
-
-    cerr << "Computing biclique covers...\n";
+    log_progress("Total adjacency components: " + to_string(adjacency_components.size()));
+    log_progress("Computing biclique covers...");
 
     for (size_t i = 0; i<adjacency_components.size(); i++){
         compute_biclique_cover(i);
@@ -486,15 +534,15 @@ void Bluntifier::bluntify(){
             child_to_parent,
             overlapping_overlap_nodes);
 
-    cerr << "Duplicating node termini...\n";
+    log_progress("Duplicating node termini...");
 
     super_duper.duplicate_all_node_termini(gfa_graph);
 
-    cerr << "Harmonizing biclique edge orientations...\n";
+    log_progress("Harmonizing biclique edge orientations...");
 
     harmonize_biclique_orientations();
 
-    cerr << "Aligning overlaps...\n";
+    log_progress("Aligning overlaps...");
 
     subgraphs.resize(bicliques.size());
 
@@ -502,40 +550,44 @@ void Bluntifier::bluntify(){
         align_biclique_overlaps(i);
     }
 
-    cerr << "Splicing " << subgraphs.size() << " subgraphs...\n";
+    log_progress("Splicing " + to_string(subgraphs.size()) + " subgraphs...");
 
     splice_subgraphs();
 
     OverlappingOverlapSplicer oo_splicer(overlapping_overlap_nodes, parent_to_children, subgraphs);
 
-    cerr << "Splicing overlapping overlap nodes...\n";
+    log_progress("Splicing overlapping overlap nodes...");
 
     oo_splicer.splice_overlapping_overlaps(gfa_graph);
 
-    cerr << "Inferring provenance...\n";
+    if (!provenance_path.empty()) {
+        
+        log_progress("Inferring provenance...");
+        
+        compute_provenance();
+        
+        log_progress("Writing provenance to file: " + provenance_path);
+        
+        write_provenance();
+    }
 
-    compute_provenance();
-
-    string provenance_log_path = "provenance.txt";
-
-    write_provenance(provenance_log_path);
-
-    cerr << "Destroying duplicated nodes...\n";
+    log_progress("Destroying duplicated nodes...");
 
     for (auto& id: to_be_destroyed){
         // TODO: remove node from provenance map?
         gfa_graph.destroy_handle(gfa_graph.get_handle(id));
     }
+    
+    log_progress("Writing bluntified GFA to file to STDOUT");
 
-    string test_path_prefix = "blunt";
-    handle_graph_to_gfa(gfa_graph, test_path_prefix + ".gfa");
+    handle_graph_to_gfa(gfa_graph, cout);
 
-    if (gfa_graph.get_node_count() < 200){
-        string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
-                         + test_path_prefix + ".png";
-
-        run_command(command);
-    }
+    // output an image of the graph, can be uncommented for debugging
+//    if (gfa_graph.get_node_count() < 200){
+//        string command = "vg convert -g " + gfa_path + ".gfa -p | vg view -d - | dot -Tpng -o "
+//                         + test_path_prefix + ".png";
+//        run_command(command);
+//    }
 }
 
 
