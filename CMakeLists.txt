@@ -9,17 +9,23 @@ project(GetBlunted VERSION 0.0.0)
 
 message(STATUS "CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "CMAKE_CXX_COMPILER_VERSION: ${CMAKE_CXX_COMPILER_VERSION}")
+message(STATUS "CMAKE_SYSTEM: ${CMAKE_SYSTEM}")
 
 # Compiler options.
-#set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -std=c++17")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_CXX_FLAGS "-fexceptions -fsanitize=address")
+# ------- Memory debug ------- #
+
+#set(CMAKE_CXX_FLAGS "-fexceptions -fsanitize=address")
 #set(ASAN_OPTIONS=check_initialization_order=1)
 #set(ASAN_OPTIONS=detect_leaks=1)
 
+# --- Standard compilation --- #
+
 set(CMAKE_CXX_FLAGS "-fexceptions")
+
+# ---------------------------- #
 
 #add_definitions(-ggdb3 -O0 -Wall)       # Debugging + No optimization
 add_definitions(-O3 -Wall)              # Much optimization
@@ -259,7 +265,7 @@ ExternalProject_Add(project_spoa
 #        DOWNLOAD_COMMAND ""
 #        UPDATE_COMMAND ""
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
-        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/spoa/
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/spoa/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/spoa/lib
         BUILD_IN_SOURCE True
         INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/spoa/
         INSTALL_COMMAND make install
