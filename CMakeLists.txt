@@ -9,17 +9,23 @@ project(GetBlunted VERSION 0.0.0)
 
 message(STATUS "CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "CMAKE_CXX_COMPILER_VERSION: ${CMAKE_CXX_COMPILER_VERSION}")
+message(STATUS "CMAKE_SYSTEM: ${CMAKE_SYSTEM}")
 
 # Compiler options.
-#set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -std=c++17")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_CXX_FLAGS "-fexceptions -fsanitize=address")
+# ------- Memory debug ------- #
+
+#set(CMAKE_CXX_FLAGS "-fexceptions -fsanitize=address")
 #set(ASAN_OPTIONS=check_initialization_order=1)
 #set(ASAN_OPTIONS=detect_leaks=1)
 
+# --- Standard compilation --- #
+
 set(CMAKE_CXX_FLAGS "-fexceptions")
+
+# ---------------------------- #
 
 #add_definitions(-ggdb3 -O0 -Wall)       # Debugging + No optimization
 add_definitions(-O3 -Wall)              # Much optimization
@@ -259,7 +265,7 @@ ExternalProject_Add(project_spoa
 #        DOWNLOAD_COMMAND ""
 #        UPDATE_COMMAND ""
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
-        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/spoa/
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/spoa/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/spoa/lib
         BUILD_IN_SOURCE True
         INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/spoa/
         INSTALL_COMMAND make install
@@ -301,6 +307,30 @@ message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 # ---------------------------------------- #
 ############################################
 
+# --- Recipe for run time linking taken from CMake docs ---#
+# https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling#always-full-rpath
+# use, i.e. don't skip the full RPATH for the build tree
+set(CMAKE_SKIP_BUILD_RPATH FALSE)
+
+# when building, don't use the install RPATH already
+# (but later on when installing)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+
+# add the automatically determined parts of the RPATH
+# which point to directories outside the build tree to the install RPATH
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+# the RPATH to be used when installing, but only if it's not a system directory
+list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+if("${isSystemDir}" STREQUAL "-1")
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+endif("${isSystemDir}" STREQUAL "-1")
+
+# ---------------------------------------------------------#
+
+
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
@@ -326,7 +356,6 @@ set(TESTS
 
 foreach(FILENAME_PREFIX ${TESTS})
     add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
-    set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
     target_link_libraries(${FILENAME_PREFIX}
             GetBlunted
             Threads::Threads
@@ -351,7 +380,6 @@ set(EXECUTABLES
 
 foreach(FILENAME_PREFIX ${EXECUTABLES})
     add_executable(${FILENAME_PREFIX} src/executable/${FILENAME_PREFIX}.cpp)
-    set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
     target_link_libraries(${FILENAME_PREFIX}
             GetBlunted
             Threads::Threads
@@ -375,6 +403,7 @@ set(BINARY_INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/bin)
 # The shared library goes to the bin directory.
 install(TARGETS
         GetBlunted
+        get_blunted
         DESTINATION ${BINARY_INSTALL_DIR})
 
 # Some potentially helpful messages

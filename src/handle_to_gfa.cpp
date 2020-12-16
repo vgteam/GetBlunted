@@ -1,6 +1,8 @@
 #include "handle_to_gfa.hpp"
 
 
+using std::runtime_error;
+
 namespace bluntifier {
 
 
@@ -47,7 +49,7 @@ void handle_graph_to_gfa(const HandleGraph& graph, ostream& output_gfa){
 // using the canonical names as well, wherever possible
 void handle_graph_to_canonical_gfa(const HandleGraph& graph, const string& output_path){
 
-    assert(false);
+    throw runtime_error("ERROR: called unfinished method 'handle_graph_to_canonical_gfa'");
 //    ofstream output_gfa(output_path);
 //    graph.for_each_handle([&](handle_t& node){
 //
