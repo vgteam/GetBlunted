@@ -332,7 +332,6 @@ set(TESTS
 
 foreach(FILENAME_PREFIX ${TESTS})
     add_executable(${FILENAME_PREFIX} src/test/${FILENAME_PREFIX}.cpp)
-    set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
     target_link_libraries(${FILENAME_PREFIX}
             GetBlunted
             Threads::Threads
@@ -357,7 +356,6 @@ set(EXECUTABLES
 
 foreach(FILENAME_PREFIX ${EXECUTABLES})
     add_executable(${FILENAME_PREFIX} src/executable/${FILENAME_PREFIX}.cpp)
-    set_property(TARGET ${FILENAME_PREFIX} PROPERTY INSTALL_RPATH "$ORIGIN")
     target_link_libraries(${FILENAME_PREFIX}
             GetBlunted
             Threads::Threads
@@ -381,6 +379,7 @@ set(BINARY_INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/bin)
 # The shared library goes to the bin directory.
 install(TARGETS
         GetBlunted
+        get_blunted
         DESTINATION ${BINARY_INSTALL_DIR})
 
 # Some potentially helpful messages
