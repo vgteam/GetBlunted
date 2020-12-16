@@ -18,7 +18,7 @@ For a typical phased human assembly GFA (5.1GB) about 8GB of RAM are used, and r
 
 ## Installation
 
-GetBlunted is compatible with Ubuntu (tested on 18.04) and MacOS (tested on 10.14.6)
+GetBlunted is compatible with Ubuntu (tested on 18.04), MacOS (tested on 10.14.6), and CentOS (tested on 7-8.2003.0.el7.centos.x86_64)
 
 External dependencies: `libomp`, `cmake`
 
@@ -26,6 +26,6 @@ External dependencies: `libomp`, `cmake`
 2. `mkdir build`
 3. `cd build`
 4. `cmake ..`
-5. `make -j [n_threads]`
+5. `make -j [n_threads] install`
 
-Currently there is no make install step, so the executable is found in`GetBlunted/build/`
+The executable is found in `GetBlunted/bin/`
