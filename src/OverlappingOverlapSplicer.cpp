@@ -507,6 +507,8 @@ void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletable
                         splice_pair.right_child_path_name,
                         splice_pair.right_child_index);
             }
+
+            gfa_graph.create_edge(left_handle, right_handle);
         }
     }
 }

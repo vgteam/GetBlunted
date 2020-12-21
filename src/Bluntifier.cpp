@@ -141,7 +141,7 @@ void Bluntifier::map_splice_sites_by_node(){
 
             node_to_biclique_edge[left_node_id].emplace_back(i,j);
 
-            // Don't make 2 mappings ot he same edge if it is a self-loop
+            // Don't make 2 mappings to the same edge if it is a self-loop
             if (right_node_id != left_node_id) {
                 node_to_biclique_edge[right_node_id].emplace_back(i, j);
             }
@@ -176,7 +176,7 @@ tuple <bool, bool> Bluntifier::is_oo_node(nid_t node_id){
                 }
             }
             else {
-                // Brute force search of overlapping children in this OO node to see if this is onde of the overlaps
+                // Brute force search of overlapping children in this OO node to see if this is one of the overlaps
                 // that was excluded from splicing
                 for (auto s: {0, 1}) {
                     for (auto& oo_item: overlap_info.overlapping_children[s]) {
