@@ -533,7 +533,7 @@ void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletable
                 }
             }
             else{
-                throw runtime_error("ERROR: overlap length is > path length by "
+                throw runtime_error("ERROR: overlap length is > parent node length by "
                                     + to_string(std::max(right_remainder, left_remainder)));
             }
         }
