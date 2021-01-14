@@ -65,7 +65,7 @@ bool OverlappingOverlapSplicer::find_path_info(
 }
 
 
-pair<handle_t, size_t> OverlappingOverlapSplicer::seek_to_path_base(
+tuple<handle_t, size_t, size_t, bool> OverlappingOverlapSplicer::seek_to_path_base(
         MutablePathDeletableHandleGraph& gfa_graph,
         string& path_name,
         size_t target_base_index){
@@ -75,6 +75,7 @@ pair<handle_t, size_t> OverlappingOverlapSplicer::seek_to_path_base(
 
     size_t cumulative_index = 0;
     size_t intra_handle_index = 0;
+    size_t remainder = 0;
     handle_t step_handle;
 
     bool fail = true;
@@ -94,17 +95,15 @@ pair<handle_t, size_t> OverlappingOverlapSplicer::seek_to_path_base(
         cumulative_index += step_length;
     }
 
-    if (fail){
-        throw runtime_error("ERROR: path base index " + to_string(target_base_index) + " exceeds sum of handle lengths");
-    }
+    remainder = target_base_index - cumulative_index;
 
-    return {step_handle, intra_handle_index};
+    return {step_handle, intra_handle_index, remainder, fail};
 }
 
 
 
 
-pair<handle_t, size_t> OverlappingOverlapSplicer::seek_to_reverse_path_base(
+tuple<handle_t, size_t, size_t, bool> OverlappingOverlapSplicer::seek_to_reverse_path_base(
         MutablePathDeletableHandleGraph& gfa_graph,
         string& path_name,
         size_t target_base_index){
@@ -114,6 +113,7 @@ pair<handle_t, size_t> OverlappingOverlapSplicer::seek_to_reverse_path_base(
 
     size_t cumulative_index = 0;
     size_t intra_handle_index = 0;
+    size_t remainder = 0;
     handle_t step_handle;
 
     bool fail = true;
@@ -133,11 +133,9 @@ pair<handle_t, size_t> OverlappingOverlapSplicer::seek_to_reverse_path_base(
         cumulative_index += step_length;
     }
 
-    if (fail){
-        throw runtime_error("ERROR: path base index " + to_string(target_base_index) + " exceeds sum of handle lengths");
-    }
+    remainder = target_base_index - cumulative_index;
 
-    return {step_handle, intra_handle_index};
+    return {step_handle, intra_handle_index, remainder, fail};
 }
 
 
@@ -153,10 +151,10 @@ void OverlappingOverlapSplicer::find_splice_pairs(
     for (auto side: {0,1}) {
         for (auto oo: overlap_info.overlapping_children[side]){
 
-            if (oo.first == 0 or oo.first == overlap_info.length-1){
-                throw runtime_error("ERROR: Overlapping overlap meets or exceeds node length: "
-                                     + to_string(overlap_info.parent_node));
-            }
+//            if (oo.first == 0 or oo.first == overlap_info.length-1){
+//                throw runtime_error("ERROR: Overlapping overlap meets or exceeds node length: "
+//                                     + to_string(overlap_info.parent_node));
+//            }
 
             size_t n_normal_children_exceeding_overlap;
             bool splice_to_parent = false;
@@ -189,6 +187,8 @@ void OverlappingOverlapSplicer::find_splice_pairs(
 
                     OverlappingSplicePair splice_pair_a;
                     OverlappingSplicePair splice_pair_b;
+                    splice_pair_a.side = 0;
+                    splice_pair_b.side = 1;
 
                     bool left_reversal;
                     bool right_reversal;
@@ -312,12 +312,6 @@ void OverlappingOverlapSplicer::find_splice_pairs(
                         splice_pair_b.right_child_index = other->first - splice_pair_a.left_parent_index;  // 4 - 1 = 3  3 - 0 = 3
                     }
 
-                    splice_pair_a.left_length = gfa_graph.get_length(left_child.handle);
-                    splice_pair_b.left_length = gfa_graph.get_length(left_child.handle);
-
-                    splice_pair_a.right_length = gfa_graph.get_length(right_child.handle);
-                    splice_pair_b.right_length = gfa_graph.get_length(right_child.handle);
-
                     oo_splice_pairs.emplace_back(splice_pair_a);
                     oo_splice_pairs.emplace_back(splice_pair_b);
                 }
@@ -363,8 +357,6 @@ void OverlappingOverlapSplicer::find_splice_pairs(
                     splice_pair.left_child_index = splice_pair.left_parent_index;
                     splice_pair.right_child_index = splice_pair.right_parent_index;
 
-                    splice_pair.left_length = gfa_graph.get_length(oo_child.handle);
-                    splice_pair.right_length = overlap_info.length;
                 }
                 else {
                     //
@@ -397,8 +389,6 @@ void OverlappingOverlapSplicer::find_splice_pairs(
                     splice_pair.left_child_index = splice_pair.left_parent_index;
                     splice_pair.right_child_index = 0;
 
-                    splice_pair.left_length = overlap_info.length;
-                    splice_pair.right_length = gfa_graph.get_length(oo_child.handle);
                 }
 
                 oo_splice_pairs.emplace_back(splice_pair);
@@ -426,38 +416,42 @@ void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletable
             handle_t right_handle;
             size_t left_index;
             size_t right_index;
+            size_t left_remainder;
+            size_t right_remainder;
+            bool left_fail;
+            bool right_fail;
 
             if (splice_pair.left_reversal) {
-                tie(left_handle, left_index) = seek_to_reverse_path_base(
+                tie(left_handle, left_index, left_remainder, left_fail) = seek_to_reverse_path_base(
                         gfa_graph,
                         splice_pair.left_child_path_name,
                         splice_pair.left_child_index);
             }
             else{
-                tie(left_handle, left_index) = seek_to_path_base(
+                tie(left_handle, left_index, left_remainder, left_fail) = seek_to_path_base(
                         gfa_graph,
                         splice_pair.left_child_path_name,
                         splice_pair.left_child_index);
             }
 
             if (splice_pair.right_reversal) {
-                tie(right_handle, right_index) = seek_to_reverse_path_base(
+                tie(right_handle, right_index, right_remainder, right_fail) = seek_to_reverse_path_base(
                         gfa_graph,
                         splice_pair.right_child_path_name,
                         splice_pair.right_child_index);
             }
             else{
-                tie(right_handle, right_index) = seek_to_path_base(
+                tie(right_handle, right_index, right_remainder, right_fail) = seek_to_path_base(
                         gfa_graph,
                         splice_pair.right_child_path_name,
                         splice_pair.right_child_index);
             }
 
-            if (left_index + 1 < gfa_graph.get_length(left_handle)) {
+            if (left_index + 1 < gfa_graph.get_length(left_handle) and not left_fail) {
                 division_sites[left_handle].emplace(left_index + 1);
             }
 
-            if (right_index < gfa_graph.get_length(right_handle) and right_index > 0) {
+            if (right_index < gfa_graph.get_length(right_handle) and right_index > 0 and not right_fail) {
                 division_sites[right_handle].emplace(right_index);
             }
         }
@@ -481,34 +475,67 @@ void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletable
             handle_t right_handle;
             size_t left_index;
             size_t right_index;
+            size_t left_remainder;
+            size_t right_remainder;
+            size_t left_fail;
+            size_t right_fail;
 
             if (splice_pair.left_reversal) {
-                tie(left_handle, left_index) = seek_to_reverse_path_base(
+                tie(left_handle, left_index, left_remainder, left_fail) = seek_to_reverse_path_base(
                         gfa_graph,
                         splice_pair.left_child_path_name,
                         splice_pair.left_child_index);
-            }
-            else{
-                tie(left_handle, left_index) = seek_to_path_base(
+            } else {
+                tie(left_handle, left_index, left_remainder, left_fail) = seek_to_path_base(
                         gfa_graph,
                         splice_pair.left_child_path_name,
                         splice_pair.left_child_index);
             }
 
             if (splice_pair.right_reversal) {
-                tie(right_handle, right_index) = seek_to_reverse_path_base(
+                tie(right_handle, right_index, right_remainder, right_fail) = seek_to_reverse_path_base(
                         gfa_graph,
                         splice_pair.right_child_path_name,
                         splice_pair.right_child_index);
-            }
-            else{
-                tie(right_handle, right_index) = seek_to_path_base(
+            } else {
+                tie(right_handle, right_index, right_remainder, right_fail) = seek_to_path_base(
                         gfa_graph,
                         splice_pair.right_child_path_name,
                         splice_pair.right_child_index);
             }
 
-            gfa_graph.create_edge(left_handle, right_handle);
+            //
+            if (not left_fail and not right_fail) {
+                gfa_graph.create_edge(left_handle, right_handle);
+            } else if (left_remainder == 0 and right_remainder == 0){
+                vector <handle_t> left_splice_handles;
+                vector <handle_t> right_splice_handles;
+
+                if (splice_pair.side == 0) {
+                    gfa_graph.follow_edges(left_handle, true, [&](handle_t h) {
+                        left_splice_handles.emplace_back(h);
+                    });
+
+                    right_splice_handles.emplace_back(right_handle);
+                }
+                else {
+                    gfa_graph.follow_edges(right_handle, false, [&](handle_t h) {
+                        right_splice_handles.emplace_back(h);
+                    });
+
+                    left_splice_handles.emplace_back(left_handle);
+                }
+
+                for (auto& l: left_splice_handles){
+                    for (auto& r: right_splice_handles){
+                        gfa_graph.create_edge(l, r);
+                    }
+                }
+            }
+            else{
+                throw runtime_error("ERROR: overlap length is > path length by "
+                                    + to_string(std::max(right_remainder, left_remainder)));
+            }
         }
     }
 }

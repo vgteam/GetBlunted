@@ -84,7 +84,17 @@ void Bluntifier::deduplicate_and_canonicalize_biclique_cover(
         for (handle_t left : biclique.first) {
             for (handle_t right : biclique.second) {
                 edge_t edge(left, gfa_graph.flip(right));
+
                 auto iter = overlaps.canonicalize_and_find(edge, gfa_graph);
+
+                if (iter == overlaps.overlaps.end()){
+                    throw runtime_error("ERROR: edge not found in overlaps:\n\t("
+                              + id_map.get_name(gfa_graph.get_id(edge.first)) + '-'
+                              + to_string(gfa_graph.get_is_reverse(edge.first)) + ")->("
+                              + id_map.get_name(gfa_graph.get_id(edge.second)) + '-'
+                              + to_string(gfa_graph.get_is_reverse(edge.second)) + ')');
+
+                }
 
                 if (!edges_processed.count(edge)) {
                     edges_processed.emplace(edge);
@@ -538,6 +548,23 @@ void Bluntifier::bluntify(){
 
     super_duper.duplicate_all_node_termini(gfa_graph);
 
+    {
+        string test_path_prefix = "test_bluntify_duplicated";
+        ofstream test_output(test_path_prefix + ".gfa");
+        handle_graph_to_gfa(gfa_graph, test_output);
+        test_output.close();
+
+        if (gfa_graph.get_node_count() < 200) {
+            string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
+                             + test_path_prefix + ".png";
+
+            cerr << "Running: " << command << '\n';
+
+            run_command(command);
+        }
+    }
+
+
     log_progress("Harmonizing biclique edge orientations...");
 
     harmonize_biclique_orientations();
@@ -553,6 +580,23 @@ void Bluntifier::bluntify(){
     log_progress("Splicing " + to_string(subgraphs.size()) + " subgraphs...");
 
     splice_subgraphs();
+
+    {
+        string test_path_prefix = "test_bluntify_spliced";
+        ofstream test_output(test_path_prefix + ".gfa");
+        handle_graph_to_gfa(gfa_graph, test_output);
+        test_output.close();
+
+        if (gfa_graph.get_node_count() < 200) {
+            string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
+                             + test_path_prefix + ".png";
+
+            cerr << "Running: " << command << '\n';
+
+            run_command(command);
+        }
+    }
+
 
     OverlappingOverlapSplicer oo_splicer(overlapping_overlap_nodes, parent_to_children, subgraphs);
 
@@ -582,12 +626,22 @@ void Bluntifier::bluntify(){
 
     handle_graph_to_gfa(gfa_graph, cout);
 
-    // output an image of the graph, can be uncommented for debugging
-//    if (gfa_graph.get_node_count() < 200){
-//        string command = "vg convert -g " + gfa_path + ".gfa -p | vg view -d - | dot -Tpng -o "
-//                         + test_path_prefix + ".png";
-//        run_command(command);
-//    }
+    // Output an image of the graph, can be uncommented for debugging
+    {
+        string test_path_prefix = "test_bluntify_final";
+        ofstream test_output(test_path_prefix + ".gfa");
+        handle_graph_to_gfa(gfa_graph, test_output);
+        test_output.close();
+
+        if (gfa_graph.get_node_count() < 200) {
+            string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
+                             + test_path_prefix + ".png";
+
+            cerr << "Running: " << command << '\n';
+
+            run_command(command);
+        }
+    }
 }
 
 

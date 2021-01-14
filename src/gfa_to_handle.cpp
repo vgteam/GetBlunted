@@ -89,13 +89,13 @@ void gfa_to_handle_graph_in_memory(
             alignment.compute_lengths(lengths);
 
             bool valid = true;
-            if (lengths.first >= graph.get_length(a)){
-                cerr << "WARNING: skipping overlap for which sum of cigar operations is >= SOURCE node length: "
+            if (lengths.first > graph.get_length(a)){
+                cerr << "WARNING: skipping overlap for which sum of cigar operations is > SOURCE node length: "
                      << edge.source_name << "->" << edge.sink_name << '\n' << '\n';
                 valid = false;
             }
-            if (lengths.second >= graph.get_length(b)){
-                cerr << "WARNING: skipping overlap for which sum of cigar operations is >= SINK node length: "
+            if (lengths.second > graph.get_length(b)){
+                cerr << "WARNING: skipping overlap for which sum of cigar operations is > SINK node length: "
                      << edge.source_name << "->" << edge.sink_name << '\n' << '\n';
                 valid = false;
             }
@@ -168,13 +168,13 @@ void gfa_to_handle_graph_on_disk(
         alignment.compute_lengths(lengths);
 
         bool valid = true;
-        if (lengths.first >= graph.get_length(a)){
-            cerr << "WARNING: skipping overlap for which sum of cigar operations is >= SOURCE node length: "
+        if (lengths.first > graph.get_length(a)){
+            cerr << "WARNING: skipping overlap for which sum of cigar operations is > SOURCE node length: "
                  << e.source_name << "->" << e.sink_name << '\n' << '\n';
             valid = false;
         }
-        if (lengths.second >= graph.get_length(b)){
-            cerr << "WARNING: skipping overlap for which sum of cigar operations is >= SINK node length: "
+        if (lengths.second > graph.get_length(b)){
+            cerr << "WARNING: skipping overlap for which sum of cigar operations is > SINK node length: "
                  << e.source_name << "->" << e.sink_name << '\n' << '\n';
             valid = false;
         }
