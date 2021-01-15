@@ -70,11 +70,11 @@ unordered_map<edge_t,Alignment>::iterator OverlapMap::canonicalize_and_find(cons
 
         // If it still isn't found then throw an error
         if (iter == overlaps.end()) {
-            throw runtime_error("ERROR: edge not found in overlaps:\n\t("
-                                + to_string(graph.get_id(edge.first)) + '-'
-                                + to_string(graph.get_is_reverse(edge.first)) + ")->("
-                                + to_string(graph.get_id(edge.second)) + '-'
-                                + to_string(graph.get_is_reverse(edge.second)) + ')');
+            std::cerr << "ERROR: edge not found in overlaps:\n\t("
+                                << graph.get_id(edge.first) << '-'
+                                << graph.get_is_reverse(edge.first) << ")->("
+                                << graph.get_id(edge.second) << '-'
+                                << graph.get_is_reverse(edge.second) << ')';
         }
     }
 

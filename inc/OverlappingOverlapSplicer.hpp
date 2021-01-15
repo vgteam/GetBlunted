@@ -14,6 +14,7 @@ using std::runtime_error;
 using std::to_string;
 using std::string;
 using std::vector;
+using std::tuple;
 using std::pair;
 using std::set;
 
@@ -29,12 +30,13 @@ class OverlappingSplicePair{
 public:
     size_t left_parent_index;
     size_t left_child_index;
-    size_t left_length;
     string left_child_path_name;
     size_t right_parent_index;
     size_t right_child_index;
-    size_t right_length;
     string right_child_path_name;
+
+    // From which side of the OO node is this pair? 0 = left, 1 = right. This is needed for full-node overlaps
+    bool side;
 
     bool left_reversal;
     bool right_reversal;
@@ -72,12 +74,12 @@ private:
 
     // Iterate along a path until the cumulative number of bases iterated would equal "target_base_index" and then
     // return the handle and intra-handle index
-    pair<handle_t, size_t> seek_to_path_base(
+    tuple<handle_t, size_t, size_t, bool> seek_to_path_base(
             MutablePathDeletableHandleGraph& gfa_graph,
             string& path_name,
             size_t target_base_index);
 
-    pair<handle_t, size_t> seek_to_reverse_path_base(
+    tuple<handle_t, size_t, size_t, bool> seek_to_reverse_path_base(
             MutablePathDeletableHandleGraph& gfa_graph,
             string& path_name,
             size_t target_base_index);
