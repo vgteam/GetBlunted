@@ -74,7 +74,7 @@ unordered_map<edge_t,Alignment>::iterator OverlapMap::canonicalize_and_find(cons
                                 << graph.get_id(edge.first) << '-'
                                 << graph.get_is_reverse(edge.first) << ")->("
                                 << graph.get_id(edge.second) << '-'
-                                << graph.get_is_reverse(edge.second) << ')';
+                                << graph.get_is_reverse(edge.second) << ')' << '\n';
         }
     }
 

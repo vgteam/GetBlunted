@@ -301,6 +301,53 @@ include_directories(external/spoa/include/
 
 message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 
+##############################################
+# ------------------------------------------ #
+# -------- LINKING EXTERNAL LIBRARY -------- #
+# ------------------ abpoa ------------------ #
+# ------------------------------------------ #
+##############################################
+
+# Need to explicitly enable ExternalProject functionality
+include(ExternalProject)
+
+# Download or update library as an external project
+ExternalProject_Add(project_abpoa
+        GIT_REPOSITORY https://github.com/Xinglab/abPOA.git
+#        DOWNLOAD_COMMAND ""
+#        UPDATE_COMMAND ""
+        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/abpoa/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/abpoa/lib
+        BUILD_IN_SOURCE True
+        INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/abpoa/
+        INSTALL_COMMAND make install
+        )
+
+# Define INSTALL_DIR as the install directory for external library
+ExternalProject_Get_Property(project_abpoa INSTALL_DIR)
+
+# Create new library for external project (so it can be linked with main library)
+add_library(abpoa STATIC IMPORTED)
+set_property(TARGET abpoa
+        PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/libabpoa.a)
+
+# Define library as dependent on the downloaded project
+add_dependencies(abpoa
+        project_abpoa
+        )
+
+# Define main library as dependent on the downloaded project (transitively)
+add_dependencies(GetBlunted abpoa)
+
+# Ensure that main library has access to primary dependencies' and secondary dependencies' headers
+include_directories(external/abpoa/include/src
+        )
+
+# Add runtime path for main library so it can access external library
+#set_property(TARGET GetBlunted PROPERTY INSTALL_RPATH "$ORIGIN" "${INSTALL_DIR}/bin/abpoa")
+
+message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
+
 ############################################
 # ---------------------------------------- #
 # -------- Generating executables -------- #
@@ -334,6 +381,10 @@ endif("${isSystemDir}" STREQUAL "-1")
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
+find_package(ZLIB)
+if (ZLIB_FOUND)
+    include_directories(${ZLIB_INCLUDE_DIRS})
+endif()
 
 # -------- TESTS --------
 
@@ -351,6 +402,7 @@ set(TESTS
         test_map_range_methods
         test_overlaps
         test_spoa
+        test_abpoa
         test_utility
         )
 
@@ -361,9 +413,11 @@ foreach(FILENAME_PREFIX ${TESTS})
             Threads::Threads
             bdsg
             spoa
+            abpoa
             divsufsort
             libhandlegraph
-            libsdsl)
+            libsdsl
+            ${ZLIB_LIBRARIES})
 
     if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
         target_link_libraries(${FILENAME_PREFIX}
@@ -385,9 +439,11 @@ foreach(FILENAME_PREFIX ${EXECUTABLES})
             Threads::Threads
             bdsg
             spoa
+            abpoa
             divsufsort
             libhandlegraph
-            libsdsl)
+            libsdsl
+            ${ZLIB_LIBRARIES})
 
     if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
         target_link_libraries(${FILENAME_PREFIX}
