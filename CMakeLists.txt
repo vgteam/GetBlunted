@@ -4,7 +4,7 @@
 # ---------------------------------- #
 ######################################
 
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.14)
 project(GetBlunted VERSION 0.0.0)
 
 message(STATUS "CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
@@ -304,7 +304,7 @@ message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 ##############################################
 # ------------------------------------------ #
 # -------- LINKING EXTERNAL LIBRARY -------- #
-# ------------------ abpoa ------------------ #
+# ------------------ seqan ----------------- #
 # ------------------------------------------ #
 ##############################################
 
@@ -312,39 +312,45 @@ message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 include(ExternalProject)
 
 # Download or update library as an external project
-ExternalProject_Add(project_abpoa
-        GIT_REPOSITORY https://github.com/Xinglab/abPOA.git
+ExternalProject_Add(project_seqan
+        GIT_REPOSITORY https://github.com/seqan/seqan3.git
 #        DOWNLOAD_COMMAND ""
 #        UPDATE_COMMAND ""
-        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
-        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/abpoa/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/abpoa/lib
-        BUILD_IN_SOURCE True
-        INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/abpoa/
+        PREFIX ${CMAKE_SOURCE_DIR}/external/seqan/
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/seqan/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/seqan/lib
+        STAMP_DIR ${CMAKE_SOURCE_DIR}/external/seqan/stamp/
+#        SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/ogdf/src/
+        BINARY_DIR ${CMAKE_SOURCE_DIR}/external/seqan/build/
+        INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/seqan/
         INSTALL_COMMAND make install
         )
 
 # Define INSTALL_DIR as the install directory for external library
-ExternalProject_Get_Property(project_abpoa INSTALL_DIR)
+ExternalProject_Get_Property(project_seqan INSTALL_DIR)
 
 # Create new library for external project (so it can be linked with main library)
-add_library(abpoa STATIC IMPORTED)
-set_property(TARGET abpoa
-        PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/libabpoa.a)
+add_library(seqan STATIC IMPORTED)
+#set_property(TARGET seqan
+#        PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/libseqan.a)
 
 # Define library as dependent on the downloaded project
-add_dependencies(abpoa
-        project_abpoa
+add_dependencies(seqan
+        project_seqan
         )
 
 # Define main library as dependent on the downloaded project (transitively)
-add_dependencies(GetBlunted abpoa)
+add_dependencies(GetBlunted seqan)
 
 # Ensure that main library has access to primary dependencies' and secondary dependencies' headers
-include_directories(external/abpoa/include/src
+include_directories(
+        external/seqan/include/seqan3
+        external/seqan/include/seqan3/submodules/cereal
+        external/seqan/include/seqan3/submodules/range-v3
+        external/seqan/include/seqan3/submodules/sdsl-lite
         )
 
 # Add runtime path for main library so it can access external library
-#set_property(TARGET GetBlunted PROPERTY INSTALL_RPATH "$ORIGIN" "${INSTALL_DIR}/bin/abpoa")
+#set_property(TARGET GetBlunted PROPERTY INSTALL_RPATH "$ORIGIN" "${INSTALL_DIR}/bin/seqan")
 
 message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 
@@ -402,7 +408,7 @@ set(TESTS
         test_map_range_methods
         test_overlaps
         test_spoa
-        test_abpoa
+        test_seqan
         test_utility
         )
 
@@ -413,7 +419,6 @@ foreach(FILENAME_PREFIX ${TESTS})
             Threads::Threads
             bdsg
             spoa
-            abpoa
             divsufsort
             libhandlegraph
             libsdsl
@@ -439,7 +444,6 @@ foreach(FILENAME_PREFIX ${EXECUTABLES})
             Threads::Threads
             bdsg
             spoa
-            abpoa
             divsufsort
             libhandlegraph
             libsdsl
