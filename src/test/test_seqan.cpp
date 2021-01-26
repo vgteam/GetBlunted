@@ -1,31 +1,34 @@
 #include <iostream>
-#include <seqan/align.h>
-#include <seqan/graph_msa.h>
+#include <utility>
+#include <vector>
 
-using namespace seqan;
+#include <seqan3/alignment/pairwise/align_pairwise.hpp>
+#include <seqan3/alignment/scoring/nucleotide_scoring_scheme.hpp>
+#include <seqan3/alphabet/nucleotide/dna4.hpp>
+#include <seqan3/core/debug_stream.hpp>
+#include <seqan3/range/views/pairwise_combine.hpp>
+#include <seqan3/std/ranges>
+
+using seqan3::operator""_dna4;
 
 int main()
 {
-    char const * strings[4] =
-            {
-                    "DPKKPRGKMSSYAFFVQTSREEHKKKHPDASVNFSEFSKKCSERWKTMSAKEKGKFEDMA"
-                    "KADKARYEREMKTYIPPKGE",
-                    "RVKRPMNAFIVWSRDQRRKMALENPRMRNSEISKQLGYQWKMLTEAEKWPFFQEAQKLQA"
-                    "MHREKYPNYKYRPRRKAKMLPK",
-                    "FPKKPLTPYFRFFMEKRAKYAKLHPEMSNLDLTKILSKKYKELPEKKKMKYIQDFQREKQ"
-                    "EFERNLARFREDHPDLIQNAKK",
-                    "HIKKPLNAFMLYMKEMRANVVAESTLKESAAINQILGRRWHALSREEQAKYYELARKERQ"
-                    "LHMQLYPGWSARDNYGKKKKRKREK"
-            };
+    std::vector vec{"ACGTGACTGACT"_dna4,
+                    "ACGAAGACCGAT"_dna4,
+                    "ACGTGACTGACT"_dna4,
+                    "AGGTACGAGCGACACT"_dna4};
 
-    Align<String<AminoAcid> > align;
-    resize(rows(align), 4);
-    for (int i = 0; i < 4; ++i)
-        assignSource(row(align, i), strings[i]);
+    // Configure the alignment kernel.
+    auto config = seqan3::align_cfg::method_global{} |
+                  seqan3::align_cfg::edit_scheme |
+                  seqan3::align_cfg::min_score{-7} |
+                  seqan3::align_cfg::output_score{};
 
-    globalMsaAlignment(align, Blosum62(-1, -11));
-    std::cout << align << "\n";
+    auto filter_v = std::views::filter([](auto && res) { return res.score() >= -6;});
 
-    return 0;
+    for (auto const & res : seqan3::align_pairwise(seqan3::views::pairwise_combine(vec), config) | seqan3::views::persist | filter_v)
+    {
+        seqan3::debug_stream << "Score: " << res.score() << '\n';
+    }
 }
 

@@ -23,7 +23,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # --- Standard compilation --- #
 
-set(CMAKE_CXX_FLAGS "-fexceptions")
+set(CMAKE_CXX_FLAGS "-fexceptions -fconcepts")
 
 # ---------------------------- #
 
@@ -264,7 +264,7 @@ ExternalProject_Add(project_spoa
         GIT_SUBMODULES vendor/bioparser vendor/cereal vendor/cpu_features vendor/simde
 #        DOWNLOAD_COMMAND ""
 #        UPDATE_COMMAND ""
-        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
+        PREFIX ${CMAKE_SOURCE_DIR}/external/
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/spoa/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/spoa/lib
         BUILD_IN_SOURCE True
         INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/spoa/
@@ -289,11 +289,11 @@ add_dependencies(GetBlunted spoa)
 
 # Ensure that main library has access to primary dependencies' and secondary dependencies' headers
 include_directories(external/spoa/include/
-        ${CMAKE_CURRENT_BINARY_DIR}/external/src/project_spoa/vendor/cereal/include/
-        ${CMAKE_CURRENT_BINARY_DIR}/external/src/project_spoa/vendor/cpu_features/include/
-        ${CMAKE_CURRENT_BINARY_DIR}/external/src/project_spoa/vendor/simde/simde/
-        ${CMAKE_CURRENT_BINARY_DIR}/external/src/project_spoa/vendor/simde/arm/
-        ${CMAKE_CURRENT_BINARY_DIR}/external/src/project_spoa/vendor/simde/arm/neon/
+        ${CMAKE_SOURCE_DIR}/external/src/project_spoa/vendor/cereal/include/
+        ${CMAKE_SOURCE_DIR}/external/src/project_spoa/vendor/cpu_features/include/
+        ${CMAKE_SOURCE_DIR}/external/src/project_spoa/vendor/simde/simde/
+        ${CMAKE_SOURCE_DIR}/external/src/project_spoa/vendor/simde/arm/
+        ${CMAKE_SOURCE_DIR}/external/src/project_spoa/vendor/simde/arm/neon/
         )
 
 # Add runtime path for main library so it can access external library
@@ -304,7 +304,7 @@ message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 ##############################################
 # ------------------------------------------ #
 # -------- LINKING EXTERNAL LIBRARY -------- #
-# ------------------ seqan ----------------- #
+# ----------------- seqan3 ----------------- #
 # ------------------------------------------ #
 ##############################################
 
@@ -312,46 +312,30 @@ message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 include(ExternalProject)
 
 # Download or update library as an external project
-ExternalProject_Add(project_seqan
+ExternalProject_Add(project_seqan3
         GIT_REPOSITORY https://github.com/seqan/seqan3.git
 #        DOWNLOAD_COMMAND ""
 #        UPDATE_COMMAND ""
-        PREFIX ${CMAKE_SOURCE_DIR}/external/seqan/
-        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/seqan/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/seqan/lib
-        STAMP_DIR ${CMAKE_SOURCE_DIR}/external/seqan/stamp/
-#        SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/ogdf/src/
-        BINARY_DIR ${CMAKE_SOURCE_DIR}/external/seqan/build/
-        INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/seqan/
+        PREFIX ${CMAKE_SOURCE_DIR}/external/seqan3/
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/seqan3/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/seqan3/lib
+        BUILD_IN_SOURCE True
+        INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/seqan3/
         INSTALL_COMMAND make install
         )
 
-# Define INSTALL_DIR as the install directory for external library
-ExternalProject_Get_Property(project_seqan INSTALL_DIR)
-
-# Create new library for external project (so it can be linked with main library)
-add_library(seqan STATIC IMPORTED)
-#set_property(TARGET seqan
-#        PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/libseqan.a)
-
-# Define library as dependent on the downloaded project
-add_dependencies(seqan
-        project_seqan
-        )
-
 # Define main library as dependent on the downloaded project (transitively)
-add_dependencies(GetBlunted seqan)
+add_dependencies(GetBlunted project_seqan3)
 
 # Ensure that main library has access to primary dependencies' and secondary dependencies' headers
 include_directories(
-        external/seqan/include/seqan3
-        external/seqan/include/seqan3/submodules/cereal
-        external/seqan/include/seqan3/submodules/range-v3
-        external/seqan/include/seqan3/submodules/sdsl-lite
+        ${CMAKE_SOURCE_DIR}/external/seqan3/include/
+        ${CMAKE_SOURCE_DIR}/external/seqan3/include/seqan3/submodules/cereal/include/
+        ${CMAKE_SOURCE_DIR}/external/seqan3/include/seqan3/submodules/range-v3/include/
+        ${CMAKE_SOURCE_DIR}/external/seqan3/include/seqan3/submodules/sdsl-lite/include/
         )
 
-# Add runtime path for main library so it can access external library
-#set_property(TARGET GetBlunted PROPERTY INSTALL_RPATH "$ORIGIN" "${INSTALL_DIR}/bin/seqan")
-
+# Define INSTALL_DIR as the install directory for external library
+ExternalProject_Get_Property(project_seqan3 INSTALL_DIR)
 message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 
 ############################################
@@ -360,7 +344,7 @@ message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 # ---------------------------------------- #
 ############################################
 
-# --- Recipe for run time linking taken from CMake docs ---#
+# --- Recipe for run time linking taken from CMake docs, used mainly for CentOS compatibility ---#
 # https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling#always-full-rpath
 # use, i.e. don't skip the full RPATH for the build tree
 set(CMAKE_SKIP_BUILD_RPATH FALSE)
