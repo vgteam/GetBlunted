@@ -16,6 +16,7 @@ using std::remove_if;
 using std::bitset;
 using std::endl;
 using std::cerr;
+using std::stable_sort;
 
 ReducedDualGraph::ReducedDualGraph(const BipartiteGraph& graph) : graph(&graph) {
     
@@ -65,27 +66,16 @@ void ReducedDualGraph::dual_neighborhood_do(size_t i, vector<bool>& is_left_neig
         // it is faster to iterate over pairs of nodes in the non-dual neighborhood
         
 #ifdef debug_dual_graph
-        cerr << "finding neighborhood of " << i << " using non-dual method" << endl;
+         cerr << "finding neighborhood of " << i << " (" << dual_node.first << " " << dual_node.second << ") using non-dual method" << endl;
 #endif
+    
         
         for (size_t j : left_edges[dual_node.first]) {
-            size_t k = edge_to_dual_node[make_pair(dual_node.first, j)];
-            is_dual_neighbor[k] = true;
-            dual_neighborhood.push_back(k);
-        }
-        for (size_t j : right_edges[dual_node.second]) {
-            size_t k = edge_to_dual_node[make_pair(j, dual_node.second)];
-            if (!is_dual_neighbor[k]) {
-                is_dual_neighbor[k] = true;
-                dual_neighborhood.push_back(k);
-            }
-        }
-        
-        for (size_t j : left_edges[dual_node.first]) {
+            auto& right_edge_idx = right_edge_index[j];
             for (size_t k : right_edges[dual_node.second]) {
-                if (right_edge_index[j].count(k) && left_edge_index[k].count(j)) {
+                if (right_edge_idx.count(k)) {
                     // there is an edge between these two neighbors
-                    size_t l = edge_to_dual_node[make_pair(dual_node.first, j)];
+                    size_t l = edge_to_dual_node[make_pair(k, j)];
                     if (!is_dual_neighbor[l]) {
                         is_dual_neighbor[l] = true;
                         dual_neighborhood.push_back(l);
@@ -145,14 +135,18 @@ void ReducedDualGraph::do_reduction(size_t i, size_t dominatee) {
     // remove the corresponding edge in the left adjacency lists
     auto& left_adj = left_edges[dual_node.first];
     auto& left_adj_idx = left_edge_index[dual_node.first];
-    left_adj[left_adj_idx[dual_node.second]] = left_adj.back();
+    auto left_idx = left_adj_idx[dual_node.second];
+    left_adj[left_idx] = left_adj.back();
+    left_adj_idx[left_adj[left_idx]] = left_idx;
     left_adj.pop_back();
     left_adj_idx.erase(dual_node.second);
     
     // remove the corresponding edge in the right adjacency lists
     auto& right_adj = right_edges[dual_node.second];
     auto& right_adj_idx = right_edge_index[dual_node.second];
-    right_adj[right_adj_idx[dual_node.first]] = right_adj.back();
+    auto right_idx = right_adj_idx[dual_node.first];
+    right_adj[right_idx] = right_adj.back();
+    right_adj_idx[right_adj[right_idx]] = right_idx;
     right_adj.pop_back();
     right_adj_idx.erase(dual_node.first);
     
@@ -165,7 +159,7 @@ void ReducedDualGraph::do_reduction(size_t i, size_t dominatee) {
     reductions.emplace_back(i, dominatee);
     
 #ifdef debug_dual_graph
-    cerr << "reduced away " << i << " (" << dual_node.first << " " << dual_node.second << ") ";
+    cerr << "reduced away " << i << " (" << dual_nodes[unreduced_back].first << " " << dual_nodes[unreduced_back].second << ") ";
     if (dominatee == numeric_limits<size_t>::max()) {
         cerr << "as isolated node";
     }
@@ -173,10 +167,8 @@ void ReducedDualGraph::do_reduction(size_t i, size_t dominatee) {
         cerr << "as dominator of " << dominatee;
     }
     cerr << ", dual node " << unreduced_back << " (" << dual_nodes[i].first << " " << dual_nodes[i].second << ") moved to position " << i << endl;
-    cerr << "remaining dual nodes:" << endl;
-    for (size_t i = 0; i < reduced_size(); ++i) {
-        cerr << "\t" << i << ": " << dual_nodes[i].first << " " << dual_nodes[i].second << endl;
-    }
+    cerr << "remaining graph:" << endl;
+    print_dual_graph(cerr);
 #endif
 }
 
@@ -210,8 +202,8 @@ void ReducedDualGraph::reduce() {
                 
                 size_t neighborhood_size = neighborhood.size();
                 for (size_t j : neighborhood) {
-                    // a node can't dominate itself
-                    if (i == j) {
+                    // a node can't dominate itself, and
+                    if (i == j || j >= reduced_size()) {
                         continue;
                     }
                     
@@ -230,22 +222,20 @@ void ReducedDualGraph::reduce() {
                     });
                     
                     
-                    if (num_shared == other_size) {
+                    
+                    if (num_shared == neighborhood_size) {
+                        // j dominates i, reduce by removing j
+                        do_reduction(j, i);
+                        fully_reduced = false;
+                        return;
+                    }
+                    else if (num_shared == other_size) {
                         // i dominates j, reduce by removing i
                         do_reduction(i, j);
                         fully_reduced = false;
                         removed_i = true;
                         // we can't reduce with i anymore, it's gone
                         return;
-                    }
-                    else if (num_shared == neighborhood_size) {
-                        // j dominates i, reduce by removing j
-                        do_reduction(j, i);
-                        fully_reduced = false;
-                        // to keep looking through i's neighbors we have to
-                        // maintain these tracking variables
-                        is_dual_neighbor[j] = false;
-                        --neighborhood_size;
                     }
                 }
             });
@@ -339,7 +329,7 @@ void ReducedDualGraph::reverse_reduction(vector<size_t>& reduced_partition) {
         size_t unreduced_back = reduced_size() - 1;
         
 #ifdef debug_dual_graph
-        cerr << "reversing reduction " << reduction.first << " " << reduction.second << " swapping positions of " << endl;
+        cerr << "reversing reduction of dominator " << reduction.first << " by dominatee " << reduction.second << " swapping positions of " << endl;
         cerr << "\t" << reduction.first << ": " << dual_nodes[reduction.first].first << " " << dual_nodes[reduction.first].second << endl;
         cerr << "\t" << unreduced_back << ": " << dual_nodes[unreduced_back].first << " " << dual_nodes[unreduced_back].second << endl;
 #endif
@@ -359,7 +349,7 @@ void ReducedDualGraph::reverse_reduction(vector<size_t>& reduced_partition) {
             // this was a dominator, it gets assigned to the clique of the dominatee
             reduced_partition[reduction.first] = reduced_partition[reduction.second];
 #ifdef debug_dual_graph
-            cerr << "assigned " << reduction.first << " to dominatee " << reduction.second << "'s clique " << reduced_partition[reduction.second] << endl;
+            cerr << "assigned dominator " << reduction.first << " (" << dual_nodes[reduction.first].first << " " << dual_nodes[reduction.first].second << ") to dominatee " << reduction.second << " (" << dual_nodes[reduction.second].first << " " << dual_nodes[reduction.second].second << ")'s clique " << reduced_partition[reduction.second] << endl;
 #endif
         }
     }
@@ -378,6 +368,25 @@ vector<bipartition> ReducedDualGraph::convert_to_biclique_cover(vector<size_t>& 
         biclique.second.insert(*(graph->right_begin() + dual_node.second));
     }
     return return_val;
+}
+
+void ReducedDualGraph::print_dual_graph(ostream& out) {
+    // prepare the banks of bools we need
+    vector<bool> is_left_neighbor(left_edges.size(), false);
+    vector<bool> is_right_neighbor(right_edges.size(), false);
+    vector<bool> is_dual_neighbor(reduced_size(), false);
+    
+    for (size_t i = 0; i < reduced_size(); ++i) {
+        out << i << " (" << dual_nodes[i].first << " " << dual_nodes[i].second << ")" << endl;
+        dual_neighborhood_do(i, is_left_neighbor, is_right_neighbor, is_dual_neighbor,
+                             [&](const vector<size_t>& dual_neighborhood) {
+            for (auto j : dual_neighborhood) {
+                if (i != j) {
+                    out << "\t- " << j << endl;
+                }
+            }
+        });
+    }
 }
 
 vector<bipartition> ReducedDualGraph::biclique_cover(bool& is_exact_out) {

@@ -5,6 +5,8 @@
  */
 #include "BicliqueCover.hpp"
  
+//#define debug_biclique_cover
+
 namespace bluntifier {
 
 using std::unordered_set;
@@ -21,6 +23,23 @@ using std::endl;
 
 BicliqueCover::BicliqueCover(const BipartiteGraph& graph) : graph(graph) {
 
+#ifdef debug_biclique_cover
+    cerr << "initializing biclique cover for graph:" << endl;
+    cerr << "left:" << endl;
+    for (auto i = graph.left_begin(); i != graph.left_end(); ++i) {
+        cerr << "\t" << graph.get_graph().get_id(*i) << " " << graph.get_graph().get_is_reverse(*i) << endl;
+        graph.for_each_adjacent_side(*i, [&](const handle_t& side) {
+            cerr << "\t\t-> " << graph.get_graph().get_id(side) << " " << graph.get_graph().get_is_reverse(side) << endl;
+        });
+    }
+    cerr << "right:" << endl;
+    for (auto i = graph.right_begin(); i != graph.right_end(); ++i) {
+        cerr << "\t" << graph.get_graph().get_id(*i) << " " << graph.get_graph().get_is_reverse(*i) << endl;
+        graph.for_each_adjacent_side(*i, [&](const handle_t& side) {
+            cerr << "\t\t-> " << graph.get_graph().get_id(side) << " " << graph.get_graph().get_is_reverse(side) << endl;
+        });
+    }
+#endif
 }
 
 BicliqueCover::~BicliqueCover() {
@@ -36,15 +55,25 @@ vector<bipartition> BicliqueCover::get() const {
     BipartiteGraph simplified = graph.simplify(simplifications);
     GaloisLattice galois_lattice(simplified);
     if (galois_lattice.is_domino_free()) {
+#ifdef debug_biclique_cover
+        cerr << "graph is domino free" << endl;
+#endif
         // the graph is domino-free, we can compute the exact cover
         return_val = galois_lattice.biclique_separator();
         unsimplify(return_val, simplifications);
     }
     else {
+#ifdef debug_biclique_cover
+        cerr << "graph is not domino free" << endl;
+#endif
         // the graph is not domino-free, try the reduction algorithm
         ReducedDualGraph dual_graph(graph);
         bool is_exact;
         return_val = dual_graph.biclique_cover(is_exact);
+        
+#ifdef debug_biclique_cover
+        cerr << "decomposed to exact cover? " << is_exact << endl;
+#endif
         if (!is_exact || return_val.empty()) {
             // the reduced graph was too large to get an exact result, let's
             // also try another heuristic
@@ -58,6 +87,20 @@ vector<bipartition> BicliqueCover::get() const {
             }
         }
     }
+#ifdef debug_biclique_cover
+    cerr << "computed biclique cover of size " << return_val.size() << ":" << endl;
+    for (size_t i = 0; i < return_val.size(); ++i) {
+        cerr << "biclique " << i << endl;
+        cerr << "\tleft:" << endl;
+        for (auto h : return_val[i].first) {
+            cerr << "\t\t" << graph.get_graph().get_id(h) << " " << graph.get_graph().get_is_reverse(h) << endl;
+        }
+        cerr << "\tright:" << endl;
+        for (auto h : return_val[i].second) {
+            cerr << "\t\t" << graph.get_graph().get_id(h) << " " << graph.get_graph().get_is_reverse(h) << endl;
+        }
+    }
+#endif
     return return_val;
 }
 

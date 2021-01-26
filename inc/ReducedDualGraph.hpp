@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <bitset>
 #include <cmath>
+#include <iostream>
 
 #include "handlegraph/types.hpp"
 #include "BipartiteGraph.hpp"
@@ -27,6 +28,7 @@ using std::unordered_set;
 using std::vector;
 using std::function;
 using std::pair;
+using std::ostream;
 
 /*
  * Implicitly represents the dual graph described by Ene, et al. (2008)
@@ -79,6 +81,9 @@ protected:
     
     // apply Ene's, et al. (2008) postprocessing heuristic
     void lattice_polish(vector<bipartition>& cover) const;
+    
+    // print the current dual graph
+    void print_dual_graph(ostream& out);
     
     vector<vector<size_t>> left_edges;
     vector<unordered_map<size_t, size_t>> left_edge_index;
