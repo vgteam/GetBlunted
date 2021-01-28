@@ -45,16 +45,16 @@ include_directories(
 set(SOURCES
         src/AdjacencyComponent.cpp
         src/apply_bulk_modifications.cpp
-	    src/BicliqueCover.cpp
-	    src/Biclique.cpp
-	    src/BipartiteGraph.cpp
+        src/BicliqueCover.cpp
+        src/Biclique.cpp
+        src/BipartiteGraph.cpp
         src/Bluntifier.cpp
-	    src/copy_graph.cpp
+        src/copy_graph.cpp
         src/Cigar.cpp
         src/Duplicator.cpp
         src/duplicate_terminus.cpp
         src/find_tips.cpp
-	    src/GaloisLattice.cpp
+        src/GaloisLattice.cpp
         src/gfa_to_handle.cpp
         src/handle_to_gfa.cpp
         src/IncrementalIdMap.cpp
@@ -64,7 +64,7 @@ set(SOURCES
         src/OverlappingOverlap.cpp
         src/OverlappingOverlapSplicer.cpp
         src/BluntifierAlign.cpp
-	    src/ReducedDualGraph.cpp
+        src/ReducedDualGraph.cpp
         src/SubtractiveHandleGraph.cpp
         src/Subgraph.cpp
         src/topological_sort.cpp
@@ -76,7 +76,7 @@ set(SOURCES
 
 
 project(GetBlunted)
-add_library(GetBlunted STATIC ${SOURCES}) 
+add_library(GetBlunted STATIC ${SOURCES})
 
 # To make sure the library is named Name.so,
 # get rid of the "lib" prefix.
@@ -149,8 +149,8 @@ ExternalProject_Add(project_gfak
         GIT_REPOSITORY https://github.com/edawson/gfakluge.git
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
         CONFIGURE_COMMAND ""
-#	    DOWNLOAD_COMMAND ""
-#        UPDATE_COMMAND ""
+        #	    DOWNLOAD_COMMAND ""
+        #        UPDATE_COMMAND ""
         BUILD_IN_SOURCE True
         INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/gfak/
         INSTALL_COMMAND make PREFIX=${CMAKE_SOURCE_DIR}/external/gfak/ install
@@ -158,18 +158,6 @@ ExternalProject_Add(project_gfak
 
 # Define INSTALL_DIR as the install directory for external library
 ExternalProject_Get_Property(project_gfak INSTALL_DIR)
-
-
-# THIS SECTION QUARANTINED FOR MAC compatibility :'(
-# ---
-# Create new library for external project (so it can be linked with main library)
-#add_library(gfak STATIC IMPORTED)
-#set_property(TARGET gfak
-#        PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/bin/gfak)
-#
-## Define library as dependent on the downloaded project
-#add_dependencies(gfak project_gfak)
-# ---
 
 
 # Define main library as dependent on the downloaded project (transitively)
@@ -200,8 +188,8 @@ ExternalProject_Add(project_bdsg
         GIT_TAG b989949811918b18de48a5e57d7f45473d8901f1
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
         CONFIGURE_COMMAND ""
-#        DOWNLOAD_COMMAND ""
-#        UPDATE_COMMAND ""
+        #        DOWNLOAD_COMMAND ""
+        #        UPDATE_COMMAND ""
         BUILD_IN_SOURCE True
         INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/bdsg/
         INSTALL_COMMAND make INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/bdsg/ install
@@ -255,51 +243,17 @@ message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 # ------------------------------------------ #
 ##############################################
 
-# Need to explicitly enable ExternalProject functionality
-include(ExternalProject)
+message (STATUS "Fetching external project spoa")
+include (FetchContent)
+FetchContent_Declare (
+        spoa_fetch_content
+        GIT_REPOSITORY "https://github.com/rvaser/spoa.git"
+        GIT_TAG "master"
+)
 
-# Download or update library as an external project
-ExternalProject_Add(project_spoa
-        GIT_REPOSITORY https://github.com/rvaser/spoa.git
-        GIT_SUBMODULES vendor/bioparser vendor/cereal vendor/cpu_features vendor/simde
-#        DOWNLOAD_COMMAND ""
-#        UPDATE_COMMAND ""
-        PREFIX ${CMAKE_SOURCE_DIR}/external/
-        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/spoa/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/spoa/lib
-        BUILD_IN_SOURCE True
-        INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/spoa/
-        INSTALL_COMMAND make install
-        )
 
-# Define INSTALL_DIR as the install directory for external library
-ExternalProject_Get_Property(project_spoa INSTALL_DIR)
-
-# Create new library for external project (so it can be linked with main library)
-add_library(spoa STATIC IMPORTED)
-set_property(TARGET spoa
-        PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/libspoa.a)
-
-# Define library as dependent on the downloaded project
-add_dependencies(spoa
-        project_spoa
-        )
-
-# Define main library as dependent on the downloaded project (transitively)
-add_dependencies(GetBlunted spoa)
-
-# Ensure that main library has access to primary dependencies' and secondary dependencies' headers
-include_directories(external/spoa/include/
-        ${CMAKE_SOURCE_DIR}/external/src/project_spoa/vendor/cereal/include/
-        ${CMAKE_SOURCE_DIR}/external/src/project_spoa/vendor/cpu_features/include/
-        ${CMAKE_SOURCE_DIR}/external/src/project_spoa/vendor/simde/simde/
-        ${CMAKE_SOURCE_DIR}/external/src/project_spoa/vendor/simde/arm/
-        ${CMAKE_SOURCE_DIR}/external/src/project_spoa/vendor/simde/arm/neon/
-        )
-
-# Add runtime path for main library so it can access external library
-#set_property(TARGET GetBlunted PROPERTY INSTALL_RPATH "$ORIGIN" "${INSTALL_DIR}/bin/spoa")
-
-message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
+# this will do the download, find_package(spoa) and exposes 'spoa' at cmake configure time
+FetchContent_MakeAvailable (spoa_fetch_content)
 
 ##############################################
 # ------------------------------------------ #
@@ -308,64 +262,25 @@ message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 # ------------------------------------------ #
 ##############################################
 
-# Need to explicitly enable ExternalProject functionality
-include(ExternalProject)
 
-# Download or update library as an external project
-ExternalProject_Add(project_seqan3
-        GIT_REPOSITORY https://github.com/seqan/seqan3.git
-#        DOWNLOAD_COMMAND ""
-#        UPDATE_COMMAND ""
-        PREFIX ${CMAKE_SOURCE_DIR}/external/seqan3/
-        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/seqan3/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/seqan3/lib
-        BUILD_IN_SOURCE True
-        INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/seqan3/
-        INSTALL_COMMAND make install
-        )
+message (STATUS "Fetching external project seqan3")
+include (FetchContent)
+FetchContent_Declare (
+        seqan3_fetch_content
+        GIT_REPOSITORY "https://github.com/seqan/seqan3.git"
+        GIT_TAG "master"
+)
 
-# Define main library as dependent on the downloaded project (transitively)
-add_dependencies(GetBlunted project_seqan3)
+# this will do the download, find_package(seqan3) and exposes seqan3::seqan3 at cmake configure time
+FetchContent_MakeAvailable (seqan3_fetch_content)
 
-# Ensure that main library has access to primary dependencies' and secondary dependencies' headers
-include_directories(
-        ${CMAKE_SOURCE_DIR}/external/seqan3/include/
-        ${CMAKE_SOURCE_DIR}/external/seqan3/include/seqan3/submodules/cereal/include/
-        ${CMAKE_SOURCE_DIR}/external/seqan3/include/seqan3/submodules/range-v3/include/
-        ${CMAKE_SOURCE_DIR}/external/seqan3/include/seqan3/submodules/sdsl-lite/include/
-        )
 
-# Define INSTALL_DIR as the install directory for external library
-ExternalProject_Get_Property(project_seqan3 INSTALL_DIR)
-message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 
 ############################################
 # ---------------------------------------- #
 # -------- Generating executables -------- #
 # ---------------------------------------- #
 ############################################
-
-# --- Recipe for run time linking taken from CMake docs, used mainly for CentOS compatibility ---#
-# https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling#always-full-rpath
-# use, i.e. don't skip the full RPATH for the build tree
-set(CMAKE_SKIP_BUILD_RPATH FALSE)
-
-# when building, don't use the install RPATH already
-# (but later on when installing)
-set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-
-set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-
-# add the automatically determined parts of the RPATH
-# which point to directories outside the build tree to the install RPATH
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
-# the RPATH to be used when installing, but only if it's not a system directory
-list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
-if("${isSystemDir}" STREQUAL "-1")
-    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-endif("${isSystemDir}" STREQUAL "-1")
-
-# ---------------------------------------------------------#
 
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -381,7 +296,7 @@ endif()
 set(TESTS
         test_AdjacencyComponent
         test_bdsg
-	    test_BicliqueCover
+        test_BicliqueCover
         test_cigar
         test_divide_handle
         test_duplicate_terminus
@@ -406,6 +321,7 @@ foreach(FILENAME_PREFIX ${TESTS})
             divsufsort
             libhandlegraph
             libsdsl
+            seqan3::seqan3
             ${ZLIB_LIBRARIES})
 
     if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
@@ -431,6 +347,7 @@ foreach(FILENAME_PREFIX ${EXECUTABLES})
             divsufsort
             libhandlegraph
             libsdsl
+            seqan3::seqan3
             ${ZLIB_LIBRARIES})
 
     if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
