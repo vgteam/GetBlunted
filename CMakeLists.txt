@@ -261,7 +261,7 @@ include(ExternalProject)
 # Download or update library as an external project
 ExternalProject_Add(project_spoa
         GIT_REPOSITORY https://github.com/rvaser/spoa.git
-        GIT_SUBMODULES vendor/bioparser vendor/cereal vendor/cpu_features vendor/simde
+#        GIT_SUBMODULES vendor/bioparser vendor/cereal vendor/cpu_features vendor/simde
 #        DOWNLOAD_COMMAND ""
 #        UPDATE_COMMAND ""
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/

@@ -9,6 +9,7 @@ using std::cerr;
 using std::cout;
 using std::endl;
 
+
 void print_usage() {
     cerr << "usage: get_blunted [options] overlap_graph.gfa > blunt_graph.gfa" << endl;
     cerr << endl;

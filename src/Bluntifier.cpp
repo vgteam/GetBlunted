@@ -515,7 +515,7 @@ void Bluntifier::bluntify(){
     log_progress("Reading GFA...");
 
     gfa_to_handle_graph(gfa_path, gfa_graph, id_map, overlaps);
-    
+
     log_progress("Computing adjacency components...");
 
     // Compute Adjacency Components and store in vector
