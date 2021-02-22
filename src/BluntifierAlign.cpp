@@ -96,6 +96,8 @@ void Bluntifier::add_alignments_to_poa(
     // If the graph already has some sequences in it, then start the id at that number
     uint32_t spoa_id = spoa_graph.sequences().size();
 
+    // Treating the biclique subgraph as an object with sides, add alignments, and keep track of the paths through which
+    // the left and right handles traverse so they can be used for splicing later
     for (auto& edge: bicliques[i]){
         if (subgraphs[i].paths_per_handle[0].count(edge.first) == 0){
             string path_name = to_string(gfa_graph.get_id(edge.first)) + "_" + to_string(0);
@@ -144,39 +146,107 @@ void Bluntifier::add_alignments_to_poa(
 }
 
 
+bool Bluntifier::biclique_overlaps_are_exact(size_t i){
+    bool exact = true;
+
+    set<size_t> sizes;
+
+    // Check if any of the edges are NOT exact overlaps
+    for (auto& edge: bicliques[i]){
+        auto iter = overlaps.canonicalize_and_find(edge, gfa_graph);
+
+        if (iter == overlaps.overlaps.end()){
+            throw runtime_error("ERROR: edge not found in overlaps: "
+                                + to_string(gfa_graph.get_id(edge.first)) + "->"
+                                + to_string(gfa_graph.get_id(edge.second)));
+        }
+        Alignment& alignment = iter->second;
+
+        if (not (alignment.operations.size() == 1 and alignment.operations[0].type() == 'M')){
+           exact = false;
+           break;
+        }
+        else{
+            sizes.emplace(alignment.operations[0].length);
+        }
+    }
+
+    // Only return true for bicliques that have all the same size overlaps (could be extended to more cases later)
+    if (sizes.size() != 1){
+        exact = false;
+    }
+
+    return exact;
+}
+
+
+void Bluntifier::create_exact_subgraph(size_t i) {
+    // For an exact biclique the alignment is trivial, just pick one of the suffixes/prefixes
+    auto sequence = gfa_graph.get_sequence(bicliques[i][0].first);
+    auto new_subgraph_handle = subgraphs[i].graph.create_handle(sequence);
+
+    // Treating the biclique subgraph as an object with sides, add alignments, and keep track of the paths through which
+    // the left and right handles traverse so they can be used for splicing later
+    for (auto& edge: bicliques[i]) {
+        for (size_t side: {0, 1}) {
+            handle_t h;
+            if (side == 0) {
+                h = edge.first;
+            } else {
+                h = edge.second;
+            }
+
+            string path_name = to_string(gfa_graph.get_id(h)) + "_" + to_string(side);
+
+            path_handle_t path_handle;
+
+            // The same handle can branch into multiple edges within a biclique, so dont add it twice
+            if (not subgraphs[i].graph.has_path(path_name)) {
+                path_handle = subgraphs[i].graph.create_path_handle(path_name);
+                subgraphs[i].graph.append_step(path_handle, new_subgraph_handle);
+
+                PathInfo path_info(path_handle, 0, side);
+                subgraphs[i].paths_per_handle[side].emplace(h, path_info);
+            }
+        }
+    }
+}
+
+
 void Bluntifier::align_biclique_overlaps(size_t i){
     // TODO: switch to fetch_add atomic
 
+    // Skip trivial bicliques
     if (bicliques[i].empty()){
         return;
     }
 
-    auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 5, -3, -3, -1);
-
-    spoa::Graph spoa_graph{};
-
-    add_alignments_to_poa(spoa_graph, alignment_engine, i);
-
-    auto consensus = spoa_graph.GenerateConsensus();
-
-    spoa::Graph seeded_spoa_graph{};
-
-    auto seeded_alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 6, -2, -4, -1);
-
-    auto alignment = seeded_alignment_engine->Align(consensus, seeded_spoa_graph);
-    seeded_spoa_graph.AddAlignment(alignment, consensus);
-
-    // Iterate a second time on alignment, this time with consensus as the seed
-    add_alignments_to_poa(seeded_spoa_graph, alignment_engine, i);
-
-    {
-        auto seeded_consensus = seeded_spoa_graph.GenerateConsensus();
-        auto msa = seeded_spoa_graph.GenerateMultipleSequenceAlignment();
+    if (biclique_overlaps_are_exact(i)){
+        create_exact_subgraph(i);
     }
+    else {
+        auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 5, -3, -3, -1);
 
-    convert_spoa_to_bdsg(seeded_spoa_graph, i);
+        spoa::Graph spoa_graph{};
 
-    unchop(&subgraphs[i].graph);
+        add_alignments_to_poa(spoa_graph, alignment_engine, i);
+
+        auto consensus = spoa_graph.GenerateConsensus();
+
+        spoa::Graph seeded_spoa_graph{};
+
+        auto seeded_alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 6, -2, -4, -1);
+
+        auto alignment = seeded_alignment_engine->Align(consensus, seeded_spoa_graph);
+        seeded_spoa_graph.AddAlignment(alignment, consensus);
+
+        // Iterate a second time on alignment, this time with consensus as the seed
+        add_alignments_to_poa(seeded_spoa_graph, alignment_engine, i);
+
+        convert_spoa_to_bdsg(seeded_spoa_graph, i);
+
+        unchop(&subgraphs[i].graph);
+    }
 }
 
 

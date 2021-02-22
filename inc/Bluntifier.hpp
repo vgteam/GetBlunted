@@ -100,6 +100,10 @@ private:
 
     void align_biclique_overlaps(size_t i);
 
+    bool biclique_overlaps_are_exact(size_t i);
+
+    void create_exact_subgraph(size_t i);
+
     void add_alignments_to_poa(
             Graph& spoa_graph,
             unique_ptr<AlignmentEngine>& alignment_engine,
