@@ -167,7 +167,16 @@ bool Bluntifier::biclique_overlaps_are_exact(size_t i){
            break;
         }
         else{
-            sizes.emplace(alignment.operations[0].length);
+            auto ref_start = gfa_graph.get_length(edge.first) - alignment.operations[0].length;
+            auto query_start = 0;
+            auto explicit_cigar_operations = alignment.explicitize_mismatches(gfa_graph, edge, ref_start, query_start);
+
+            sizes.emplace(explicit_cigar_operations[0].length);
+
+            if (not (explicit_cigar_operations.size() == 1 and explicit_cigar_operations[0].type() == '=')){
+                exact = false;
+                break;
+            }
         }
     }
 
