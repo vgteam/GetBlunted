@@ -89,7 +89,7 @@ public:
     bool step_through_alignment(AlignmentIterator& iterator);
 
     // Use the ref and query sequences to find mismatches and convert all M operations to = or X
-    void explicitize_mismatches(
+    vector<Cigar> explicitize_mismatches(
             const string& ref_sequence,
             const string& query_sequence,
             uint64_t ref_start_index = 0,
@@ -97,7 +97,7 @@ public:
 
     // Use the ref and query sequences to find mismatches and convert all M operations to = or X
     // Access the handlegraph sequences directly instead of expecting a string
-    void explicitize_mismatches(
+    vector<Cigar> explicitize_mismatches(
             const HandleGraph& graph,
             const edge_t& edge,
             uint64_t ref_start_index = 0,

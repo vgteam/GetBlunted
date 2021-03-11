@@ -191,11 +191,11 @@ bool Alignment::step_through_alignment(AlignmentIterator& iterator){
 }
 
 
-void Alignment::explicitize_mismatches(
+vector<Cigar> Alignment::explicitize_mismatches(
         const string& query_sequence,
         const string& ref_sequence,
-        uint64_t query_start_index,
-        uint64_t ref_start_index) {
+        uint64_t ref_start_index,
+        uint64_t query_start_index){
 
     // TODO: rewrite this function without copying? Use insert operations instead
 
@@ -237,15 +237,15 @@ void Alignment::explicitize_mismatches(
         }
     }
 
-    operations = explicit_operations;
+    return explicit_operations;
 }
 
 
-void Alignment::explicitize_mismatches(
+vector<Cigar> Alignment::explicitize_mismatches(
         const HandleGraph& graph,
         const edge_t& edge,
-        uint64_t query_start_index,
-        uint64_t ref_start_index) {
+        uint64_t ref_start_index,
+        uint64_t query_start_index) {
 
     // TODO: rewrite this function without copying? Use insert operations instead
 
@@ -287,7 +287,7 @@ void Alignment::explicitize_mismatches(
         }
     }
 
-    operations = explicit_operations;
+    return explicit_operations;
 }
 
 
