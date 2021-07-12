@@ -21,7 +21,7 @@ void print_usage() {
 }
 
 void print_version() {
-    cout << "get_blunted version 0.0.1" << endl;
+    cout << "get_blunted version 0.0.2" << endl;
 }
 
 int main(int argc, char **argv){
