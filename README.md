@@ -29,3 +29,9 @@ External dependencies: `libomp`, `cmake`
 5. `make -j [n_threads] install`
 
 The executable is found in `GetBlunted/bin/`
+
+## Publication
+
+Please cite using this publication:
+Walk-Preserving Transformation of Overlapped Sequence Graphs into Blunt Sequence Graphs with GetBlunted 
+https://doi.org/10.1007/978-3-030-80049-9_15 
