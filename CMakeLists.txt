@@ -128,8 +128,16 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
 
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-
     find_package(OpenMP REQUIRED)
+
+    # To link statically, it is necessary to call lower level commands, as opposed to just
+    # target_link_library(target OpenMP::OpenMP_CXX), or else make tries to -lgomp which is apparently
+    # bad because it brings in dynamic libraries dlsym, dlopen, dlwtf
+    if (OPENMP_FOUND)
+        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+        set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+    endif()
 
 endif()
 
@@ -363,12 +371,13 @@ foreach(FILENAME_PREFIX ${TESTS})
             spoa
             divsufsort
             libhandlegraph
-            libsdsl)
+            libsdsl
+            -static)
 
-    if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-        target_link_libraries(${FILENAME_PREFIX}
-                OpenMP::OpenMP_CXX)
-    endif()
+#    if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+#        target_link_libraries(${FILENAME_PREFIX}
+#                OpenMP::OpenMP_CXX)
+#    endif()
 endforeach()
 
 
@@ -387,13 +396,18 @@ foreach(FILENAME_PREFIX ${EXECUTABLES})
             spoa
             divsufsort
             libhandlegraph
-            libsdsl)
+            libsdsl
+            -static)
 
-    if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-        target_link_libraries(${FILENAME_PREFIX}
-                OpenMP::OpenMP_CXX)
-    endif()
+#    if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+#        target_link_libraries(${FILENAME_PREFIX}
+#                OpenMP::OpenMP_CXX)
+#    endif()
 endforeach()
+
+#set_target_properties(get_blunted PROPERTIES LINK_FLAGS "-static" )
+SET(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
+
 
 # -------- final steps --------
 
