@@ -71,8 +71,6 @@ tuple<handle_t, size_t, size_t, bool> OverlappingOverlapSplicer::seek_to_path_ba
         string& path_name,
         size_t target_base_index){
 
-    cerr << "seeking path: " << path_name << '\n';
-
     auto path_handle = gfa_graph.get_path_handle(path_name);
     auto step = gfa_graph.path_begin(path_handle);
 
@@ -85,8 +83,6 @@ tuple<handle_t, size_t, size_t, bool> OverlappingOverlapSplicer::seek_to_path_ba
     while (step != gfa_graph.path_end(path_handle)){
         step_handle = gfa_graph.get_handle_of_step(step);
         auto step_length = gfa_graph.get_length(step_handle);
-
-        cerr << target_base_index << " " << cumulative_index << " " << intra_handle_index << " " << gfa_graph.get_sequence(step_handle) << '\n';
 
         if (cumulative_index + step_length > target_base_index){
             intra_handle_index = target_base_index - cumulative_index;
@@ -102,8 +98,6 @@ tuple<handle_t, size_t, size_t, bool> OverlappingOverlapSplicer::seek_to_path_ba
 
     remainder = target_base_index - cumulative_index;
 
-    cerr << (fail ? "FAIL with remainder " + to_string(remainder) : "PASS with remainder " + to_string(remainder)) << '\n';
-
     return {step_handle, intra_handle_index, remainder, fail};
 }
 
@@ -114,8 +108,6 @@ tuple<handle_t, size_t, size_t, bool> OverlappingOverlapSplicer::seek_to_reverse
         MutablePathDeletableHandleGraph& gfa_graph,
         string& path_name,
         size_t target_base_index){
-
-    cerr << "seeking REVERSE path: " << path_name << '\n';
 
     auto path_handle = gfa_graph.get_path_handle(path_name);
     auto step = gfa_graph.path_back(path_handle);
@@ -129,8 +121,6 @@ tuple<handle_t, size_t, size_t, bool> OverlappingOverlapSplicer::seek_to_reverse
     while (step != gfa_graph.path_front_end(path_handle)){
         step_handle = gfa_graph.flip(gfa_graph.get_handle_of_step(step));
         auto step_length = gfa_graph.get_length(step_handle);
-
-        cerr << target_base_index << " " << cumulative_index << " " << intra_handle_index << " " << gfa_graph.get_sequence(step_handle) << '\n';
 
         if (cumulative_index + step_length > target_base_index){
             intra_handle_index = target_base_index - cumulative_index;
@@ -146,8 +136,6 @@ tuple<handle_t, size_t, size_t, bool> OverlappingOverlapSplicer::seek_to_reverse
 
     remainder = target_base_index - cumulative_index;
 
-    cerr << (fail ? "FAIL with remainder " + to_string(remainder) : "PASS with remainder " + to_string(remainder)) << '\n';
-
     return {step_handle, intra_handle_index, remainder, fail};
 }
 
@@ -159,8 +147,6 @@ void OverlappingOverlapSplicer::find_splice_pairs(
         vector <OverlappingSplicePair>& oo_splice_pairs){
 
     array <vector <overlapping_child_iter>, 2> other_children;
-
-    overlap_info.print(gfa_graph);
 
     for (auto side: {0,1}) {
         for (auto oo: overlap_info.overlapping_children[side]){
@@ -414,23 +400,6 @@ void OverlappingOverlapSplicer::find_splice_pairs(
 void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletableHandleGraph& gfa_graph) {
 
     for (auto& oo_item: overlapping_overlap_nodes) {
-        // Output an image of the graph, can be uncommented for debugging
-        {
-            string test_path_prefix = "test_bluntify_splice_" + to_string(oo_item.first);
-            std::ofstream test_output(test_path_prefix + ".gfa");
-            handle_graph_to_gfa(gfa_graph, test_output);
-            test_output.close();
-
-            if (gfa_graph.get_node_count() < 200) {
-                string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
-                                 + test_path_prefix + ".png";
-
-                cerr << "Running: " << command << '\n';
-
-                run_command(command);
-            }
-        }
-
         auto node_id = oo_item.first;
         auto& overlap_info = oo_item.second;
 
@@ -479,16 +448,12 @@ void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletable
 
             if (left_index + 1 < gfa_graph.get_length(left_handle) and not left_fail) {
                 division_sites[left_handle].emplace(left_index + 1);
-                cerr << "Splice site for parent node " << node_id << " with children " << gfa_graph.get_id(left_handle) << " (" << gfa_graph.get_id(right_handle) << ") = " << left_index + 1 << '\n';
             }
 
             if (right_index < gfa_graph.get_length(right_handle) and right_index > 0 and not right_fail) {
                 division_sites[right_handle].emplace(right_index);
-                cerr << "Splice site for parent node " << node_id << " with children " << gfa_graph.get_id(right_handle) << " (" << gfa_graph.get_id(left_handle) << ") = " << right_index << '\n';
             }
         }
-
-        cerr << "Dividing nodes at oo splice sites... " << '\n';
 
         // Do the divisions in bulk
         for (auto& item: division_sites) {

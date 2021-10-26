@@ -5,6 +5,19 @@ using std::to_string;
 namespace bluntifier{
 
 
+void print_paths(handlegraph::PathHandleGraph& gfa_graph){
+    cerr << "\nPaths in graph: " << '\n';
+    gfa_graph.for_each_path_handle([&](const handlegraph::path_handle_t& p){
+        auto name = gfa_graph.get_path_name(p);
+        cerr << name << ":" << '\n';
+        gfa_graph.for_each_step_in_path(p, [&](const handlegraph::step_handle_t& s){
+            auto h = gfa_graph.get_handle_of_step(s);
+            cerr << '\t' << gfa_graph.get_id(h) << '\t' << gfa_graph.get_sequence(h) << '\n';
+        });
+    });
+}
+
+
 ProvenanceInfo::ProvenanceInfo(size_t start, size_t stop, bool reversal):
     start(start),
     stop(stop),
@@ -207,22 +220,6 @@ void Bluntifier::splice_subgraphs(){
     size_t i = 0;
     for (auto& subgraph: subgraphs) {
 
-        {
-            string test_path_prefix = "test_bluntify_subgraph_" + to_string(i);
-            ofstream test_output(test_path_prefix + ".gfa");
-            handle_graph_to_gfa(gfa_graph, test_output);
-            test_output.close();
-
-            if (gfa_graph.get_node_count() < 200) {
-                string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
-                                 + test_path_prefix + ".png";
-
-                cerr << "Running: " << command << '\n';
-
-                run_command(command);
-            }
-        }
-
         // First, copy the subgraph into the GFA graph
         subgraph.graph.increment_node_ids(gfa_graph.max_node_id());
         copy_path_handle_graph(&subgraph.graph, &gfa_graph);
@@ -240,8 +237,6 @@ void Bluntifier::splice_subgraphs(){
                 bool is_oo_child;
                 tie(is_oo_parent, is_oo_child) = is_oo_node(node_id);
 
-                cerr << node_id << (is_oo_child ? " is_oo_child " : "") << (is_oo_parent ? " is_oo_parent " : "") << '\n';
-
                 if (not is_oo_child) {
 
                     // Find the path handle for the path that was copied into the GFA graph
@@ -255,6 +250,7 @@ void Bluntifier::splice_subgraphs(){
                         }
                     });
 
+                    // This can be ignored in the case where there is a full-node overlap
 //                    if (parent_handles.empty() and not is_oo_parent) {
 //                        throw runtime_error("ERROR: biclique terminus does not have any parent: " + to_string(node_id));
 //                    }
@@ -276,13 +272,12 @@ void Bluntifier::splice_subgraphs(){
                     }
                 }
                 else{
-                    cerr << "Skipping oo child: " << node_id << '\n';
+                    // Do nothing
                 }
 
                 if (subgraph.paths_per_handle[1-side].count(handle) == 0
                     and subgraph.paths_per_handle[1-side].count(gfa_graph.flip(handle)) == 0) {
                     to_be_destroyed.emplace(gfa_graph.get_id(handle));
-                    cerr << "To be destroyed: " << gfa_graph.get_id(handle) << '\n';
                 }
             }
         }
@@ -291,7 +286,6 @@ void Bluntifier::splice_subgraphs(){
 
 
 void Bluntifier::write_provenance(){
-    
 
     ofstream file(provenance_path);
     
@@ -535,22 +529,6 @@ void Bluntifier::bluntify(){
 
     gfa_to_handle_graph(gfa_path, gfa_graph, id_map, overlaps);
 
-    {
-        string test_path_prefix = "test_bluntify_start";
-        ofstream test_output(test_path_prefix + ".gfa");
-        handle_graph_to_gfa(gfa_graph, test_output);
-        test_output.close();
-
-        if (gfa_graph.get_node_count() < 200) {
-            string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
-                             + test_path_prefix + ".png";
-
-            cerr << "Running: " << command << '\n';
-
-            run_command(command);
-        }
-    }
-
     log_progress("Computing adjacency components...");
 
     // Compute Adjacency Components and store in vector
@@ -590,66 +568,17 @@ void Bluntifier::bluntify(){
             child_to_parent,
             overlapping_overlap_nodes);
 
-
-    for (size_t i=0; i<bicliques.size(); i++) {
-        cout << "Biclique " << i << '\n';
-        for (auto& edge: bicliques[i]) {
-            cout << "\t(" << gfa_graph.get_id(edge.first);
-            cout << (gfa_graph.get_is_reverse(edge.first) ? "-" : "+");
-            cout << ") -> (" << gfa_graph.get_id(edge.second);
-            cout << (gfa_graph.get_is_reverse(edge.second) ? "-" : "+") << ") ";
-            cout << gfa_graph.get_sequence(edge.first) << " " << gfa_graph.get_sequence(edge.second) << '\n';
-        }
-    }
-
     log_progress("Duplicating node termini...");
 
     super_duper.duplicate_all_node_termini(gfa_graph);
 
-    {
-        string test_path_prefix = "test_bluntify_duped";
-        ofstream test_output(test_path_prefix + ".gfa");
-        handle_graph_to_gfa(gfa_graph, test_output);
-        test_output.close();
-
-        if (gfa_graph.get_node_count() < 200) {
-            string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
-                             + test_path_prefix + ".png";
-
-            cerr << "Running: " << command << '\n';
-
-            run_command(command);
-        }
-    }
-
     log_progress("Harmonizing biclique edge orientations...");
-
-    for (size_t i=0; i<bicliques.size(); i++) {
-        cout << "Biclique " << i << '\n';
-        for (auto& edge: bicliques[i]) {
-            cout << "\t(" << gfa_graph.get_id(edge.first);
-            cout << (gfa_graph.get_is_reverse(edge.first) ? "-" : "+");
-            cout << ") -> (" << gfa_graph.get_id(edge.second);
-            cout << (gfa_graph.get_is_reverse(edge.second) ? "-" : "+") << ") ";
-            cout << gfa_graph.get_sequence(edge.first) << " " << gfa_graph.get_sequence(edge.second) << '\n';
-        }
-    }
 
     harmonize_biclique_orientations();
 
     log_progress("Aligning overlaps...");
 
     subgraphs.resize(bicliques.size());
-
-    cerr << "\nPaths in graph: " << '\n';
-    gfa_graph.for_each_path_handle([&](const handlegraph::path_handle_t& p){
-        auto name = gfa_graph.get_path_name(p);
-        cerr << name << ":" << '\n';
-        gfa_graph.for_each_step_in_path(p, [&](const handlegraph::step_handle_t& s){
-            auto h = gfa_graph.get_handle_of_step(s);
-            cerr << '\t' << gfa_graph.get_id(h) << '\t' << gfa_graph.get_sequence(h) << '\n';
-        });
-    });
 
     for (size_t i=0; i<bicliques.size(); i++){
         align_biclique_overlaps(i);
@@ -688,21 +617,21 @@ void Bluntifier::bluntify(){
     handle_graph_to_gfa(gfa_graph, cout);
 
     // Output an image of the graph, can be uncommented for debugging
-    {
-        string test_path_prefix = "test_bluntify_final";
-        ofstream test_output(test_path_prefix + ".gfa");
-        handle_graph_to_gfa(gfa_graph, test_output);
-        test_output.close();
-
-        if (gfa_graph.get_node_count() < 200) {
-            string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
-                             + test_path_prefix + ".png";
-
-            cerr << "Running: " << command << '\n';
-
-            run_command(command);
-        }
-    }
+//    {
+//        string test_path_prefix = "test_bluntify_final";
+//        ofstream test_output(test_path_prefix + ".gfa");
+//        handle_graph_to_gfa(gfa_graph, test_output);
+//        test_output.close();
+//
+//        if (gfa_graph.get_node_count() < 200) {
+//            string command = "vg convert -g " + test_path_prefix + ".gfa -p | vg view -d - | dot -Tpng -o "
+//                             + test_path_prefix + ".png";
+//
+//            cerr << "Running: " << command << '\n';
+//
+//            run_command(command);
+//        }
+//    }
 }
 
 

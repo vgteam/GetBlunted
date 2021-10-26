@@ -171,11 +171,6 @@ bool Bluntifier::biclique_overlaps_are_exact(size_t i){
             auto query_start = gfa_graph.get_length(edge.first) - alignment.operations[0].length;
             auto ref_start = 0;
 
-//            cerr << "explicitizing: " << gfa_graph.get_id(edge.first);
-//            cerr << "->" << gfa_graph.get_id(edge.second);
-//            cerr << " length=" << gfa_graph.get_length(edge.first) << ',';
-//            cerr << gfa_graph.get_length(edge.second) << '\n';
-
             auto explicit_cigar_operations = alignment.explicitize_mismatches(gfa_graph, edge, ref_start, query_start);
 
             sizes.emplace(explicit_cigar_operations[0].length);
