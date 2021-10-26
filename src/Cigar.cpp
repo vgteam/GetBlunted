@@ -257,12 +257,14 @@ vector<Cigar> Alignment::explicitize_mismatches(
             char query_base = graph.get_base(edge.second, iterator.query_index);
             char ref_base = graph.get_base(edge.first, iterator.ref_index);
 
+//            std::cerr << iterator.query_index << " " << query_base << '-' << ref_base << " " << iterator.ref_index << '\n';
+
             if (ref_base == query_base){
                 // If the last operation was already a Match (=), then extend its length
                 if (not explicit_operations.empty() and explicit_operations.back().type() == '='){
                     explicit_operations.back().length++;
                 }
-                    // Otherwise make a new operation of type =
+                // Otherwise make a new operation of type =
                 else{
                     explicit_operations.emplace_back(1,'=');
                 }
@@ -272,7 +274,7 @@ vector<Cigar> Alignment::explicitize_mismatches(
                 if (not explicit_operations.empty() and explicit_operations.back().type() == 'X'){
                     explicit_operations.back().length++;
                 }
-                    // Otherwise make a new operation of type X
+                // Otherwise make a new operation of type X
                 else{
                     explicit_operations.emplace_back(1,'X');
                 }

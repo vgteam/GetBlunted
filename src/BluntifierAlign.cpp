@@ -154,6 +154,7 @@ bool Bluntifier::biclique_overlaps_are_exact(size_t i){
     // Check if any of the edges are NOT exact overlaps
     for (auto& edge: bicliques[i]){
         auto iter = overlaps.canonicalize_and_find(edge, gfa_graph);
+//        edge = iter->first;
 
         if (iter == overlaps.overlaps.end()){
             throw runtime_error("ERROR: edge not found in overlaps: "
@@ -167,8 +168,14 @@ bool Bluntifier::biclique_overlaps_are_exact(size_t i){
            break;
         }
         else{
-            auto ref_start = gfa_graph.get_length(edge.first) - alignment.operations[0].length;
-            auto query_start = 0;
+            auto query_start = gfa_graph.get_length(edge.first) - alignment.operations[0].length;
+            auto ref_start = 0;
+
+//            cerr << "explicitizing: " << gfa_graph.get_id(edge.first);
+//            cerr << "->" << gfa_graph.get_id(edge.second);
+//            cerr << " length=" << gfa_graph.get_length(edge.first) << ',';
+//            cerr << gfa_graph.get_length(edge.second) << '\n';
+
             auto explicit_cigar_operations = alignment.explicitize_mismatches(gfa_graph, edge, ref_start, query_start);
 
             sizes.emplace(explicit_cigar_operations[0].length);
