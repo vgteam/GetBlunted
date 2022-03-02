@@ -3,6 +3,7 @@
 #include "unchop.hpp"
 #include <array>
 #include <map>
+#include "sdsl/bits.hpp"
 
 using handlegraph::HandleGraph;
 using handlegraph::nid_t;
@@ -42,7 +43,7 @@ void Bluntifier::convert_spoa_to_bdsg(Graph& spoa_graph, size_t i){
             PathInfo& path_info = item.second;
 
             // This points to the first SPOA node within the path that this sequence aligned to in the SPOA graph
-            auto node = paths[path_info.spoa_id];
+            auto node = paths[path_info.poa_id];
 
             size_t base_index = 0;
 
@@ -75,7 +76,7 @@ void Bluntifier::convert_spoa_to_bdsg(Graph& spoa_graph, size_t i){
                 base_index++;
 
                 // Check if the spoa path has ended
-                if (!(node = node->Successor(path_info.spoa_id))) {
+                if (!(node = node->Successor(path_info.poa_id))) {
                     break;
                 }
             }
@@ -85,8 +86,8 @@ void Bluntifier::convert_spoa_to_bdsg(Graph& spoa_graph, size_t i){
 
 
 void Bluntifier::add_alignments_to_poa(
-        Graph& spoa_graph,
-        unique_ptr<AlignmentEngine>& alignment_engine,
+        const function<void(const string&,const string&)>& add_alignment,
+        uint32_t first_seq_id,
         size_t i){
 
     // Since alignment may be done twice (for iterative POA), path data might need to be cleared
@@ -94,53 +95,35 @@ void Bluntifier::add_alignments_to_poa(
     subgraphs[i].paths_per_handle[1].clear();
 
     // If the graph already has some sequences in it, then start the id at that number
-    uint32_t spoa_id = spoa_graph.sequences().size();
+    uint32_t poa_id = first_seq_id;
 
     // Treating the biclique subgraph as an object with sides, add alignments, and keep track of the paths through which
     // the left and right handles traverse so they can be used for splicing later
     for (auto& edge: bicliques[i]){
-        if (subgraphs[i].paths_per_handle[0].count(edge.first) == 0){
-            string path_name = to_string(gfa_graph.get_id(edge.first)) + "_" + to_string(0);
-
-            path_handle_t path_handle;
-
-            // Paths might exist from previous alignment, but will be empty
-            if (not subgraphs[i].graph.has_path(path_name)){
-                path_handle = subgraphs[i].graph.create_path_handle(path_name);
+        for (int side : {0, 1}) {
+            handle_t handle = side == 0 ? edge.first : edge.second;
+            if (subgraphs[i].paths_per_handle[side].count(handle) == 0) {
+                
+                string path_name = to_string(gfa_graph.get_id(handle)) + "_" + to_string(side);
+                
+                path_handle_t path_handle;
+                
+                // Paths might exist from previous alignment, but will be empty because we
+                // fill it during the downstream conversion to handle graph
+                if (!subgraphs[i].graph.has_path(path_name)){
+                    path_handle = subgraphs[i].graph.create_path_handle(path_name);
+                }
+                else{
+                    path_handle = subgraphs[i].graph.get_path_handle(path_name);
+                }
+                
+                PathInfo path_info(path_handle, poa_id++, side);
+                
+                subgraphs[i].paths_per_handle[side].emplace(handle, path_info);
+                auto sequence = gfa_graph.get_sequence(handle);
+                
+                add_alignment(sequence, path_name);
             }
-            else{
-                path_handle = subgraphs[i].graph.get_path_handle(path_name);
-            }
-
-            PathInfo path_info(path_handle, spoa_id++, 0);
-
-            subgraphs[i].paths_per_handle[0].emplace(edge.first, path_info);
-            auto sequence = gfa_graph.get_sequence(edge.first);
-
-            auto alignment = alignment_engine->Align(sequence, spoa_graph);
-            spoa_graph.AddAlignment(alignment, sequence);
-        }
-        if (subgraphs[i].paths_per_handle[1].count(edge.second) == 0){
-            string path_name = to_string(gfa_graph.get_id(edge.second)) + "_" + to_string(1);
-
-            path_handle_t path_handle;
-
-            // Paths might exist from previous alignment, but will be empty
-            if (not subgraphs[i].graph.has_path(path_name)){
-                path_handle = subgraphs[i].graph.create_path_handle(path_name);
-            }
-            else{
-                path_handle = subgraphs[i].graph.get_path_handle(path_name);
-            }
-
-            PathInfo path_info(path_handle, spoa_id++, 1);
-
-            subgraphs[i].paths_per_handle[1].emplace(edge.second, path_info);
-
-            auto sequence = gfa_graph.get_sequence(edge.second);
-
-            auto alignment = alignment_engine->Align(sequence, spoa_graph);
-            spoa_graph.AddAlignment(alignment, sequence);
         }
     }
 }
@@ -190,6 +173,21 @@ bool Bluntifier::biclique_overlaps_are_exact(size_t i){
     return exact;
 }
 
+bool Bluntifier::biclique_overlaps_are_short(size_t i, size_t max_len) {
+    
+    bool are_short = true;
+    for (auto& edge: bicliques[i]) {
+        
+        pair<size_t, size_t> lengths;
+        overlaps.canonicalize_and_compute_lengths(lengths, edge, gfa_graph);
+        if (lengths.first > max_len || lengths.second > max_len) {
+            are_short = true;
+            break;
+        }
+    }
+    return are_short;
+}
+
 
 void Bluntifier::create_exact_subgraph(size_t i) {
     // For an exact biclique the alignment is trivial, just pick one of the suffixes/prefixes
@@ -225,6 +223,8 @@ void Bluntifier::create_exact_subgraph(size_t i) {
 
 
 void Bluntifier::align_biclique_overlaps(size_t i){
+
+    
     // TODO: switch to fetch_add atomic
 
     // Skip trivial bicliques
@@ -233,34 +233,239 @@ void Bluntifier::align_biclique_overlaps(size_t i){
     }
 
     if (biclique_overlaps_are_exact(i)){
+        // we can infer exact overlaps without alignment (helps for de Bruijn graphs)
         create_exact_subgraph(i);
     }
     else {
-        auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 5, -3, -3, -1);
-
-        spoa::Graph spoa_graph{};
-
-        add_alignments_to_poa(spoa_graph, alignment_engine, i);
-
-        auto consensus = spoa_graph.GenerateConsensus();
-
-        spoa::Graph seeded_spoa_graph{};
-
-        auto seeded_alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 6, -2, -4, -1);
-
-        auto alignment = seeded_alignment_engine->Align(consensus, seeded_spoa_graph);
-        seeded_spoa_graph.AddAlignment(alignment, consensus);
-
-        // Iterate a second time on alignment, this time with consensus as the seed
-        add_alignments_to_poa(seeded_spoa_graph, alignment_engine, i);
-
-        convert_spoa_to_bdsg(seeded_spoa_graph, i);
-
+        // we need to align the sequences to produce the subgraph
+        
+        if (biclique_overlaps_are_short(i, 300)) {
+            // the alignments are short enough that we can use SPOA
+            
+            auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 5, -3, -3, -1);
+            spoa::Graph spoa_graph{};
+            function<void(const string&,const string&)> add_alignment_to_initial_poa = [&](const string& sequence,
+                                                                                           const string& name) {
+                auto alignment = alignment_engine->Align(sequence, spoa_graph);
+                spoa_graph.AddAlignment(alignment, sequence);
+            };
+            
+            add_alignments_to_poa(add_alignment_to_initial_poa,
+                                  spoa_graph.sequences().size(), i);
+            
+            // use initial POA to get a consensus sequence
+            auto consensus = spoa_graph.GenerateConsensus();
+            
+            auto seeded_alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 6, -2, -4, -1);
+            spoa::Graph seeded_spoa_graph{};
+            function<void(const string&,const string&)> add_alignment_to_final_poa = [&](const string& sequence,
+                                                                                         const string& name) {
+                auto alignment = alignment_engine->Align(sequence, seeded_spoa_graph);
+                spoa_graph.AddAlignment(alignment, sequence);
+            };
+            
+            // Iterate a second time on alignment, this time with consensus as the seed
+            add_alignment_to_final_poa(consensus, "consensus");
+            add_alignments_to_poa(add_alignment_to_final_poa,
+                                  seeded_spoa_graph.sequences().size(), i);
+            
+            convert_spoa_to_bdsg(seeded_spoa_graph, i);
+        }
+        else {
+            // we use abPOA for long alignments
+            
+            abpoa_t* abpoa = align_with_abpoa(i);
+            
+            convert_abpoa_to_bdsg(abpoa, i);
+            
+            abpoa_free(abpoa);
+        }
+        
+        // make long nodes from short ones
         unchop(&subgraphs[i].graph);
     }
 }
 
+abpoa_t* Bluntifier::align_with_abpoa(size_t i) {
+    
+    // this is annoyingly not accessible by any header, so i'll just copy it
+    static const uint8_t ab_nt4_table[256] = {
+        0, 1, 2, 3,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+        4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+        4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4 /*'-'*/, 4, 4,
+        4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+        4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4,
+        4, 4, 4, 4,  3, 3, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+        4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4,
+        4, 4, 4, 4,  3, 3, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+        4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+        4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+        4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+        4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+        4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+        4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+        4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+        4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4
+    };
+    
+    abpoa_t* abpoa = abpoa_init();
+    
+    // instead of doing the alignment here, just use the lambda to queue up the
+    // sequences
+    vector<uint8_t*> encoded_seqs;
+    vector<char*> seq_names;
+    vector<int> seq_lens;
+    function<void(const string&,const string&)> add_alignment_to_abpoa = [&](const string& sequence,
+                                                                             const string& name) {
+        // convert sequence to 0-4 vals and C array
+        uint8_t* enc_seq = (uint8_t*) malloc(sequence.size() * sizeof(uint8_t));
+        for (size_t j = 0; j < sequence.size(); ++j) {
+            enc_seq[j] = ab_nt4_table[(uint8_t)sequence[j]];
+        }
+        // make a C-style string for the name
+        char* seq_name = (char*) malloc((name.size() + 1) * sizeof(char));
+        for (size_t j = 0; j < name.size(); ++j) {
+            seq_name[j] = name[j];
+        }
+        seq_name[name.size()] = '\0';
+        
+        // remember the results
+        encoded_seqs.push_back(enc_seq);
+        seq_names.push_back(seq_name);
+        seq_lens.push_back(sequence.size());
+    };
+    
+    // execute the lambda
+    add_alignments_to_poa(add_alignment_to_abpoa, 0, i);
+    
+    // and now actually perform the MSA now that we've added everything
+    abpoa_msa(abpoa,
+              abpoa_params,
+              encoded_seqs.size(),
+              seq_names.data(),
+              seq_lens.data(),
+              encoded_seqs.data(),
+              NULL, NULL, NULL, NULL, NULL, NULL, NULL);  // don't do any of the automated output formats
+    
+    
+    // clean up C arrays
+    for (auto enc_seq : encoded_seqs) {
+        free(enc_seq);
+    }
+    for (auto name : seq_names) {
+        free(name);
+    }
+    
+    return abpoa;
+}
 
+void Bluntifier::convert_abpoa_to_bdsg(abpoa_t* abpoa, size_t i) {
+    
+    // heavily based on abPOA's abpoa_generate_gfa function
+    
+    // annoyingly not available in header, so we copy it here
+    static const char ab_nt256_table[256] = {
+        'A', 'C', 'G', 'T',  'N', '-', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+        'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', '-',  'N', 'N', 'N', 'N',
+        'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+        'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+        'N', 'A', 'N', 'C',  'N', 'N', 'N', 'G',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+        'N', 'N', 'N', 'N',  'T', 'T', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+        'N', 'A', 'N', 'C',  'N', 'N', 'N', 'G',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+        'N', 'N', 'N', 'N',  'T', 'T', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+        'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+        'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+        'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+        'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+        'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+        'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+        'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+        'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N'
+    };
+    
+    unordered_map<int, handle_t> abpoa_node_to_handle;
+    
+    auto& graph = subgraphs[i].graph;
+    abpoa_graph_t* ab_graph = abpoa->abg;
+    
+    // get all of the nodes
+    // note: 0 and 1 are reserved for the source and sink nodes (which are only
+    // for internal use, no associated sequence)
+    for (int j = 2; j < ab_graph->node_n; ++j) {
+        string seq(1, ab_nt256_table[ab_graph->node[j].base]);
+        handle_t handle = graph.create_handle(seq);
+        abpoa_node_to_handle[j] = handle;
+    }
+    // get all of the edges
+    for (int j = 2; j < ab_graph->node_n; ++j) {
+        for (int k = 0; k < ab_graph->node[j].out_edge_n; ++k) {
+            int next_id = ab_graph->node[j].out_id[k];
+            if (next_id == ABPOA_SRC_NODE_ID || next_id == ABPOA_SINK_NODE_ID) {
+                continue;
+            }
+            graph.create_edge(abpoa_node_to_handle[j],
+                              abpoa_node_to_handle[next_id]);
+        }
+    }
+    
+    // figure out the correspondence between abpoa's integer ids and the path
+    // handles that we added during the init step
+    abpoa_seq_t* ab_seqs = abpoa->abs;
+    vector<path_handle_t> read_id_to_path(ab_seqs->n_seq);
+    for (uint64_t j = 0; j < ab_seqs->n_seq; ++j) {
+        assert(ab_seqs->name[j].l != 0);
+        
+        string path_name(ab_seqs->name[j].s);
+        assert(graph.has_path(path_name));
+        read_id_to_path[j] = graph.get_path_handle(path_name);
+    }
+    
+    // Kahn's algorithm to compute topological order
+    vector<int> in_degree(ab_graph->node_n);
+    vector<int> stack;
+    for (int j = 0; j < ab_graph->node_n; ++j) {
+        in_degree[j] = ab_graph->node[j].in_edge_n;
+        if (in_degree[j] == 0) {
+            stack.push_back(j);
+        }
+    }
+    vector<int> topological_order;
+    topological_order.reserve(in_degree.size());
+    while (!stack.empty()) {
+        int here = stack.back();
+        stack.pop_back();
+        topological_order.push_back(here);
+        
+        for (int j = 0; j < ab_graph->node[here].out_edge_n; ++j) {
+            int next = ab_graph->node[here].out_id[j];
+            --in_degree[next];
+            if (in_degree[next] == 0) {
+                stack.push_back(next);
+            }
+        }
+    }
+    
+    // add paths for the input sequences
+    for (int nid : topological_order) {
+        if (nid == ABPOA_SRC_NODE_ID || nid == ABPOA_SINK_NODE_ID) {
+            continue;
+        }
+        
+        // add node id to read path
+        // (directly copied from the abpoa function, i have no idea how this works)
+        int b = 0;
+        for (size_t j = 0; j < ab_graph->node[nid].read_ids_n; ++j) {
+            uint64_t num = ab_graph->node[nid].read_ids[j];
+            while (num) {
+                uint64_t tmp = num & -num;
+                int read_id = sdsl::bits::hi(tmp); // replace ilog2_64 from abpoa
+                graph.append_step(read_id_to_path[b+read_id], abpoa_node_to_handle.at(nid));
+                num ^= tmp;
+            }
+            b += 64;
+        }
+    }
+}
 
 /// For all the edges in a biclique, reorient them by matching the majority orientation of the node with the most
 /// edges. In the case where there is no such orientation, pick arbitrarily

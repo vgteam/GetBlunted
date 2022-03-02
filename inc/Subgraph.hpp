@@ -21,10 +21,10 @@ namespace bluntifier {
 class PathInfo{
 public:
     path_handle_t path_handle;
-    uint32_t spoa_id;
+    uint32_t poa_id;
     bool biclique_side;
 
-    PathInfo(path_handle_t path_handle, uint32_t spoa_id, bool biclique_side);
+    PathInfo(path_handle_t path_handle, uint32_t poa_id, bool biclique_side);
     PathInfo()=default;
 };
 
