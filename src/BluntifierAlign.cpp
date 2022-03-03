@@ -181,7 +181,7 @@ bool Bluntifier::biclique_overlaps_are_short(size_t i, size_t max_len) {
         pair<size_t, size_t> lengths;
         overlaps.canonicalize_and_compute_lengths(lengths, edge, gfa_graph);
         if (lengths.first > max_len || lengths.second > max_len) {
-            are_short = true;
+            are_short = false;
             break;
         }
     }
@@ -239,35 +239,33 @@ void Bluntifier::align_biclique_overlaps(size_t i){
     else {
         // we need to align the sequences to produce the subgraph
         
-        if (biclique_overlaps_are_short(i, 300)) {
+        if (biclique_overlaps_are_short(i, 1)) {
             // the alignments are short enough that we can use SPOA
             
             auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 5, -3, -3, -1);
             spoa::Graph spoa_graph{};
-            function<void(const string&,const string&)> add_alignment_to_initial_poa = [&](const string& sequence,
-                                                                                           const string& name) {
+            
+            add_alignments_to_poa([&](const string& sequence,
+                                      const string& name) {
                 auto alignment = alignment_engine->Align(sequence, spoa_graph);
                 spoa_graph.AddAlignment(alignment, sequence);
-            };
-            
-            add_alignments_to_poa(add_alignment_to_initial_poa,
-                                  spoa_graph.sequences().size(), i);
+            }, spoa_graph.sequences().size(), i);
             
             // use initial POA to get a consensus sequence
             auto consensus = spoa_graph.GenerateConsensus();
             
-            auto seeded_alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 6, -2, -4, -1);
+            // Seed the alignment with the consensus
             spoa::Graph seeded_spoa_graph{};
-            function<void(const string&,const string&)> add_alignment_to_final_poa = [&](const string& sequence,
-                                                                                         const string& name) {
-                auto alignment = alignment_engine->Align(sequence, seeded_spoa_graph);
-                spoa_graph.AddAlignment(alignment, sequence);
-            };
+            auto seeded_alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 6, -2, -4, -1);
+            auto cons_alignment = seeded_alignment_engine->Align(consensus, seeded_spoa_graph);
+            seeded_spoa_graph.AddAlignment(cons_alignment, consensus);
             
             // Iterate a second time on alignment, this time with consensus as the seed
-            add_alignment_to_final_poa(consensus, "consensus");
-            add_alignments_to_poa(add_alignment_to_final_poa,
-                                  seeded_spoa_graph.sequences().size(), i);
+            add_alignments_to_poa([&](const string& sequence,
+                                      const string& name) {
+                auto alignment = alignment_engine->Align(sequence, seeded_spoa_graph);
+                seeded_spoa_graph.AddAlignment(alignment, sequence);
+            }, seeded_spoa_graph.sequences().size(), i);
             
             convert_spoa_to_bdsg(seeded_spoa_graph, i);
         }
@@ -334,19 +332,38 @@ abpoa_t* Bluntifier::align_with_abpoa(size_t i) {
         seq_names.push_back(seq_name);
         seq_lens.push_back(sequence.size());
     };
-    
+        
     // execute the lambda
     add_alignments_to_poa(add_alignment_to_abpoa, 0, i);
+
     
     // and now actually perform the MSA now that we've added everything
+    uint8_t** dummy_cons_seq;
+    int** dummy_cons_cov;
+    int* dummy_cons_len;
+    int dummy_cons_num;
     abpoa_msa(abpoa,
               abpoa_params,
               encoded_seqs.size(),
               seq_names.data(),
               seq_lens.data(),
               encoded_seqs.data(),
-              NULL, NULL, NULL, NULL, NULL, NULL, NULL);  // don't do any of the automated output formats
+              NULL,
+              &dummy_cons_seq,
+              &dummy_cons_cov,
+              &dummy_cons_len,
+              &dummy_cons_num,
+              NULL,
+              NULL);
     
+    // discard the consensus sequene info that we don't actually care about
+    for (int j = 0; j < dummy_cons_num; ++j) {
+        free(dummy_cons_seq[j]);
+        free(dummy_cons_cov[j]);
+    }
+    free(dummy_cons_len);
+    free(dummy_cons_seq);
+    free(dummy_cons_cov);
     
     // clean up C arrays
     for (auto enc_seq : encoded_seqs) {
