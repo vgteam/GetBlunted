@@ -34,6 +34,38 @@ Bluntifier::Bluntifier(const string& gfa_path,
 {
     // start our clock
     time(&time_start);
+    
+    // set up abPOA
+    abpoa_params = abpoa_init_para();
+    
+    abpoa_params->align_mode = 0; // global alignment
+    abpoa_params->match = 6;
+    abpoa_params->mismatch = 2;
+    abpoa_params->gap_mode = ABPOA_AFFINE_GAP;
+    abpoa_params->gap_open1 = 4;
+    abpoa_params->gap_ext1 = 2;
+    abpoa_params->wb = 10; // band width for adaptive banding
+    abpoa_params->end_bonus = 0;
+    
+    // we don't care about the MSA
+    // TODO: maybe we should do a consensus realignment like with SPOA though?
+    abpoa_params->out_msa = 0;
+    abpoa_params->out_msa_header = 0;
+    abpoa_params->out_gfa = 0;
+    abpoa_params->is_diploid = 0;
+    abpoa_params->progressive_poa = 1;
+    abpoa_params->use_read_ids = 1;
+    
+    // even though we only care about the POA graph, we have to tell abpoa
+    // that we want some output, or else it won't do the alignment
+    abpoa_params->out_cons = 1;
+    
+    // finalize the params?
+    abpoa_post_set_para(abpoa_params);
+}
+
+Bluntifier::~Bluntifier() {
+    abpoa_free_para(abpoa_params);
 }
 
 void Bluntifier::log_progress(const string& msg) const {

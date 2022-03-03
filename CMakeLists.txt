@@ -191,6 +191,53 @@ include_directories(external/gfak/include/)
 
 message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 
+##############################################
+# ------------------------------------------ #
+# -------- LINKING EXTERNAL LIBRARY -------- #
+# ------------------ abPOA ----------------- #
+# ------------------------------------------ #
+##############################################
+
+# Need to explicitly enable ExternalProject functionality
+include(ExternalProject)
+
+# Download or update library as an external project
+ExternalProject_Add(project_abPOA
+        GIT_REPOSITORY https://github.com/yangao07/abPOA.git
+	GIT_TAG main
+#        GIT_SUBMODULES vendor/simde
+#        DOWNLOAD_COMMAND ""
+#        UPDATE_COMMAND ""
+        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/abPOA/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/abPOA/lib
+        BUILD_IN_SOURCE True
+        INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/abPOA/
+        INSTALL_COMMAND make install
+        )
+
+# Define INSTALL_DIR as the install directory for external library
+ExternalProject_Get_Property(project_abPOA INSTALL_DIR)
+
+# Create new library for external project (so it can be linked with main library)
+add_library(abPOA STATIC IMPORTED)
+set_property(TARGET abPOA
+        PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/libabpoa.a)
+
+# Define library as dependent on the downloaded project
+add_dependencies(abPOA
+        project_abPOA
+        )
+
+# Define main library as dependent on the downloaded project (transitively)
+add_dependencies(GetBlunted abPOA)
+
+# Add runtime path for main library so it can access external library
+#set_property(TARGET GetBlunted PROPERTY INSTALL_RPATH "$ORIGIN" "${INSTALL_DIR}/bin/abPOA")
+
+include_directories(external/abPOA/include/)
+
+message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
+
 
 ##############################################
 # ------------------------------------------ #
@@ -344,13 +391,16 @@ message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
+SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+find_package(ZLIB REQUIRED)
+
 
 # -------- TESTS --------
 
 set(TESTS
         test_AdjacencyComponent
         test_bdsg
-	    test_BicliqueCover
+	test_BicliqueCover
         test_cigar
         test_divide_handle
         test_duplicate_terminus
@@ -361,6 +411,7 @@ set(TESTS
         test_map_range_methods
         test_overlaps
         test_spoa
+        test_abPOA
         test_utility
         )
 
@@ -374,6 +425,8 @@ foreach(FILENAME_PREFIX ${TESTS})
             divsufsort
             libhandlegraph
             libsdsl
+            abPOA
+            ZLIB::ZLIB
             -static)
 
 #    if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
@@ -399,6 +452,8 @@ foreach(FILENAME_PREFIX ${EXECUTABLES})
             divsufsort
             libhandlegraph
             libsdsl
+            abPOA
+            ZLIB::ZLIB
             -static)
 
 #    if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")

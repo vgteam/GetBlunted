@@ -16,8 +16,11 @@
 #include "spoa/alignment_engine.hpp"
 #include "spoa/graph.hpp"
 
+#include "abpoa.h"
+
 #include <unordered_map>
 #include <ctime>
+#include <functional>
 
 #include "bdsg/hash_graph.hpp"
 
@@ -80,6 +83,8 @@ public:
     Bluntifier(const string& gfa_path,
                const string& provenance_path,
                bool verbose);
+    
+    ~Bluntifier();
 
     void bluntify();
 
@@ -101,15 +106,24 @@ private:
     void align_biclique_overlaps(size_t i);
 
     bool biclique_overlaps_are_exact(size_t i);
+    
+    bool biclique_overlaps_are_short(size_t i, size_t max_len);
 
     void create_exact_subgraph(size_t i);
 
+    abpoa_t* align_with_abpoa(size_t i);
+    
+    // initialize sequence paths in the subgraph i and then
+    // add a (sequence, name) to the POA graph using a lambda.
+    // sequences are assigned IDs starting at first_seq_id
     void add_alignments_to_poa(
-            Graph& spoa_graph,
-            unique_ptr<AlignmentEngine>& alignment_engine,
+            const function<void(const string&,const string&)>& add_alignment,
+            uint32_t first_seq_id,
             size_t i);
 
     void convert_spoa_to_bdsg(Graph& spoa_graph, size_t i);
+    
+    void convert_abpoa_to_bdsg(abpoa_t* abpoa, size_t i);
 
     void splice_subgraphs();
 
@@ -130,6 +144,8 @@ private:
             nid_t child_id);
     
     void log_progress(const string& msg) const;
+    
+    abpoa_para_t* abpoa_params = nullptr;
 };
 
 

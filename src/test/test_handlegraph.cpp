@@ -1,4 +1,3 @@
-#include <experimental/filesystem>
 #include <iostream>
 #include <fstream>
 
@@ -6,7 +5,6 @@
 #include <handlegraph/mutable_handle_graph.hpp>
 #include <handlegraph/mutable_path_deletable_handle_graph.hpp>
 
-using std::experimental::filesystem::path;
 using std::ifstream;
 using std::cout;
 
