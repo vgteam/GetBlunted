@@ -391,6 +391,9 @@ message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
+SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+find_package(ZLIB REQUIRED)
+
 
 # -------- TESTS --------
 
@@ -449,6 +452,8 @@ foreach(FILENAME_PREFIX ${EXECUTABLES})
             divsufsort
             libhandlegraph
             libsdsl
+            abPOA
+            ZLIB::ZLIB
             -static)
 
 #    if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
