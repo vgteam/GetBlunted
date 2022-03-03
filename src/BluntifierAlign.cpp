@@ -239,7 +239,7 @@ void Bluntifier::align_biclique_overlaps(size_t i){
     else {
         // we need to align the sequences to produce the subgraph
         
-        if (biclique_overlaps_are_short(i, 1)) {
+        if (biclique_overlaps_are_short(i, 250)) {
             // the alignments are short enough that we can use SPOA
             
             auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 5, -3, -3, -1);
