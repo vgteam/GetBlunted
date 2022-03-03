@@ -77,12 +77,23 @@ vector<bipartition> BicliqueCover::get() const {
         if (!is_exact || return_val.empty()) {
             // the reduced graph was too large to get an exact result, let's
             // also try another heuristic
+#ifdef debug_biclique_cover
+            cerr << "building alternative cover by approximation" << endl;
+#endif
             vector<bipartition> alt_cover = biclique_cover_apx();
+            
+#ifdef debug_biclique_cover
+            cerr << "lattice polishing both covers" << endl;
+#endif
+            
             // locally improve both heuristic solutions
             lattice_polish(alt_cover);
             lattice_polish(return_val);
             // choose the smallest heuristic solution as the final result
             if (return_val.empty() || alt_cover.size() < return_val.size()) {
+#ifdef debug_biclique_cover
+                cerr << "switching to alternative cover with size (after polishing) of " << alt_cover.size() << " compared to " << return_val.size() << endl;
+#endif
                 return_val = move(alt_cover);
             }
         }
@@ -143,7 +154,6 @@ void BicliqueCover::unsimplify(vector<bipartition>& simplified_cover,
 }
 
 void BicliqueCover::lattice_polish(vector<bipartition>& cover) const {
-    
     // TODO: a limit on the number of local search steps?
     
     bool completely_polished = false;
@@ -234,8 +244,16 @@ vector<bipartition> BicliqueCover::biclique_cover_apx() const {
         // dequeue the record with the smallest uncovered degree
         auto top = queue.top();
         queue.pop();
-                
-        if (std::get<2>(top) ? covered_left[std::get<0>(top)] : covered_right[std::get<0>(top)]) {
+                        
+        // skip if we're already finished with this node
+        if (std::get<2>(top) ? covered_left[std::get<1>(top)] : covered_right[std::get<1>(top)]) {
+            continue;
+        }
+        
+        // skip if we've covered some of this node's edges since this record was enqueued
+        size_t num_edges_uncovered = std::get<2>(top) ? left_uncovered_edges[std::get<1>(top)].size()
+                                                      : right_uncovered_edges[std::get<1>(top)].size();
+        if (std::get<0>(top) != num_edges_uncovered) {
             continue;
         }
         
