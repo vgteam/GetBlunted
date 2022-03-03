@@ -400,7 +400,7 @@ find_package(ZLIB REQUIRED)
 set(TESTS
         test_AdjacencyComponent
         test_bdsg
-	    test_BicliqueCover
+	test_BicliqueCover
         test_cigar
         test_divide_handle
         test_duplicate_terminus
@@ -426,7 +426,6 @@ foreach(FILENAME_PREFIX ${TESTS})
             libhandlegraph
             libsdsl
             abPOA
-            ZLIB::ZLIB
             -static)
 
 #    if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
