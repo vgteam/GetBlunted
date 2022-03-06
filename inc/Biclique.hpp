@@ -7,6 +7,7 @@
 
 using handlegraph::handle_t;
 using handlegraph::edge_t;
+using handlegraph::HandleGraph;
 
 using std::vector;
 
@@ -36,6 +37,8 @@ public:
     const vector <edge_t>& operator[](size_t i) const;
 
     size_t size() const;
+
+    void print(HandleGraph& graph);
 };
 
 

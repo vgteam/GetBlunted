@@ -385,6 +385,16 @@ string Alignment::create_formatted_alignment_string(
     return aligned_ref + '\n' + alignment_symbols + '\n' + aligned_query;
 }
 
+bool Alignment::is_exact() const {
+    bool exact = operations.size() == 1 and (operations[0].type() == 'M' or operations[0].type() == '=');
+    return exact;
+}
+
+bool Alignment::is_exact(vector<Cigar>& c){
+    bool exact = c.size() == 1 and (c[0].type() == 'M' or c[0].type() == '=');
+    return exact;
+}
+
 
 }
 

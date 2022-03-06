@@ -577,20 +577,18 @@ void Bluntifier::bluntify(){
         compute_biclique_cover(i);
     }
 
+//    Uncomment for debug
+//    {
+//        ofstream test_gfa("post_biclique_cover.gfa");
+//        handle_graph_to_gfa(gfa_graph, test_gfa);
+//        test_gfa.close();
+//    }
+
     log_progress("Total biclique covers: " + to_string(bicliques.size()));
 
     // TODO: delete adjacency components vector if unneeded
 
     map_splice_sites_by_node();
-
-    for (size_t i=0; i<bicliques.size(); i++){
-        // Skip trivial bicliques
-        if (bicliques[i].empty()){
-            continue;
-        }
-
-        biclique_overlaps_are_exact(i);
-    }
 
     Duplicator super_duper(
             node_to_biclique_edge,

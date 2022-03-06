@@ -116,6 +116,9 @@ public:
             const edge_t& edge,
             uint64_t ref_start_index = 0,
             uint64_t query_start_index = 0);
+
+    bool is_exact() const;
+    static bool is_exact(vector<Cigar>& c);
 };
 
 
