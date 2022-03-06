@@ -17,6 +17,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ------- Memory debug ------- #
 
+# No ASan for static builds :'(
 #set(CMAKE_CXX_FLAGS "-fexceptions -fsanitize=address")
 #set(ASAN_OPTIONS=check_initialization_order=1)
 #set(ASAN_OPTIONS=detect_leaks=1)
@@ -27,8 +28,12 @@ set(CMAKE_CXX_FLAGS "-fexceptions")
 
 # ---------------------------- #
 
-#add_definitions(-ggdb3 -O0 -Wall)       # Debugging + No optimization
-add_definitions(-O3 -Wall)              # Much optimization
+if(dev)
+    message(STATUS "--- Using dev build options ---")
+    add_definitions(-ggdb3 -O0 -Wall)       # Debugging + No optimization
+else()
+    add_definitions(-O3 -Wall)              # Much optimization
+endif()
 
 #########################################
 # ------------------------------------- #
@@ -152,17 +157,29 @@ endif()
 # Need to explicitly enable ExternalProject functionality
 include(ExternalProject)
 
-# Download or update library as an external project
-ExternalProject_Add(project_gfak
-        GIT_REPOSITORY https://github.com/edawson/gfakluge.git
-        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
-        CONFIGURE_COMMAND ""
-#	    DOWNLOAD_COMMAND ""
-#        UPDATE_COMMAND ""
-        BUILD_IN_SOURCE True
-        INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/gfak/
-        INSTALL_COMMAND make PREFIX=${CMAKE_SOURCE_DIR}/external/gfak/ install
-        )
+if (dev)
+    # Download or update library as an external project
+    ExternalProject_Add(project_gfak
+            GIT_REPOSITORY https://github.com/edawson/gfakluge.git
+            PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
+            CONFIGURE_COMMAND ""
+            DOWNLOAD_COMMAND ""
+            UPDATE_COMMAND ""
+            BUILD_IN_SOURCE True
+            INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/gfak/
+            INSTALL_COMMAND make PREFIX=${CMAKE_SOURCE_DIR}/external/gfak/ install
+            )
+else()
+    # Download or update library as an external project
+    ExternalProject_Add(project_gfak
+            GIT_REPOSITORY https://github.com/edawson/gfakluge.git
+            PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
+            CONFIGURE_COMMAND ""
+            BUILD_IN_SOURCE True
+            INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/gfak/
+            INSTALL_COMMAND make PREFIX=${CMAKE_SOURCE_DIR}/external/gfak/ install
+            )
+endif()
 
 # Define INSTALL_DIR as the install directory for external library
 ExternalProject_Get_Property(project_gfak INSTALL_DIR)
@@ -201,19 +218,32 @@ message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 # Need to explicitly enable ExternalProject functionality
 include(ExternalProject)
 
-# Download or update library as an external project
-ExternalProject_Add(project_abPOA
-        GIT_REPOSITORY https://github.com/yangao07/abPOA.git
-	GIT_TAG main
-#        GIT_SUBMODULES vendor/simde
-#        DOWNLOAD_COMMAND ""
-#        UPDATE_COMMAND ""
-        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
-        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/abPOA/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/abPOA/lib
-        BUILD_IN_SOURCE True
-        INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/abPOA/
-        INSTALL_COMMAND make install
-        )
+if(dev)
+    # Download or update library as an external project
+    ExternalProject_Add(project_abPOA
+            GIT_REPOSITORY https://github.com/yangao07/abPOA.git
+            GIT_TAG main
+            DOWNLOAD_COMMAND ""
+            UPDATE_COMMAND ""
+            PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
+            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/abPOA/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/abPOA/lib
+            BUILD_IN_SOURCE True
+            INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/abPOA/
+            INSTALL_COMMAND make install
+            )
+else()
+    # Download or update library as an external project
+    ExternalProject_Add(project_abPOA
+            GIT_REPOSITORY https://github.com/yangao07/abPOA.git
+            GIT_TAG main
+            PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
+            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/abPOA/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/abPOA/lib
+            BUILD_IN_SOURCE True
+            INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/abPOA/
+            INSTALL_COMMAND make install
+            )
+
+endif()
 
 # Define INSTALL_DIR as the install directory for external library
 ExternalProject_Get_Property(project_abPOA INSTALL_DIR)
@@ -249,18 +279,31 @@ message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 # Need to explicitly enable ExternalProject functionality
 include(ExternalProject)
 
-# Download or update library as an external project
-ExternalProject_Add(project_bdsg
-        GIT_REPOSITORY https://github.com/vgteam/libbdsg-easy.git
-        GIT_TAG b989949811918b18de48a5e57d7f45473d8901f1
-        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
-        CONFIGURE_COMMAND ""
-#        DOWNLOAD_COMMAND ""
-#        UPDATE_COMMAND ""
-        BUILD_IN_SOURCE True
-        INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/bdsg/
-        INSTALL_COMMAND make INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/bdsg/ install
+if(dev)
+    # Download or update library as an external project
+    ExternalProject_Add(project_bdsg
+            GIT_REPOSITORY https://github.com/vgteam/libbdsg-easy.git
+            GIT_TAG b989949811918b18de48a5e57d7f45473d8901f1
+            PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
+            CONFIGURE_COMMAND ""
+            DOWNLOAD_COMMAND ""
+            UPDATE_COMMAND ""
+            BUILD_IN_SOURCE True
+            INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/bdsg/
+            INSTALL_COMMAND make INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/bdsg/ install
         )
+else()
+    # Download or update library as an external project
+    ExternalProject_Add(project_bdsg
+            GIT_REPOSITORY https://github.com/vgteam/libbdsg-easy.git
+            GIT_TAG b989949811918b18de48a5e57d7f45473d8901f1
+            PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
+            CONFIGURE_COMMAND ""
+            BUILD_IN_SOURCE True
+            INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/bdsg/
+            INSTALL_COMMAND make INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/bdsg/ install
+    )
+endif()
 
 # Define INSTALL_DIR as the install directory for external library
 ExternalProject_Get_Property(project_bdsg INSTALL_DIR)
@@ -313,18 +356,30 @@ message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 # Need to explicitly enable ExternalProject functionality
 include(ExternalProject)
 
-# Download or update library as an external project
-ExternalProject_Add(project_spoa
-        GIT_REPOSITORY https://github.com/rvaser/spoa.git
-#        GIT_SUBMODULES vendor/bioparser vendor/cereal vendor/cpu_features vendor/simde
-#        DOWNLOAD_COMMAND ""
-#        UPDATE_COMMAND ""
-        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
-        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/spoa/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/spoa/lib
-        BUILD_IN_SOURCE True
-        INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/spoa/
-        INSTALL_COMMAND make install
-        )
+if(dev)
+    # Download or update library as an external project
+    ExternalProject_Add(project_spoa
+            GIT_REPOSITORY https://github.com/rvaser/spoa.git
+            DOWNLOAD_COMMAND ""
+            UPDATE_COMMAND ""
+            PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
+            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/spoa/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/spoa/lib
+            BUILD_IN_SOURCE True
+            INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/spoa/
+            INSTALL_COMMAND make install
+    )
+
+else()
+    # Download or update library as an external project
+    ExternalProject_Add(project_spoa
+            GIT_REPOSITORY https://github.com/rvaser/spoa.git
+            PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
+            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/spoa/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/spoa/lib
+            BUILD_IN_SOURCE True
+            INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/spoa/
+            INSTALL_COMMAND make install
+    )
+endif()
 
 # Define INSTALL_DIR as the install directory for external library
 ExternalProject_Get_Property(project_spoa INSTALL_DIR)
@@ -400,7 +455,7 @@ find_package(ZLIB REQUIRED)
 set(TESTS
         test_AdjacencyComponent
         test_bdsg
-	test_BicliqueCover
+	    test_BicliqueCover
         test_cigar
         test_divide_handle
         test_duplicate_terminus
