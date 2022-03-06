@@ -137,7 +137,6 @@ bool Bluntifier::biclique_overlaps_are_exact(size_t i){
     // Check if any of the edges are NOT exact overlaps
     for (auto& edge: bicliques[i]){
         auto iter = overlaps.canonicalize_and_find(edge, gfa_graph);
-//        edge = iter->first;
 
         if (iter == overlaps.overlaps.end()){
             throw runtime_error("ERROR: edge not found in overlaps: "
@@ -146,9 +145,9 @@ bool Bluntifier::biclique_overlaps_are_exact(size_t i){
         }
         Alignment& alignment = iter->second;
 
-        if (not (alignment.operations.size() == 1 and alignment.operations[0].type() == 'M')){
-           exact = false;
-           break;
+        if (not alignment.is_exact()){
+            exact = false;
+            break;
         }
         else{
             auto query_start = gfa_graph.get_length(edge.first) - alignment.operations[0].length;
@@ -156,9 +155,14 @@ bool Bluntifier::biclique_overlaps_are_exact(size_t i){
 
             auto explicit_cigar_operations = alignment.explicitize_mismatches(gfa_graph, edge, ref_start, query_start);
 
-            sizes.emplace(explicit_cigar_operations[0].length);
+            if (not explicit_cigar_operations.empty()){
+                sizes.emplace(explicit_cigar_operations[0].length);
+            }
+            else{
+                sizes.emplace(0);
+            }
 
-            if (not (explicit_cigar_operations.size() == 1 and explicit_cigar_operations[0].type() == '=')){
+            if (not Alignment::is_exact(explicit_cigar_operations)){
                 exact = false;
                 break;
             }
@@ -166,7 +170,7 @@ bool Bluntifier::biclique_overlaps_are_exact(size_t i){
     }
 
     // Only return true for bicliques that have all the same size overlaps (could be extended to more cases later)
-    if (sizes.size() != 1){
+    if (exact and sizes.size() != 1){
         exact = false;
     }
 
@@ -234,11 +238,10 @@ void Bluntifier::align_biclique_overlaps(size_t i){
 
     if (biclique_overlaps_are_exact(i)){
         // we can infer exact overlaps without alignment (helps for de Bruijn graphs)
+//        cerr << "Skipping exact overlaps for biclique: " << i << '\n';
         create_exact_subgraph(i);
     }
     else {
-        // we need to align the sequences to produce the subgraph
-        
         if (biclique_overlaps_are_short(i, 250)) {
             // the alignments are short enough that we can use SPOA
             
