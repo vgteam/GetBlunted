@@ -223,8 +223,6 @@ void for_edge_and_node_in_bfs(
         if (begin){
             begin = false;
         }
-
-        distance++;
     }
 }
 
