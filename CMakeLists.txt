@@ -495,6 +495,7 @@ endforeach()
 
 set(EXECUTABLES
         get_blunted
+        extract_subgraph
         )
 
 foreach(FILENAME_PREFIX ${EXECUTABLES})
