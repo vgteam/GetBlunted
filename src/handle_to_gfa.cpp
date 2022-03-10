@@ -165,15 +165,18 @@ void for_edge_and_node_in_bfs(
 
         q.pop();
 
+        vector<nid_t> other_nodes;
+
         graph.follow_edges(h, false, [&](const handle_t& other_handle) {
             auto other_node = graph.get_id(other_handle);
 
-            // Attempt to add this to the set of visited nodes
-            auto not_visited = visited_nodes.emplace(other_node).second;
+            // See if this node has been visited
+            bool visited = visited_nodes.count(other_node);
 
             // Check that this has NOT been visited before queuing it
-            if (not_visited and distance < radius) {
+            if (not visited and distance < radius) {
                 q.emplace(other_handle, (distance+1));
+                other_nodes.emplace_back(other_node);
             }
 
             auto edge_result = visited_edges[h].insert(other_handle);
@@ -185,7 +188,7 @@ void for_edge_and_node_in_bfs(
                     f_edge(h, other_handle);
                 }
                 else {
-                    if (not not_visited){
+                    if (visited){
                         f_edge(h, other_handle);
                     }
                 }
@@ -195,12 +198,13 @@ void for_edge_and_node_in_bfs(
         graph.follow_edges(h, true, [&](const handle_t& other_handle) {
             auto other_node = graph.get_id(other_handle);
 
-            // Attempt to add this to the set of visited nodes
-            auto not_visited = visited_nodes.emplace(other_node).second;
+            // See if this node has been visited
+            bool visited = visited_nodes.count(other_node);
 
             // Check that this has NOT been visited before queuing it
-            if (not_visited and distance < radius) {
+            if (not visited and distance < radius) {
                 q.emplace(other_handle, (distance+1));
+                other_nodes.emplace_back(other_node);
             }
 
             auto edge_result = visited_edges[other_handle].emplace(h);
@@ -212,13 +216,17 @@ void for_edge_and_node_in_bfs(
                     f_edge(other_handle, h);
                 }
                 else {
-                    if (not not_visited){
+                    if (visited){
                         f_edge(other_handle, h);
                     }
                 }
             }
 
         });
+
+        for (auto& n: other_nodes){
+            visited_nodes.emplace(n);
+        }
 
         if (begin){
             begin = false;
