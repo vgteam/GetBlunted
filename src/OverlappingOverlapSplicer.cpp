@@ -2,6 +2,8 @@
 #include "handle_to_gfa.hpp"
 #include "handlegraph/util.hpp"
 
+using bdsg::PathHandleGraph;
+using handlegraph::step_handle_t;
 
 using std::cerr;
 using std::tie;
@@ -146,10 +148,10 @@ void OverlappingOverlapSplicer::find_splice_pairs(
         OverlappingNodeInfo& overlap_info,
         vector <OverlappingSplicePair>& oo_splice_pairs){
 
-    array <vector <overlapping_child_iter>, 2> other_children;
 
     for (auto side: {0,1}) {
         for (auto oo: overlap_info.overlapping_children[side]){
+            array <vector <overlapping_child_iter>, 2> other_children;
 
 //            if (oo.first == 0 or oo.first == overlap_info.length-1){
 //                throw runtime_error("ERROR: Overlapping overlap meets or exceeds node length: "
@@ -394,6 +396,17 @@ void OverlappingOverlapSplicer::find_splice_pairs(
             }
         }
     }
+}
+
+
+size_t get_path_length(PathHandleGraph& gfa_graph, string path_name){
+    auto p = gfa_graph.get_path_handle(path_name);
+    size_t length = 0;
+    gfa_graph.for_each_step_in_path(p, [&](const step_handle_t s){
+        length += gfa_graph.get_length(gfa_graph.get_handle_of_step(s));
+    });
+
+    return length;
 }
 
 
