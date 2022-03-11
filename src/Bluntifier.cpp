@@ -555,6 +555,13 @@ void Bluntifier::compute_provenance(){
 }
 
 
+void print_node_names(IncrementalIdMap<string>& id_map){
+    for (size_t i=0; i<id_map.names.size(); i++){
+        cerr << i+1 << " " << id_map.names[i] << '\n';
+    }
+}
+
+
 void Bluntifier::bluntify(){
     
     log_progress("Reading GFA...");
@@ -576,13 +583,6 @@ void Bluntifier::bluntify(){
     for (size_t i = 0; i<adjacency_components.size(); i++){
         compute_biclique_cover(i);
     }
-
-//    Uncomment for debug
-//    {
-//        ofstream test_gfa("post_biclique_cover.gfa");
-//        handle_graph_to_gfa(gfa_graph, test_gfa);
-//        test_gfa.close();
-//    }
 
     log_progress("Total biclique covers: " + to_string(bicliques.size()));
 
