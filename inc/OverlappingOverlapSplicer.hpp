@@ -28,11 +28,11 @@ namespace bluntifier {
 
 class OverlappingSplicePair{
 public:
-    size_t left_parent_index;
-    size_t left_child_index;
+    int64_t left_parent_index;
+    int64_t left_child_index;
     string left_child_path_name;
-    size_t right_parent_index;
-    size_t right_child_index;
+    int64_t right_parent_index;
+    int64_t right_child_index;
     string right_child_path_name;
 
     // From which side of the OO node is this pair? 0 = left, 1 = right. This is needed for full-node overlaps
