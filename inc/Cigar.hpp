@@ -70,6 +70,8 @@ public:
     /// Methods ///
     Alignment(const string& s);
 
+    string get_cigar_string();
+
     // Return the sequence lengths of the {query,ref} in a pair
     void compute_lengths(pair<size_t,size_t>& lengths) const;
 

@@ -28,18 +28,22 @@ OverlappingNodeInfo::OverlappingNodeInfo(nid_t parent_node):
 
 
 void OverlappingNodeInfo::print(HandleGraph& graph){
+
+    cerr << "OO parent node id: " << parent_node << '\n';
+    cerr << "OO parent node length: " << length << '\n';
+    cerr << "OO parent path name: " << parent_path_name << '\n';
     for (auto side: {0,1}) {
-        cerr << "Side: " << side << '\n';
-        cerr << "Overlapping:\n";
+        cerr << '\t' << "Side: " << side << '\n';
+        cerr << '\t' << "Overlapping:\n";
         for (auto& item1: overlapping_children[side]){
             auto& overlapping_child = item1.second;
-            cerr << '\t' << item1.first << " ";
+            cerr << '\t' << '\t' << item1.first << " ";
             overlapping_child.print(graph);
         }
-        cerr << "Normal:\n";
+        cerr << '\t' << "Normal:\n";
         for (auto& item1: normal_children[side]){
             auto& normal_child = item1.second;
-            cerr << '\t' << item1.first << " ";
+            cerr << '\t' << '\t' << item1.first << " ";
             normal_child.print(graph);
         }
         cerr << '\n';

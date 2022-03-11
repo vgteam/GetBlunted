@@ -33,18 +33,10 @@ map<nid_t, OverlappingNodeInfo>::iterator Duplicator::preprocess_overlapping_ove
     auto parent_handle = gfa_graph.get_handle(node_info.node_id, false);
     overlap_node_info.length = gfa_graph.get_length(parent_handle);
 
-    bool side;
-    if (sorted_sizes_per_side[0][0] > sorted_sizes_per_side[1][0]) {
-        side = 0;
-    }
-    else {
-        side = 1;
-    }
-
     // Iteratively remove and document the longest overlaps from alternating sides, until the node is effectively a
     // normal node. Additionally, duplicate orphan segments from the parent node for the overlapping overlaps
     while (contains_overlapping_overlaps(gfa_graph, parent_handle, sorted_sizes_per_side)){
-        if (side == 0){
+        if (sorted_sizes_per_side[0][0] > sorted_sizes_per_side[1][0]){
             size_t s = sorted_sizes_per_side[0][0];
             string sequence = gfa_graph.get_subsequence(parent_handle, 0, s);
 
@@ -88,8 +80,6 @@ map<nid_t, OverlappingNodeInfo>::iterator Duplicator::preprocess_overlapping_ove
             sorted_sizes_per_side[1].pop_front();
             sorted_bicliques_per_side[1].pop_front();
         }
-
-        side = 1 - side;
     }
 
     return result.first;

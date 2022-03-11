@@ -104,6 +104,19 @@ Alignment::Alignment(const string& s) {
 }
 
 
+string Alignment::get_cigar_string(){
+    string s;
+
+    // Count up the cigar operations
+    for (const auto& c: operations) {
+        s += to_string(c.length);
+        s += c.type();
+    }
+
+    return s;
+}
+
+
 void Alignment::compute_lengths(pair<size_t,size_t>& lengths) const{
     // Reset lengths
     lengths.first = 0;
