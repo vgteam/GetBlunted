@@ -237,11 +237,11 @@ void for_edge_and_node_in_bfs(
 
 void write_bfs_to_gfa(HandleGraph& gfa_graph, IncrementalIdMap<string>& id_map, OverlapMap& overlap_map, nid_t start_node, size_t radius, ofstream& output_gfa){
 
-    function f_node = [&](const handle_t& h) {
+    auto f_node = [&](const handle_t& h) {
         write_node_to_gfa(gfa_graph, id_map, h, output_gfa);
     };
 
-    function f_edge = [&](const handle_t& h1, const handle_t& h2) {
+    auto f_edge = [&](const handle_t& h1, const handle_t& h2) {
         write_edge_to_gfa(gfa_graph, id_map, std::make_pair(h1, h2), overlap_map, output_gfa);
     };
 
