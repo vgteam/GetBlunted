@@ -416,8 +416,7 @@ GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
                     size_t stack_pos = stack.size() - 1;
                     
                     auto edge = *galois_tree.edge_begin(equiv_class);
-                    auto max_so_far = edge_max_biclique[graph.left_iterator(edge.first) - graph.left_begin()]
-                    [graph.right_iterator(edge.second) - graph.right_begin()];
+                    auto max_so_far = edge_max_biclique[graph.left_iterator(edge.first) - graph.left_begin()][graph.right_iterator(edge.second) - graph.right_begin()];
                     size_t max_size;
                     if (max_so_far.first == -1) {
                         max_size = 0;
@@ -462,8 +461,7 @@ GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
                         for (auto it = galois_tree.edge_begin(equiv_class), end = galois_tree.edge_end(equiv_class);
                              it != end; ++it) {
                             auto e = *it;
-                            edge_max_biclique[graph.left_iterator(e.first) - graph.left_begin()]
-                            [graph.right_iterator(e.second) - graph.right_begin()] = max_so_far;
+                            edge_max_biclique[graph.left_iterator(e.first) - graph.left_begin()][graph.right_iterator(e.second) - graph.right_begin()] = max_so_far;
                         }
                         
                         // enqueue the predecessors

@@ -382,7 +382,7 @@ void ReducedDualGraph::print_dual_graph(ostream& out) {
                              [&](const vector<size_t>& dual_neighborhood) {
             for (auto j : dual_neighborhood) {
                 if (i != j) {
-                    out << "\t- " << j << endl;
+                    out << "\t- " << j << "(" << dual_nodes[j].first << " " << dual_nodes[j].second << ")" << endl;
                 }
             }
         });
