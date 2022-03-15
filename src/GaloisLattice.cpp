@@ -33,6 +33,12 @@ CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
     vector<vector<size_t>> left_edges;
     vector<handle_t> left_nodes, right_nodes;
     
+    // initialize with the center (this is necessary if the center is
+    // an isolated singleton, which happens has a result of simplication)
+    left_idx[center] = 0;
+    left_edges.emplace_back();
+    left_nodes.emplace_back(center);
+    
     graph.for_each_adjacent_side(center, [&](handle_t right) {
         graph.for_each_adjacent_side(right, [&](handle_t left) {
             auto f = left_idx.find(left);
@@ -67,12 +73,11 @@ CenteredGaloisTree::CenteredGaloisTree(const BipartiteGraph& graph,
 #endif
     
     // initialize every node on the left in the same equivalence class
-    vector<size_t> equiv_class_assignment(left_nodes.size(),
-                                          numeric_limits<size_t>::max());
-    size_t next_equiv_class = 0;
+    vector<size_t> equiv_class_assignment(left_nodes.size(), 0);
+    size_t next_equiv_class = 1;
     for (handle_t right : right_nodes) {
         // refine the classes using the edges of this node
-        // TODO: this coud be done without an unordered_map by reseting
+        // TODO: this coud be done without an unordered_map by resetting
         // a vector after every iteration
         unordered_map<size_t, size_t> equiv_mapping;
         graph.for_each_adjacent_side(right, [&](handle_t left) {
@@ -296,7 +301,7 @@ size_t CenteredGaloisTree::successor(size_t i) const {
 }
 
 CenteredGaloisTree::edge_iterator CenteredGaloisTree::edge_begin(size_t i) const {
-    return edge_iterator(0, 0, i, this);
+    return edge_iterator(neighborhoods[i].empty() ? equiv_classes[i].size() : 0, 0, i, this);
 }
 
 CenteredGaloisTree::edge_iterator CenteredGaloisTree::edge_end(size_t i) const {
@@ -346,7 +351,7 @@ bipartition CenteredGaloisTree::biclique(size_t i) const {
 
 GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
     
-    // algorithm 4 in Amilhastre
+    // algorithm 4 in Amilhastre (Galois)
     
 #ifdef debug_galois_lattice
     cerr << "making centered trees" << endl;
@@ -395,7 +400,7 @@ GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
                 stack.pop_back();
             }
             else {
-                // algorthm 5 in Amilhastre
+                // algorithm 5 in Amilhastre (Link)
                 
                 // check if the maximal biclique covering an edge is still maximal after
                 // adding in this galois tree
@@ -405,78 +410,82 @@ GaloisLattice::GaloisLattice(const BipartiteGraph& graph) {
 #endif
                 ++stack.back().second;
                 
-                // remember the position of this frame on the stack
-                size_t stack_pos = stack.size() - 1;
-                
-                auto edge = *galois_tree.edge_begin(equiv_class);
-                auto max_so_far = edge_max_biclique[graph.left_iterator(edge.first) - graph.left_begin()]
-                                                   [graph.right_iterator(edge.second) - graph.right_begin()];
-                size_t max_size;
-                if (max_so_far.first == -1) {
-                    max_size = 0;
-                }
-                else {
-                    max_size = galois_trees[max_so_far.first].right_size(max_so_far.second);
-                }
-                size_t size_here = galois_tree.right_size(equiv_class);
-                
-#ifdef debug_galois_lattice
-                cerr << "test edge " << graph.get_graph().get_id(edge.first) << " " << graph.get_graph().get_is_reverse(edge.first) << " -- " << graph.get_graph().get_id(edge.second) << " " << graph.get_graph().get_is_reverse(edge.second) << endl;
-                cerr << "current max biclique " << max_so_far.first << " " << max_so_far.second << endl;
-                cerr << "edge max size: " << max_size << ", vs size here " << size_here << endl;
-#endif
-                if (size_here > max_size) {
+                if (galois_tree.edge_begin(equiv_class) != galois_tree.edge_end(equiv_class)) {
                     
-                    // we've found a larger maximal biclique covering this edge
+                    // remember the position of this frame on the stack
+                    size_t stack_pos = stack.size() - 1;
                     
-#ifdef debug_galois_lattice
-                    cerr << "reassigning max, creating biclique node " << bicliques.size() << endl;
-                    auto bc = galois_tree.biclique(equiv_class);
-                    cerr << "biclique left:" << endl;
-                    for (auto node : bc.first) {
-                        cerr << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
+                    auto edge = *galois_tree.edge_begin(equiv_class);
+                    auto max_so_far = edge_max_biclique[graph.left_iterator(edge.first) - graph.left_begin()]
+                    [graph.right_iterator(edge.second) - graph.right_begin()];
+                    size_t max_size;
+                    if (max_so_far.first == -1) {
+                        max_size = 0;
                     }
-                    cerr << "biclique right:" << endl;
-                    for (auto node : bc.second) {
-                        cerr << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
-                    }
-#endif
-                    
-                    max_so_far.first = i;
-                    max_so_far.second = equiv_class;
-                    
-                    // make sure there's a node for this maximal biclique in the lattice
-                    biclique_index[max_so_far] = bicliques.size();
-                    bicliques.emplace_back(max_so_far);
-                    lattice.emplace_back();
-                    
-                    // update the maximal biclique for all of the edges of this equivalence class
-                    for (auto it = galois_tree.edge_begin(equiv_class), end = galois_tree.edge_end(equiv_class);
-                         it != end; ++it) {
-                        auto e = *it;
-                        edge_max_biclique[graph.left_iterator(e.first) - graph.left_begin()]
-                                         [graph.right_iterator(e.second) - graph.right_begin()] = max_so_far;
+                    else {
+                        max_size = galois_trees[max_so_far.first].right_size(max_so_far.second);
                     }
                     
-                    // enqueue the predecessors
-                    stack.emplace_back(galois_tree.predecessors(equiv_class), 0);
-#ifdef debug_galois_lattice
-                    cerr << "enqueuing equivalance classes:" << endl;
-                    for (auto j : stack.back().first) {
-                        cerr << "\t" << j << endl;
-                    }
-#endif
-                }
-                // TODO: will this ever produce duplicate edges? that could seriously fuck up
-                // the separator stage
-                if (stack_pos > 0) {
-                    // add a connection in the lattice from the previous recursive call
-                    auto& prev_frame = stack[stack_pos - 1];
-                    lattice[biclique_index[make_pair(i, prev_frame.first[prev_frame.second - 1])]].push_back(biclique_index[max_so_far]);
+                    size_t size_here = galois_tree.right_size(equiv_class);
                     
 #ifdef debug_galois_lattice
-                    cerr << "setting " << max_so_far.first << " " << max_so_far.second << " (" << biclique_index.at(max_so_far) << ") as predecessor to " << i << " " << prev_frame.first[prev_frame.second - 1] << endl;
+                    cerr << "test edge " << graph.get_graph().get_id(edge.first) << " " << graph.get_graph().get_is_reverse(edge.first) << " -- " << graph.get_graph().get_id(edge.second) << " " << graph.get_graph().get_is_reverse(edge.second) << endl;
+                    cerr << "current max biclique " << max_so_far.first << " " << max_so_far.second << endl;
+                    cerr << "edge max size: " << max_size << ", vs size here " << size_here << endl;
 #endif
+                    if (size_here > max_size) {
+                        
+                        // we've found a larger maximal biclique covering this edge
+                        
+#ifdef debug_galois_lattice
+                        cerr << "reassigning max, creating biclique node " << bicliques.size() << endl;
+                        auto bc = galois_tree.biclique(equiv_class);
+                        cerr << "biclique left:" << endl;
+                        for (auto node : bc.first) {
+                            cerr << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
+                        }
+                        cerr << "biclique right:" << endl;
+                        for (auto node : bc.second) {
+                            cerr << graph.get_graph().get_id(node) << " " << graph.get_graph().get_is_reverse(node) << endl;
+                        }
+#endif
+                        
+                        max_so_far.first = i;
+                        max_so_far.second = equiv_class;
+                        
+                        // make sure there's a node for this maximal biclique in the lattice
+                        biclique_index[max_so_far] = bicliques.size();
+                        bicliques.emplace_back(max_so_far);
+                        lattice.emplace_back();
+                        
+                        // update the maximal biclique for all of the edges of this equivalence class
+                        for (auto it = galois_tree.edge_begin(equiv_class), end = galois_tree.edge_end(equiv_class);
+                             it != end; ++it) {
+                            auto e = *it;
+                            edge_max_biclique[graph.left_iterator(e.first) - graph.left_begin()]
+                            [graph.right_iterator(e.second) - graph.right_begin()] = max_so_far;
+                        }
+                        
+                        // enqueue the predecessors
+                        stack.emplace_back(galois_tree.predecessors(equiv_class), 0);
+#ifdef debug_galois_lattice
+                        cerr << "enqueuing equivalance classes:" << endl;
+                        for (auto j : stack.back().first) {
+                            cerr << "\t" << j << endl;
+                        }
+#endif
+                    }
+                    // TODO: will this ever produce duplicate edges? that could seriously fuck up
+                    // the separator stage
+                    if (stack_pos > 0) {
+                        // add a connection in the lattice from the previous recursive call
+                        auto& prev_frame = stack[stack_pos - 1];
+                        lattice[biclique_index[make_pair(i, prev_frame.first[prev_frame.second - 1])]].push_back(biclique_index[max_so_far]);
+                        
+#ifdef debug_galois_lattice
+                        cerr << "setting " << max_so_far.first << " " << max_so_far.second << " (" << biclique_index.at(max_so_far) << ") as predecessor to " << i << " " << prev_frame.first[prev_frame.second - 1] << endl;
+#endif
+                    }
                 }
             }
         }

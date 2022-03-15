@@ -355,8 +355,6 @@ vector<size_t> VertexColoring::lawlers_algorithm() const {
                         // found an odd cycle, graph is not bipartite
                         return return_val;
                     }
-                    else {
-                    }
                 }
             }
         }
