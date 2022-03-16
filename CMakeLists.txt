@@ -222,7 +222,7 @@ if(dev)
     # Download or update library as an external project
     ExternalProject_Add(project_abPOA
             GIT_REPOSITORY https://github.com/yangao07/abPOA.git
-            GIT_TAG main
+            GIT_TAG bfe4ac0a4945ed3eadf68282776fc816b299947e
             DOWNLOAD_COMMAND ""
             UPDATE_COMMAND ""
             PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
