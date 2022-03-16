@@ -50,9 +50,7 @@ Bluntifier::Bluntifier(const string& gfa_path,
     // we don't care about the MSA
     // TODO: maybe we should do a consensus realignment like with SPOA though?
     abpoa_params->out_msa = 0;
-    abpoa_params->out_msa_header = 0;
     abpoa_params->out_gfa = 0;
-    abpoa_params->is_diploid = 0;
     abpoa_params->progressive_poa = 1;
     abpoa_params->use_read_ids = 1;
     

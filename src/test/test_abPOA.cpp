@@ -75,7 +75,7 @@ int main(){
         "CGTCAATGGATCGAGTACGCGGCAGAGCCGAAGACCTCGGCAATCAC",
         "CGTCAATCTAATCGAAGCATACGCGGCAGAGCCGTCTACCTCGGCAATCACGT"
     };
-    
+
     vector<string> seq_names{
         "seq0",
         "seq1",
@@ -99,7 +99,6 @@ int main(){
         c_seq_names[i][seq_names[i].size()] = '\0';
     }
     
-    
     // initialize variables
     abpoa_t *ab = abpoa_init();
     abpoa_para_t *abpt = abpoa_init_para();
@@ -109,6 +108,7 @@ int main(){
     abpt->out_cons = 1; // generate consensus sequence, set 0 to disable
     abpt->w = 6, abpt->k = 9; abpt->min_w = 10; // minimizer-based seeding and partition
     abpt->progressive_poa = 1;
+    abpt->out_gfa = 1;
     
     abpoa_post_set_para(abpt);
     
@@ -126,7 +126,7 @@ int main(){
     fprintf(stdout, "=== output to stdout ===\n");
     
     // perform abpoa-msa
-    abpoa_msa(ab, abpt, n_seqs, c_seq_names, seq_lens, bseqs, stdout, NULL, NULL, NULL, NULL, NULL, NULL);
+    abpoa_msa(ab, abpt, n_seqs, c_seq_names, seq_lens, bseqs, stdout);
     
     fprintf(stdout, "=== testing my conversion algorithm ===\n");
     
@@ -200,26 +200,17 @@ int main(){
         // add node id to read path
         int b = 0;
         for (size_t j = 0; j < ab_graph->node[nid].read_ids_n; ++j) {
-            uint64_t num = ab_graph->node[nid].read_ids[j];
-            uint64_t tmp;
-            while (num) {
-                tmp = num & -num;
-                int read_id = sdsl::bits::hi(tmp);
-                graph.append_step(read_id_to_path[b+read_id], abpoa_node_to_handle.at(nid));
-                num ^= tmp;
+            for (size_t k = 0; k < ab_graph->node[nid].out_edge_n; k++) {
+                uint64_t num = ab_graph->node[nid].read_ids[k][j];
+                while (num) {
+                    uint64_t tmp = num & -num;
+                    int read_id = sdsl::bits::hi(tmp);
+                    graph.append_step(read_id_to_path[b+read_id], abpoa_node_to_handle.at(nid));
+                    num ^= tmp;
+                }
             }
             b += 64;
         }
-        
-//        // TODO: the abPOA function actually has a much more complicated
-//        // indexing scheme, hopefully this is enough
-//        cerr << "checking " << ab_graph->node[nid].read_ids_n << " reads on abpoa " << nid << ", handle " << graph.get_id(abpoa_node_to_handle.at(nid)) << endl;
-//        for (int j = 0; j < ab_graph->node[nid].read_ids_n; ++j) {
-//            uint64_t read_id = ab_graph->node[nid].read_ids[j];
-//            cout << "\tgot read ID " << read_id << endl;
-//            path_handle_t path_handle = read_id_to_path.at(read_id);
-//            graph.append_step(path_handle, abpoa_node_to_handle.at(nid));
-//        }
     }
     
     unchop(&graph);
@@ -265,45 +256,9 @@ int main(){
     });
     
     
-    
-    // 2. variables to store result
-    uint8_t **cons_seq; int **cons_cov, *cons_l, cons_n=0;
-    uint8_t **msa_seq; int msa_l=0;
-    
     // perform abpoa-msa
     ab->abs->n_seq = 0; // To re-use ab, n_seq needs to be set as 0
-    abpoa_msa(ab, abpt, n_seqs, NULL, seq_lens, bseqs, NULL, &cons_seq, &cons_cov, &cons_l, &cons_n, &msa_seq, &msa_l);
-    
-    fprintf(stdout, "=== output to variables ===\n");
-    for (i = 0; i < cons_n; ++i) {
-        fprintf(stdout, ">Consensus_sequence\n");
-        for (j = 0; j < cons_l[i]; ++j)
-            fprintf(stdout, "%c", nt256_table[cons_seq[i][j]]);
-        fprintf(stdout, "\n");
-    }
-    fprintf(stdout, ">Multiple_sequence_alignment\n");
-    for (i = 0; i < n_seqs; ++i) {
-        for (j = 0; j < msa_l; ++j) {
-            fprintf(stdout, "%c", nt256_table[msa_seq[i][j]]);
-        }
-        fprintf(stdout, "\n");
-    }
-    
-    if (cons_n) {
-        for (i = 0; i < cons_n; ++i) {
-            free(cons_seq[i]); free(cons_cov[i]);
-        } free(cons_seq); free(cons_cov); free(cons_l);
-    }
-    if (msa_l) {
-        for (i = 0; i < n_seqs; ++i) free(msa_seq[i]); free(msa_seq);
-    }
-    
-    /* generate DOT partial order graph plot */
-    abpt->out_pog = strdup("example.png"); // dump parital order graph to file
-    if (abpt->out_pog != NULL) abpoa_dump_pog(ab, abpt);
-    
-    for (i = 0; i < n_seqs; ++i) free(bseqs[i]); free(bseqs); free(seq_lens);
-    abpoa_free(ab); abpoa_free_para(abpt);
+    abpoa_msa(ab, abpt, n_seqs, NULL, seq_lens, bseqs, stdout);
 
     return 0;
 }

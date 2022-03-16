@@ -341,32 +341,13 @@ abpoa_t* Bluntifier::align_with_abpoa(size_t i) {
 
     
     // and now actually perform the MSA now that we've added everything
-    uint8_t** dummy_cons_seq;
-    int** dummy_cons_cov;
-    int* dummy_cons_len;
-    int dummy_cons_num;
     abpoa_msa(abpoa,
               abpoa_params,
               encoded_seqs.size(),
               seq_names.data(),
               seq_lens.data(),
               encoded_seqs.data(),
-              NULL,
-              &dummy_cons_seq,
-              &dummy_cons_cov,
-              &dummy_cons_len,
-              &dummy_cons_num,
-              NULL,
               NULL);
-    
-    // discard the consensus sequene info that we don't actually care about
-    for (int j = 0; j < dummy_cons_num; ++j) {
-        free(dummy_cons_seq[j]);
-        free(dummy_cons_cov[j]);
-    }
-    free(dummy_cons_len);
-    free(dummy_cons_seq);
-    free(dummy_cons_cov);
     
     // clean up C arrays
     for (auto enc_seq : encoded_seqs) {
@@ -475,12 +456,14 @@ void Bluntifier::convert_abpoa_to_bdsg(abpoa_t* abpoa, size_t i) {
         // (directly copied from the abpoa function, i have no idea how this works)
         int b = 0;
         for (size_t j = 0; j < ab_graph->node[nid].read_ids_n; ++j) {
-            uint64_t num = ab_graph->node[nid].read_ids[j];
-            while (num) {
-                uint64_t tmp = num & -num;
-                int read_id = sdsl::bits::hi(tmp); // replace ilog2_64 from abpoa
-                graph.append_step(read_id_to_path[b+read_id], abpoa_node_to_handle.at(nid));
-                num ^= tmp;
+            for (size_t k = 0; k < ab_graph->node[nid].out_edge_n; k++) {
+                uint64_t num = ab_graph->node[nid].read_ids[k][j];
+                while (num) {
+                    uint64_t tmp = num & -num;
+                    int read_id = sdsl::bits::hi(tmp); // replace ilog2_64 from abpoa
+                    graph.append_step(read_id_to_path[b+read_id], abpoa_node_to_handle.at(nid));
+                    num ^= tmp;
+                }
             }
             b += 64;
         }
