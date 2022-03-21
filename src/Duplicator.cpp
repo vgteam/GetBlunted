@@ -37,7 +37,7 @@ map<nid_t, OverlappingNodeInfo>::iterator Duplicator::preprocess_overlapping_ove
     // normal node. Additionally, duplicate orphan segments from the parent node for the overlapping overlaps
     while (contains_overlapping_overlaps(gfa_graph, parent_handle, sorted_sizes_per_side)){
         if (sorted_sizes_per_side[0][0] > sorted_sizes_per_side[1][0]){
-            size_t s = sorted_sizes_per_side[0][0];
+            int64_t s = sorted_sizes_per_side[0][0];
             string sequence = gfa_graph.get_subsequence(parent_handle, 0, s);
 
             auto child = gfa_graph.create_handle(sequence);
@@ -50,6 +50,11 @@ map<nid_t, OverlappingNodeInfo>::iterator Duplicator::preprocess_overlapping_ove
             OverlappingChild child_info(child, biclique_index, 0);
             overlap_node_info.overlapping_children[0].emplace(s-1, child_info);
 
+            if (s-1 < 0){
+                child_info.print(gfa_graph);
+                throw runtime_error("ERROR: negative start index for overlapping overlap" );
+            }
+
             // Update provenance map
             auto child_node = gfa_graph.get_id(child);
             child_to_parent[child_node] = {node_info.node_id, true};
@@ -59,7 +64,7 @@ map<nid_t, OverlappingNodeInfo>::iterator Duplicator::preprocess_overlapping_ove
             sorted_bicliques_per_side[0].pop_front();
         }
         else {
-            size_t start = gfa_graph.get_length(parent_handle) - sorted_sizes_per_side[1][0];
+            int64_t start = gfa_graph.get_length(parent_handle) - sorted_sizes_per_side[1][0];
             string sequence = gfa_graph.get_subsequence(parent_handle, start, sorted_sizes_per_side[1][0]);
 
             auto child = gfa_graph.create_handle(sequence);
@@ -71,6 +76,11 @@ map<nid_t, OverlappingNodeInfo>::iterator Duplicator::preprocess_overlapping_ove
             // More info needs to be stored until AFTER all POA subgraphs are done, to enable splicing within this node
             OverlappingChild child_info(child, biclique_index, 1);
             overlap_node_info.overlapping_children[1].emplace(start, child_info);
+
+            if (start < 0){
+                child_info.print(gfa_graph);
+                throw runtime_error("ERROR: negative start index for overlapping overlap" );
+            }
 
             // Update provenance map
             auto child_node = gfa_graph.get_id(child);
