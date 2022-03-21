@@ -40,8 +40,8 @@ public:
     /// Attributes ///
 
     // Assuming a forward oriented parent node, map each child of this node by its termination index in the parent node
-    array <multimap <size_t, OverlappingChild>, 2> overlapping_children;
-    array <multimap <size_t, OverlappingChild>, 2> normal_children;
+    array <multimap <int64_t, OverlappingChild>, 2> overlapping_children;
+    array <multimap <int64_t, OverlappingChild>, 2> normal_children;
 
     // If there is anything leftover of the original node, it is stored as a path
     string parent_path_name;

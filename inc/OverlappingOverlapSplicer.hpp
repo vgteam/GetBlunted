@@ -74,15 +74,15 @@ private:
 
     // Iterate along a path until the cumulative number of bases iterated would equal "target_base_index" and then
     // return the handle and intra-handle index
-    tuple<handle_t, size_t, size_t, bool> seek_to_path_base(
+    tuple<handle_t, int64_t, int64_t, bool> seek_to_path_base(
             MutablePathDeletableHandleGraph& gfa_graph,
             string& path_name,
-            size_t target_base_index);
+            int64_t target_base_index);
 
-    tuple<handle_t, size_t, size_t, bool> seek_to_reverse_path_base(
+    tuple<handle_t, int64_t, int64_t, bool> seek_to_reverse_path_base(
             MutablePathDeletableHandleGraph& gfa_graph,
             string& path_name,
-            size_t target_base_index);
+            int64_t target_base_index);
 
 };
 

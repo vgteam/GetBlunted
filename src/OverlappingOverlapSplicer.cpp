@@ -10,7 +10,7 @@ using std::tie;
 
 namespace bluntifier {
 
-typedef map <size_t, OverlappingChild>::iterator overlapping_child_iter;
+typedef map <int64_t, OverlappingChild>::iterator overlapping_child_iter;
 
 
 OverlappingOverlapSplicer::OverlappingOverlapSplicer(
@@ -68,23 +68,23 @@ bool OverlappingOverlapSplicer::find_path_info(
 }
 
 
-tuple<handle_t, size_t, size_t, bool> OverlappingOverlapSplicer::seek_to_path_base(
+tuple<handle_t, int64_t, int64_t, bool> OverlappingOverlapSplicer::seek_to_path_base(
         MutablePathDeletableHandleGraph& gfa_graph,
         string& path_name,
-        size_t target_base_index){
+        int64_t target_base_index){
 
     auto path_handle = gfa_graph.get_path_handle(path_name);
     auto step = gfa_graph.path_begin(path_handle);
 
-    size_t cumulative_index = 0;
-    size_t intra_handle_index = 0;
-    size_t remainder = 0;
+    int64_t cumulative_index = 0;
+    int64_t intra_handle_index = 0;
+    int64_t remainder = 0;
     handle_t step_handle;
 
     bool fail = true;
     while (step != gfa_graph.path_end(path_handle)){
         step_handle = gfa_graph.get_handle_of_step(step);
-        auto step_length = gfa_graph.get_length(step_handle);
+        int64_t step_length = gfa_graph.get_length(step_handle);
 
         if (cumulative_index + step_length > target_base_index){
             intra_handle_index = target_base_index - cumulative_index;
@@ -100,29 +100,33 @@ tuple<handle_t, size_t, size_t, bool> OverlappingOverlapSplicer::seek_to_path_ba
 
     remainder = target_base_index - cumulative_index;
 
+    if (remainder < 0){
+        fail = true;
+    }
+
     return {step_handle, intra_handle_index, remainder, fail};
 }
 
 
 
 
-tuple<handle_t, size_t, size_t, bool> OverlappingOverlapSplicer::seek_to_reverse_path_base(
+tuple<handle_t, int64_t, int64_t, bool> OverlappingOverlapSplicer::seek_to_reverse_path_base(
         MutablePathDeletableHandleGraph& gfa_graph,
         string& path_name,
-        size_t target_base_index){
+        int64_t target_base_index){
 
     auto path_handle = gfa_graph.get_path_handle(path_name);
     auto step = gfa_graph.path_back(path_handle);
 
-    size_t cumulative_index = 0;
-    size_t intra_handle_index = 0;
-    size_t remainder = 0;
+    int64_t cumulative_index = 0;
+    int64_t intra_handle_index = 0;
+    int64_t remainder = 0;
     handle_t step_handle;
 
     bool fail = true;
     while (step != gfa_graph.path_front_end(path_handle)){
         step_handle = gfa_graph.flip(gfa_graph.get_handle_of_step(step));
-        auto step_length = gfa_graph.get_length(step_handle);
+        int64_t step_length = gfa_graph.get_length(step_handle);
 
         if (cumulative_index + step_length > target_base_index){
             intra_handle_index = target_base_index - cumulative_index;
@@ -137,6 +141,10 @@ tuple<handle_t, size_t, size_t, bool> OverlappingOverlapSplicer::seek_to_reverse
     }
 
     remainder = target_base_index - cumulative_index;
+
+    if (remainder < 0){
+        fail = true;
+    }
 
     return {step_handle, intra_handle_index, remainder, fail};
 }
@@ -359,6 +367,16 @@ void OverlappingOverlapSplicer::find_splice_pairs(
                     splice_pair.left_child_index = splice_pair.left_parent_index;
                     splice_pair.right_child_index = splice_pair.right_parent_index;
 
+                    // Child to parent splicing should probably never have a negative start index. Only OO overlaps
+                    // can be full-node-overlaps
+                    if (splice_pair.left_child_index < 0){
+                        throw runtime_error("ERROR: left_child_index is < 0 for child-to-parent splice");
+                    }
+
+                    if (splice_pair.right_child_index < 0){
+                        throw runtime_error("ERROR: right_child_index is < 0 for child-to-parent splice");
+                    }
+
                 }
                 else {
                     //
@@ -390,6 +408,16 @@ void OverlappingOverlapSplicer::find_splice_pairs(
 
                     splice_pair.left_child_index = splice_pair.left_parent_index;
                     splice_pair.right_child_index = 0;
+
+                    // Child to parent splicing should probably never have a negative start index. Only OO overlaps
+                    // can be full-node-overlaps
+                    if (splice_pair.left_child_index < 0){
+                        throw runtime_error("ERROR: left_child_index is < 0 for child-to-parent splice");
+                    }
+
+                    if (splice_pair.right_child_index < 0){
+                        throw runtime_error("ERROR: right_child_index is < 0 for child-to-parent splice");
+                    }
                 }
 
                 oo_splice_pairs.emplace_back(splice_pair);
@@ -426,10 +454,10 @@ void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletable
         for (auto& splice_pair: oo_splice_pairs) {
             handle_t left_handle;
             handle_t right_handle;
-            size_t left_index;
-            size_t right_index;
-            size_t left_remainder;
-            size_t right_remainder;
+            int64_t left_index;
+            int64_t right_index;
+            int64_t left_remainder;
+            int64_t right_remainder;
             bool left_fail;
             bool right_fail;
 
@@ -485,12 +513,12 @@ void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletable
         for (auto& splice_pair: oo_splice_pairs) {
             handle_t left_handle;
             handle_t right_handle;
-            size_t left_index;
-            size_t right_index;
-            size_t left_remainder;
-            size_t right_remainder;
-            size_t left_fail;
-            size_t right_fail;
+            int64_t left_index;
+            int64_t right_index;
+            int64_t left_remainder;
+            int64_t right_remainder;
+            int64_t left_fail;
+            int64_t right_fail;
 
             if (splice_pair.left_reversal) {
                 tie(left_handle, left_index, left_remainder, left_fail) = seek_to_reverse_path_base(
@@ -516,12 +544,13 @@ void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletable
                         splice_pair.right_child_index);
             }
 
+            // Full node overlaps can exceed (>=length) or never meet (<0) the indexes of the parent node.
+            // The "remainder" can therefore be exactly zero or negative, respectively. Both are considered "fail"
+            bool left_side_is_end = (left_fail and (left_remainder == 0 or left_remainder == -1)) and (not right_fail and right_remainder > 0);
+            bool right_side_is_end = (not left_fail and left_remainder > 0) and (right_fail and (right_remainder == 0 or left_remainder == -1));
+            bool both_sides_are_end = ((left_remainder == 0 or left_remainder == -1) and (right_remainder == 0 or left_remainder == -1));
 
-            bool left_side_is_end = (left_fail and left_remainder == 0) and (not right_fail and right_remainder > 0);
-            bool right_side_is_end = (not left_fail and left_remainder > 0) and (right_fail and right_remainder == 0);
-            bool both_sides_are_end = (left_remainder == 0 and right_remainder == 0);
-
-            //
+            // Standard case
             if (not left_fail and not right_fail) {
                 gfa_graph.create_edge(left_handle, right_handle);
             }
@@ -552,6 +581,7 @@ void OverlappingOverlapSplicer::splice_overlapping_overlaps(MutablePathDeletable
                     }
                 }
             }
+            // In this case there is a greater than full overlap, which is not allowed
             else{
                 throw runtime_error("ERROR: overlap length is > parent node/path length by "
                                     + to_string(std::max(right_remainder, left_remainder)));
