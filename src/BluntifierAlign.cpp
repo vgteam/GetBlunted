@@ -8,6 +8,7 @@
 using handlegraph::HandleGraph;
 using handlegraph::nid_t;
 
+using std::atomic_fetch_add;
 using std::unordered_map;
 using std::unique_ptr;
 using std::to_string;
@@ -129,7 +130,7 @@ void Bluntifier::add_alignments_to_poa(
 }
 
 
-bool Bluntifier::biclique_overlaps_are_exact(size_t i){
+bool Bluntifier::biclique_overlaps_are_exact(size_t i) const{
     bool exact = true;
 
     set<size_t> sizes;
@@ -143,7 +144,7 @@ bool Bluntifier::biclique_overlaps_are_exact(size_t i){
                                 + to_string(gfa_graph.get_id(edge.first)) + "->"
                                 + to_string(gfa_graph.get_id(edge.second)));
         }
-        Alignment& alignment = iter->second;
+        const Alignment& alignment = iter->second;
 
         if (not alignment.is_exact()){
             exact = false;
@@ -177,10 +178,10 @@ bool Bluntifier::biclique_overlaps_are_exact(size_t i){
     return exact;
 }
 
-bool Bluntifier::biclique_overlaps_are_short(size_t i, size_t max_len) {
+bool Bluntifier::biclique_overlaps_are_short(size_t i, size_t max_len) const{
     
     bool are_short = true;
-    for (auto& edge: bicliques[i]) {
+    for (const auto& edge: bicliques[i]) {
         
         pair<size_t, size_t> lengths;
         overlaps.canonicalize_and_compute_lengths(lengths, edge, gfa_graph);
@@ -226,66 +227,68 @@ void Bluntifier::create_exact_subgraph(size_t i) {
 }
 
 
-void Bluntifier::align_biclique_overlaps(size_t i){
+void Bluntifier::align_biclique_overlaps(atomic<size_t>& index){
 
-    
-    // TODO: switch to fetch_add atomic
+    while (index < subgraphs.size()) {
+        size_t i = index.fetch_add(1);
 
-    // Skip trivial bicliques
-    if (bicliques[i].empty()){
-        return;
-    }
-
-    if (biclique_overlaps_are_exact(i)){
-        // we can infer exact overlaps without alignment (helps for de Bruijn graphs)
-//        cerr << "Skipping exact overlaps for biclique: " << i << '\n';
-        create_exact_subgraph(i);
-    }
-    else {
-        if (biclique_overlaps_are_short(i, 250)) {
-            // the alignments are short enough that we can use SPOA
-            
-            auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 5, -3, -3, -1);
-            spoa::Graph spoa_graph{};
-            
-            add_alignments_to_poa([&](const string& sequence,
-                                      const string& name) {
-                auto alignment = alignment_engine->Align(sequence, spoa_graph);
-                spoa_graph.AddAlignment(alignment, sequence);
-            }, spoa_graph.sequences().size(), i);
-            
-            // use initial POA to get a consensus sequence
-            auto consensus = spoa_graph.GenerateConsensus();
-            
-            // Seed the alignment with the consensus
-            spoa::Graph seeded_spoa_graph{};
-            auto seeded_alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 6, -2, -4, -1);
-            auto cons_alignment = seeded_alignment_engine->Align(consensus, seeded_spoa_graph);
-            seeded_spoa_graph.AddAlignment(cons_alignment, consensus);
-            
-            // Iterate a second time on alignment, this time with consensus as the seed
-            add_alignments_to_poa([&](const string& sequence,
-                                      const string& name) {
-                auto alignment = alignment_engine->Align(sequence, seeded_spoa_graph);
-                seeded_spoa_graph.AddAlignment(alignment, sequence);
-            }, seeded_spoa_graph.sequences().size(), i);
-            
-            convert_spoa_to_bdsg(seeded_spoa_graph, i);
+        // Skip trivial bicliques
+        if (bicliques[i].empty()) {
+            return;
         }
-        else {
-            // we use abPOA for long alignments
-            
-            abpoa_t* abpoa = align_with_abpoa(i);
-            
-            convert_abpoa_to_bdsg(abpoa, i);
-            
-            abpoa_free(abpoa);
+
+        // Const
+        if (biclique_overlaps_are_exact(i)) {
+            // we can infer exact overlaps without alignment (helps for de Bruijn graphs)
+            // const w.r.t. gfa graph
+            create_exact_subgraph(i);
+        } else {
+            // Const
+            if (biclique_overlaps_are_short(i, 250)) {
+                // the alignments are short enough that we can use SPOA
+
+                auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 5, -3, -3, -1);
+                spoa::Graph spoa_graph{};
+
+                add_alignments_to_poa([&](const string& sequence,
+                                          const string& name) {
+                    auto alignment = alignment_engine->Align(sequence, spoa_graph);
+                    spoa_graph.AddAlignment(alignment, sequence);
+                }, spoa_graph.sequences().size(), i);
+
+                // use initial POA to get a consensus sequence
+                auto consensus = spoa_graph.GenerateConsensus();
+
+                // Seed the alignment with the consensus
+                spoa::Graph seeded_spoa_graph{};
+                auto seeded_alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 6, -2, -4, -1);
+                auto cons_alignment = seeded_alignment_engine->Align(consensus, seeded_spoa_graph);
+                seeded_spoa_graph.AddAlignment(cons_alignment, consensus);
+
+                // Iterate a second time on alignment, this time with consensus as the seed
+                add_alignments_to_poa([&](const string& sequence,
+                                          const string& name) {
+                    auto alignment = alignment_engine->Align(sequence, seeded_spoa_graph);
+                    seeded_spoa_graph.AddAlignment(alignment, sequence);
+                }, seeded_spoa_graph.sequences().size(), i);
+
+                convert_spoa_to_bdsg(seeded_spoa_graph, i);
+            } else {
+                // we use abPOA for long alignments
+
+                abpoa_t* abpoa = align_with_abpoa(i);
+
+                convert_abpoa_to_bdsg(abpoa, i);
+
+                abpoa_free(abpoa);
+            }
+
+            // make long nodes from short ones
+            unchop(&subgraphs[i].graph);
         }
-        
-        // make long nodes from short ones
-        unchop(&subgraphs[i].graph);
     }
 }
+
 
 abpoa_t* Bluntifier::align_with_abpoa(size_t i) {
     
@@ -359,6 +362,7 @@ abpoa_t* Bluntifier::align_with_abpoa(size_t i) {
     
     return abpoa;
 }
+
 
 void Bluntifier::convert_abpoa_to_bdsg(abpoa_t* abpoa, size_t i) {
     
@@ -469,6 +473,7 @@ void Bluntifier::convert_abpoa_to_bdsg(abpoa_t* abpoa, size_t i) {
         }
     }
 }
+
 
 /// For all the edges in a biclique, reorient them by matching the majority orientation of the node with the most
 /// edges. In the case where there is no such orientation, pick arbitrarily

@@ -24,6 +24,7 @@
 
 #include "bdsg/hash_graph.hpp"
 
+using std::atomic;
 
 using handlegraph::MutablePathDeletableHandleGraph;
 using handlegraph::as_integer;
@@ -49,8 +50,8 @@ public:
 class Bluntifier {
 private:
     /// Attributes ///
-    string gfa_path;
-    string provenance_path;
+    path gfa_path;
+    path provenance_path;
     bool verbose;
     time_t time_start;
 
@@ -80,13 +81,13 @@ private:
 
 public:
     /// Methods ///
-    Bluntifier(const string& gfa_path,
-               const string& provenance_path,
+    Bluntifier(const path& gfa_path,
+               const path& provenance_path,
                bool verbose);
     
     ~Bluntifier();
 
-    void bluntify();
+    void bluntify(size_t n_threads);
 
     void write_provenance();
 
@@ -103,11 +104,11 @@ private:
 
     void harmonize_biclique_orientations();
 
-    void align_biclique_overlaps(size_t i);
+    void align_biclique_overlaps(atomic<size_t>& index);
 
-    bool biclique_overlaps_are_exact(size_t i);
+    bool biclique_overlaps_are_exact(size_t i) const;
     
-    bool biclique_overlaps_are_short(size_t i, size_t max_len);
+    bool biclique_overlaps_are_short(size_t i, size_t max_len) const;
 
     void create_exact_subgraph(size_t i);
 
