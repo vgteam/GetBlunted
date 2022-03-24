@@ -88,7 +88,7 @@ public:
     //         query_sequence[alignment_iterator.query_index];
     //     }
     //
-    bool step_through_alignment(AlignmentIterator& iterator);
+    bool step_through_alignment(AlignmentIterator& iterator) const;
 
     // Use the ref and query sequences to find mismatches and convert all M operations to = or X
     vector<Cigar> explicitize_mismatches(
@@ -103,7 +103,7 @@ public:
             const HandleGraph& graph,
             const edge_t& edge,
             uint64_t ref_start_index = 0,
-            uint64_t query_start_index = 0);
+            uint64_t query_start_index = 0) const;
 
     // Make a cool looking alignment string
     string create_formatted_alignment_string(

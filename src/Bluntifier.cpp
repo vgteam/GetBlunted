@@ -1,6 +1,8 @@
 #include "Bluntifier.hpp"
+#include <thread>
 
 using std::to_string;
+using std::thread;
 
 namespace bluntifier{
 
@@ -25,8 +27,8 @@ ProvenanceInfo::ProvenanceInfo(size_t start, size_t stop, bool reversal):
 {}
 
 
-Bluntifier::Bluntifier(const string& gfa_path,
-                       const string& provenance_path,
+Bluntifier::Bluntifier(const path& gfa_path,
+                       const path& provenance_path,
                        bool verbose):
     gfa_path(gfa_path),
     provenance_path(provenance_path),
@@ -560,7 +562,7 @@ void print_node_names(IncrementalIdMap<string>& id_map){
 }
 
 
-void Bluntifier::bluntify(){
+void Bluntifier::bluntify(size_t n_threads){
     
     log_progress("Reading GFA...");
 
@@ -608,8 +610,23 @@ void Bluntifier::bluntify(){
 
     subgraphs.resize(bicliques.size());
 
-    for (size_t i=0; i<bicliques.size(); i++){
-        align_biclique_overlaps(i);
+    // Thread-related variables
+    vector<thread> threads;
+    atomic<uint64_t> job_index = 0;
+
+    // Launch threads
+    for (uint64_t i=0; i<n_threads; i++){
+        try {
+            threads.emplace_back(thread(&Bluntifier::align_biclique_overlaps, this, ref(job_index)));
+        } catch (const exception &e) {
+            cerr << e.what() << "\n";
+            exit(1);
+        }
+    }
+
+    // Wait for threads to finish
+    for (auto& t: threads){
+        t.join();
     }
 
     log_progress("Splicing " + to_string(subgraphs.size()) + " subgraphs...");
@@ -628,7 +645,7 @@ void Bluntifier::bluntify(){
         
         compute_provenance();
         
-        log_progress("Writing provenance to file: " + provenance_path);
+        log_progress("Writing provenance to file: " + provenance_path.string());
         
         write_provenance();
     }
