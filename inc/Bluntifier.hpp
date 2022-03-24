@@ -38,11 +38,11 @@ namespace bluntifier {
 
 class ProvenanceInfo{
 public:
-    size_t start;
-    size_t stop;
+    int64_t start;
+    int64_t stop;
     bool reversal;
 
-    ProvenanceInfo(size_t start, size_t stop, bool reversal);
+    ProvenanceInfo(size_t start, int64_t stop, bool reversal);
 };
 
 
@@ -134,10 +134,10 @@ private:
     // Lol
     void update_path_provenances(
             nid_t parent_node_id,
-            size_t parent_index,
+            int64_t parent_index,
             bool parent_side,
             bool reversal,
-            size_t parent_length,
+            int64_t parent_length,
             OverlapInfo& overlap_info,
             edge_t& canonical_edge,
             edge_t& edge,

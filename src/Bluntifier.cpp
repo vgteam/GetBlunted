@@ -18,7 +18,7 @@ void print_paths(handlegraph::PathHandleGraph& gfa_graph){
 }
 
 
-ProvenanceInfo::ProvenanceInfo(size_t start, size_t stop, bool reversal):
+ProvenanceInfo::ProvenanceInfo(size_t start, int64_t stop, bool reversal):
     start(start),
     stop(stop),
     reversal(reversal)
@@ -354,10 +354,10 @@ void Bluntifier::write_provenance(){
 
 void Bluntifier::update_path_provenances(
         nid_t parent_node_id,
-        size_t parent_index,
+        int64_t parent_index,
         bool parent_side,
         bool reversal,
-        size_t parent_length,
+        int64_t parent_length,
         OverlapInfo& overlap_info,
         edge_t& canonical_edge,
         edge_t& edge,
@@ -366,13 +366,13 @@ void Bluntifier::update_path_provenances(
     string child_path_name = to_string(child_id) + "_" + to_string(parent_side);
     auto child_path_handle = gfa_graph.get_path_handle(child_path_name);
 
-    size_t cumulative_path_length = 0;
+    int64_t cumulative_path_length = 0;
     for (auto h: gfa_graph.scan_path(child_path_handle)) {
         auto id = gfa_graph.get_id(h);
-        size_t length = gfa_graph.get_length(h);
+        int64_t length = gfa_graph.get_length(h);
 
-        size_t forward_start_index;
-        size_t forward_stop_index;
+        int64_t forward_start_index;
+        int64_t forward_stop_index;
 
         // Walking forward along a reversed overlap on side 0 is walking from the middle out of a node
         if (reversal) {
@@ -403,14 +403,14 @@ void Bluntifier::compute_provenance(){
         string parent_path_name = to_string(parent_node_id);
         auto parent_path_handle = gfa_graph.get_path_handle(parent_path_name);
 
-        size_t i = 0;
-        size_t parent_index = 0;
-        size_t parent_length = 0;
+        int64_t i = 0;
+        int64_t parent_index = 0;
+        int64_t parent_length = 0;
         bool has_left_child = false;
         bool has_right_child = false;
         for (auto h: gfa_graph.scan_path(parent_path_handle)){
             auto id = gfa_graph.get_id(h);
-            size_t length = gfa_graph.get_length(h);
+            int64_t length = gfa_graph.get_length(h);
             parent_length += length;
 
             // Check if this is a duplicated prefix/suffix
