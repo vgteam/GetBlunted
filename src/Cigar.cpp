@@ -157,7 +157,7 @@ uint64_t Alignment::compute_common_length(){
 }
 
 
-bool Alignment::step_through_alignment(AlignmentIterator& iterator){
+bool Alignment::step_through_alignment(AlignmentIterator& iterator) const{
     // Don't do anything on the first step
     if (iterator.first_step){
         iterator.first_step = false;
@@ -258,7 +258,7 @@ vector<Cigar> Alignment::explicitize_mismatches(
         const HandleGraph& graph,
         const edge_t& edge,
         uint64_t ref_start_index,
-        uint64_t query_start_index) {
+        uint64_t query_start_index) const {
 
     // TODO: rewrite this function without copying? Use insert operations instead
 
