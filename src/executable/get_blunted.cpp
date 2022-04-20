@@ -19,7 +19,7 @@ int main(int argc, char **argv){
     size_t n_threads = 1;
     bool verbose = false;
 
-    CLI::App app{"GetBlunted v0.0.3"};
+    CLI::App app{"GetBlunted v1.0.0"};
 
     app.add_option(
             "-i,--input_gfa",

@@ -5,7 +5,7 @@
 ######################################
 
 cmake_minimum_required(VERSION 3.0)
-project(GetBlunted VERSION 0.0.0)
+project(GetBlunted VERSION 1.0.0)
 
 message(STATUS "CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "CMAKE_CXX_COMPILER_VERSION: ${CMAKE_CXX_COMPILER_VERSION}")
