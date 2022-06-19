@@ -235,7 +235,7 @@ else()
     # Download or update library as an external project
     ExternalProject_Add(project_abPOA
             GIT_REPOSITORY https://github.com/yangao07/abPOA.git
-            GIT_TAG main
+            GIT_TAG bfe4ac0a4945ed3eadf68282776fc816b299947e
             PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
             CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/abPOA/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/abPOA/lib
             BUILD_IN_SOURCE True
