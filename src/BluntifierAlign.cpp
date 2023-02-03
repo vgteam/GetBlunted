@@ -3,6 +3,7 @@
 #include "unchop.hpp"
 #include <array>
 #include <map>
+#include <cstring>
 #include "sdsl/bits.hpp"
 
 using handlegraph::HandleGraph;
@@ -15,6 +16,7 @@ using std::to_string;
 using std::string;
 using std::array;
 using std::map;
+using std::tie;
 
 using handlegraph::nid_t;
 
@@ -233,7 +235,7 @@ void Bluntifier::align_biclique_overlaps(atomic<size_t>& index){
         size_t i = index.fetch_add(1);
 
         // Skip trivial bicliques
-        if (bicliques[i].empty()) {
+        if (i >= bicliques.size() || bicliques[i].empty()) {
             return;
         }
 
@@ -273,8 +275,8 @@ void Bluntifier::align_biclique_overlaps(atomic<size_t>& index){
                 }, seeded_spoa_graph.sequences().size(), i);
 
                 convert_spoa_to_bdsg(seeded_spoa_graph, i);
-            } else {
-                // we use abPOA for long alignments
+            } else if (biclique_overlaps_are_short(i, 10000)) {
+                // we use abPOA for moderately long alignments
 
                 abpoa_t* abpoa = align_with_abpoa(i);
 
@@ -282,9 +284,234 @@ void Bluntifier::align_biclique_overlaps(atomic<size_t>& index){
 
                 abpoa_free(abpoa);
             }
+            else {
+                // we use kalign for very long sequences
+                vector<string> seq_names, msa;
+                tie(seq_names, msa) = align_with_kalign(i);
+                convert_kalign_to_bdsg(seq_names, msa, i);
+            }
 
             // make long nodes from short ones
             unchop(&subgraphs[i].graph);
+        }
+    }
+}
+
+pair<vector<string>, vector<string>> Bluntifier::align_with_kalign(size_t i) {
+    
+    
+    pair<vector<string>, vector<string>> return_val;
+    
+    // grab the sequences and names in C-friendly format
+    vector<char*> seqs;
+    vector<int> seq_lens;
+    function<void(const string&,const string&)> add_alignment_to_kalign = [&](const string& sequence,
+                                                                              const string& name) {
+        // make a C-style string for sequence
+        char* c_seq = (char*) malloc((sequence.size() + 1) * sizeof(char));
+        strcpy(c_seq, sequence.c_str());
+
+        // remember the results
+        seqs.push_back(c_seq);
+        seq_lens.push_back(sequence.size());
+        
+        return_val.first.push_back(name);
+    };
+    
+    // gather the sequences and names
+    add_alignments_to_poa(add_alignment_to_kalign, 0, i);
+    
+    // do the alignment
+    char** msa_lines = NULL;
+    int aln_len = 0;
+    int fail = kalign(seqs.data(), seq_lens.data(), seqs.size(), 1,
+                      KALIGN_TYPE_DNA_INTERNAL, -1, -1, -1, // use the preset alignment params
+                      &msa_lines, &aln_len);
+    
+    if (fail) {
+        throw runtime_error("ERROR: unsucessful alignment with kalign");
+    }
+    
+    // convert into C++ data structures and free C arrays
+    auto& msa = return_val.second;
+    msa.resize(seqs.size());
+    for (size_t j = 0; j < seqs.size(); ++j) {
+        msa[j] = msa_lines[j];
+        if (j > 0) {
+            assert(msa[j].size() == msa[j - 1].size());
+        }
+        free(msa_lines[j]);
+    }
+    free(msa_lines);
+    
+    // fix the apparent bugs in kalign
+    fix_kalign_msa(seqs, seq_lens, msa);
+    
+    // free the sequences
+    for (size_t j = 0; j < seqs.size(); ++j) {
+        free(seqs[j]);
+    }
+    
+    return return_val;
+}
+
+void Bluntifier::fix_kalign_msa(const vector<char*>& sequences,
+                                const vector<int>& seq_lens,
+                                vector<string>& msa) const {
+    
+    // annoyingly, kalign seems to lose the ends of sequences somehow? we patch it up here
+    
+    vector<string> msa_seqs(sequences.size());
+    for (size_t i = 0; i < msa_seqs.size(); ++i) {
+        msa_seqs.reserve(seq_lens[i]);
+    }
+    
+    vector<size_t> first_char_pos(sequences.size(), numeric_limits<size_t>::max());
+    vector<int64_t> final_char_pos(sequences.size(), -1);
+    for (size_t j = 0; j < msa.front().size(); ++j) {
+        for (size_t i = 0; i < msa.size(); ++i) {
+            char char_here = msa[i][j];
+            if (char_here == '-') {
+                continue;
+            }
+            first_char_pos[i] = min(first_char_pos[i], j);
+            final_char_pos[i] = max<int64_t>(final_char_pos[i], j);
+            msa_seqs[i].push_back(char_here);
+        }
+    }
+    
+    vector<size_t> positions(sequences.size());
+    
+    for (size_t i = 0; i < msa_seqs.size(); ++i) {
+        
+        size_t pos = find_pattern(sequences[i], seq_lens[i], msa_seqs[i].c_str(), msa_seqs[i].size());
+        if (pos == string::npos) {
+            throw runtime_error("ERROR: sequence from kalign MSA does not match input sequence");
+        }
+        positions[i] = pos;
+    }
+    
+    // first we take care of unplaced sequence at the beginning of the MSA
+    size_t max_pos = *max_element(positions.begin(), positions.end());
+    if (max_pos != 0) {
+        vector<size_t> cursors = positions;
+        for (size_t i = 0; i < sequences.size(); ++i) {
+            // try to insert the sequence at the beginning inside the gab
+            while (first_char_pos[i] != 0 && cursors[i] != 0) {
+                char seq_char = sequences[i][cursors[i - 1]];
+                bool found_placement = false;
+                for (size_t pos_cursor = first_char_pos[i]; pos_cursor != 0 && !found_placement; --pos_cursor) {
+                    for (size_t j = 0; j < msa.size(); ++j) {
+                        if (msa[j][pos_cursor - 1] == seq_char) {
+                            // there's at least one match to the character at this position
+                            
+                            // fix the msa
+                            msa[i][pos_cursor - 1] = seq_char;
+                            // update the location of the first match
+                            first_char_pos[i] = pos_cursor - 1;
+                            --cursors[i];
+                            found_placement = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        // hopefully we were able to greedily insert them all, but if not let's just add unaligned sequence
+        max_pos = *max_element(cursors.begin(), cursors.end());
+        if (max_pos != 0) {
+            size_t total_to_add = 0;
+            for (size_t p : cursors) {
+                total_to_add += p;
+            }
+            size_t added_so_far = 0;
+            for (size_t i = 0; i < msa.size(); ++i) {
+                string to_insert = (string(added_so_far, '-')
+                                    + string(sequences[i], cursors[i])
+                                    + string(total_to_add - added_so_far - cursors[i], '-'));
+                added_so_far += cursors[i];
+                msa[i].insert(0, to_insert);
+            }
+        }
+    }
+    
+    // next we take care of unplaced sequence at the end of the MSA (this is easier because we don't
+    // need to do it in batch)
+    for (size_t i = 0; i < sequences.size(); ++i) {
+        while (positions[i] + msa_seqs[i].size() != seq_lens[i]) {
+            // try to find a match in the remaining part of the alignment
+            char seq_char = sequences[i][positions[i] + msa_seqs[i].size()];
+            bool found_placement = false;
+            for (size_t pos_cursor = final_char_pos[i] + 1; pos_cursor < msa_seqs[0].size() && !found_placement; ++pos_cursor) {
+                for (size_t j = 0; j < msa.size(); ++j) {
+                    if (msa[j][pos_cursor] == seq_char) {
+                        // there's a match to at least one sequence here
+                        msa[i][pos_cursor] = seq_char;
+                        final_char_pos[i] = pos_cursor;
+                        found_placement = true;
+                        break;
+                    }
+                }
+            }
+            if (!found_placement) {
+                // append it to the end as unplaced sequence
+                final_char_pos[i] = msa[0].size();
+                for (size_t j = 0; j < msa.size(); ++j) {
+                    msa[j].push_back(j == i ? seq_char : '-');
+                }
+            }
+            msa_seqs[i].push_back(seq_char);
+        }
+    }
+}
+
+
+void Bluntifier::convert_kalign_to_bdsg(const vector<string>& seq_names,
+                                        const vector<string>& msa, size_t k) {
+    
+    auto& graph = subgraphs[k].graph;
+    
+    if (msa.empty()) {
+        return;
+    }
+    
+    vector<path_handle_t> seq_paths;
+    seq_paths.reserve(seq_names.size());
+    for (size_t i = 0; i < seq_names.size(); ++i) {
+        assert(graph.has_path(seq_names[i]));
+        seq_paths.push_back(graph.get_path_handle(seq_names[i]));
+    }
+    
+    // the more recent node used bu each sequence
+    vector<handle_t> curr_handle(msa.size());
+    for (size_t j = 0; j < msa.front().size(); ++j) {
+        // the node representing this character in this column
+        unordered_map<char, handle_t> column;
+        // the edges we observe
+        unordered_set<pair<handle_t, handle_t>> edges;
+        for (size_t i = 0; i < msa.size(); ++i) {
+            char char_here = msa[i][j];
+            if (char_here == '-') {
+                continue;
+            }
+
+            // make and get the node
+            if (!column.count(char_here)) {
+                column[char_here] = graph.create_handle(string(1, char_here));
+            }
+            handle_t node = column[char_here];
+            
+            // add edge, update path
+            if (graph.get_step_count(seq_paths[i]) != 0) {
+                edges.emplace(curr_handle[i], node);
+            }
+            curr_handle[i] = node;
+            graph.append_step(seq_paths[i], node);
+        }
+        
+        // create edges made to nodes in this column
+        for (const auto& edge : edges) {
+            graph.create_edge(edge.first, edge.second);
         }
     }
 }
@@ -601,6 +828,58 @@ void Bluntifier::harmonize_biclique_orientations(){
             biclique[i] = flipped_edge;
         }
     }
+}
+
+size_t Bluntifier::find_pattern(const char* text, size_t text_len,
+                                const char* pattern, size_t pattern_len) const {
+    
+    // Knuth-Morris-Pratt algorithm
+    
+    if (text_len == pattern_len) {
+        // simpler algorithm that we can use most of the time
+        return strncmp(text, pattern, text_len) == 0 ? 0 : string::npos;
+    }
+    if (text_len > pattern_len) {
+        
+        vector<size_t> table(pattern_len, 0);
+        
+        for (size_t i = 1, j = 0; i < pattern_len;) {
+            if (pattern[i] == pattern[j]) {
+                ++j;
+                table[i] = j;
+                ++i;
+            }
+            else {
+                if (j != 0) {
+                    j = table[j - 1];
+                }
+                else {
+                    table[i] = 0;
+                    ++i;
+                }
+            }
+        }
+        
+        for (size_t i = 0, j = 0, last = text_len - pattern_len; i - j <= last;) {
+            if (text[i] == pattern[j]) {
+                ++i;
+                ++j;
+                if (j == pattern_len) {
+                    return i - pattern_len;
+                }
+            }
+            else {
+                if (j != 0) {
+                    j = table[j - 1];
+                }
+                else {
+                    ++i;
+                }
+            }
+        }
+    }
+    return string::npos;
+    
 }
 
 }

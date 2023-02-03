@@ -18,6 +18,8 @@
 
 #include "abpoa.h"
 
+#include "kalign/kalign.h"
+
 #include <unordered_map>
 #include <ctime>
 #include <functional>
@@ -92,6 +94,11 @@ public:
     void write_provenance();
 
 private:
+    
+    // returns position or string::npos if it is not found
+    size_t find_pattern(const char* text, size_t text_len,
+                        const char* pattern, size_t pattern_len) const;
+    
     void deduplicate_and_canonicalize_biclique_cover(
             vector<bipartition>& biclique_cover,
             vector<vector<edge_t> >& deduplicated_biclique_cover);
@@ -114,6 +121,12 @@ private:
 
     abpoa_t* align_with_abpoa(size_t i);
     
+    pair<vector<string>, vector<string>> align_with_kalign(size_t i);
+    
+    void fix_kalign_msa(const vector<char*>& sequences,
+                        const vector<int>& seq_lens,
+                        vector<string>& msa) const;
+    
     // initialize sequence paths in the subgraph i and then
     // add a (sequence, name) to the POA graph using a lambda.
     // sequences are assigned IDs starting at first_seq_id
@@ -125,6 +138,9 @@ private:
     void convert_spoa_to_bdsg(Graph& spoa_graph, size_t i);
     
     void convert_abpoa_to_bdsg(abpoa_t* abpoa, size_t i);
+    
+    void convert_kalign_to_bdsg(const vector<string>& seq_names,
+                                const vector<string>& msa, size_t i);
 
     void splice_subgraphs();
 
