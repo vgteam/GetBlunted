@@ -4,7 +4,6 @@
 #include <array>
 #include <map>
 #include <cstring>
-#include <mutex>
 #include "sdsl/bits.hpp"
 
 using handlegraph::HandleGraph;
@@ -20,12 +19,10 @@ using std::map;
 using std::tie;
 
 using handlegraph::nid_t;
-using handlegraph::as_handle;
 
 
 namespace bluntifier{
 
-//static size_t min_total_length = numeric_limits<size_t>::max();
 
 handle_t& get_side(edge_t& e, bool side){
     if (side == 0){
