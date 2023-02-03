@@ -18,6 +18,8 @@
 
 #include "abpoa.h"
 
+#include "kalign/kalign.h"
+
 #include <unordered_map>
 #include <ctime>
 #include <functional>
@@ -114,6 +116,8 @@ private:
 
     abpoa_t* align_with_abpoa(size_t i);
     
+    pair<vector<string>, vector<string>> align_with_kalign(size_t i);
+    
     // initialize sequence paths in the subgraph i and then
     // add a (sequence, name) to the POA graph using a lambda.
     // sequences are assigned IDs starting at first_seq_id
@@ -125,6 +129,9 @@ private:
     void convert_spoa_to_bdsg(Graph& spoa_graph, size_t i);
     
     void convert_abpoa_to_bdsg(abpoa_t* abpoa, size_t i);
+    
+    void convert_kalign_to_bdsg(const vector<string>& seq_names,
+                                const vector<string>& msa, size_t i);
 
     void splice_subgraphs();
 

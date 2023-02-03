@@ -15,8 +15,10 @@ using std::to_string;
 using std::string;
 using std::array;
 using std::map;
+using std::tie;
 
 using handlegraph::nid_t;
+using handlegraph::as_handle;
 
 
 namespace bluntifier{
@@ -233,7 +235,7 @@ void Bluntifier::align_biclique_overlaps(atomic<size_t>& index){
         size_t i = index.fetch_add(1);
 
         // Skip trivial bicliques
-        if (bicliques[i].empty()) {
+        if (i >= bicliques.size() || bicliques[i].empty()) {
             return;
         }
 
@@ -273,8 +275,8 @@ void Bluntifier::align_biclique_overlaps(atomic<size_t>& index){
                 }, seeded_spoa_graph.sequences().size(), i);
 
                 convert_spoa_to_bdsg(seeded_spoa_graph, i);
-            } else {
-                // we use abPOA for long alignments
+            } else if (biclique_overlaps_are_short(i, 10000)) {
+                // we use abPOA for moderately long alignments
 
                 abpoa_t* abpoa = align_with_abpoa(i);
 
@@ -282,9 +284,123 @@ void Bluntifier::align_biclique_overlaps(atomic<size_t>& index){
 
                 abpoa_free(abpoa);
             }
+            else {
+                // we use kalign for very long sequences
+                
+                vector<string> seq_names, msa;
+                tie(seq_names, msa) = align_with_kalign(i);
+                
+                convert_kalign_to_bdsg(seq_names, msa, i);
+            }
 
             // make long nodes from short ones
             unchop(&subgraphs[i].graph);
+        }
+    }
+}
+
+pair<vector<string>, vector<string>> Bluntifier::align_with_kalign(size_t i) {
+    
+    // grab the sequences and names in C-friendly format
+    vector<char*> seqs;
+    vector<int> seq_lens;
+    vector<string> names;
+    function<void(const string&,const string&)> add_alignment_to_kalign = [&](const string& sequence,
+                                                                             const string& name) {
+        // make a C-style string for sequence
+        char* c_seq = (char*) malloc((sequence.size() + 1) * sizeof(char));
+        strcpy(c_seq, sequence.c_str());
+
+        // remember the results
+        seqs.push_back(c_seq);
+        seq_lens.push_back(sequence.size());
+        names.push_back(name);
+    };
+    
+    // gather the sequences and names
+    add_alignments_to_poa(add_alignment_to_kalign, 0, i);
+    
+    // do the alignment
+    char** msa_lines = NULL;
+    int aln_len = 0;
+    int success = kalign(seqs.data(), seq_lens.data(), seqs.size(),
+                         KALIGN_TYPE_DNA_INTERNAL, -1, -1, -1, // use the preset alignment params
+                         &msa_lines, &aln_len);
+    
+    if (!success) {
+        throw runtime_error("ERROR: unsucessful alignment with kalign");
+    }
+    
+    pair<vector<string>, vector<string>> return_val;
+    return_val.first = move(names);
+    
+    // convert into C++ data structures
+    auto& msa = return_val.second;
+    msa.resize(seqs.size());
+    for (size_t i = 0; i < seqs.size(); ++i) {
+        msa[i] = msa_lines[i];
+        if (i > 0) {
+            assert(msa[i].size() == msa[i - 1].size());
+        }
+        free(msa_lines[i]);
+    }
+    free(msa_lines);
+    
+    // clean up C arrays
+    for (auto seq : seqs) {
+        free(seq);
+    }
+    for (auto name : seq_names) {
+        free(name);
+    }
+    
+    return return_val;
+}
+
+void Bluntifier::convert_kalign_to_bdsg(const vector<string>& seq_names,
+                                        const vector<string>& msa, size_t k) {
+    
+    auto& graph = subgraphs[k].graph;
+    
+    if (msa.empty()) {
+        return;
+    }
+    
+    vector<path_handle_t> seq_paths;
+    seq_paths.reserve(seq_names.size());
+    for (size_t i = 0; i < seq_names.size(); ++i) {
+        seq_paths.push_back(graph.create_path_handle(seq_names[i]));
+    }
+    
+    // the more recent node used bu each sequence
+    vector<handle_t> curr_handle(msa.size());
+    for (size_t j = 0; j < msa.front().size(); ++j) {
+        // the node representing this character in this column
+        unordered_map<char, handle_t> column;
+        // the edges we observe
+        unordered_set<pair<handle_t, handle_t>> edges;
+        for (size_t i = 0; i < msa.size(); ++i) {
+            char char_here = msa[i][j];
+            if (char_here == '-') {
+                continue;
+            }
+            // make and get the node
+            if (!column.count(char_here)) {
+                column[char_here] = graph.create_handle(string(1, char_here));
+            }
+            handle_t node = column[char_here];
+            
+            // add edge, update path
+            if (graph.get_step_count(seq_paths[i]) != 0) {
+                edges.emplace(curr_handle[i], node);
+            }
+            curr_handle[i] = node;
+            graph.append_step(seq_paths[i], node);
+        }
+        
+        // create edges made to nodes in this column
+        for (const auto& edge : edges) {
+            graph.create_edge(edge.first, edge.second);
         }
     }
 }
