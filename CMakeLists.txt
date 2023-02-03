@@ -272,6 +272,67 @@ message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
 ##############################################
 # ------------------------------------------ #
 # -------- LINKING EXTERNAL LIBRARY -------- #
+# ----------------- kalign ----------------- #
+# ------------------------------------------ #
+##############################################
+
+# Need to explicitly enable ExternalProject functionality
+include(ExternalProject)
+
+if(dev)
+#    # Download or update library as an external project
+#    ExternalProject_Add(project_abPOA
+#            GIT_REPOSITORY https://github.com/yangao07/abPOA.git
+#            GIT_TAG bfe4ac0a4945ed3eadf68282776fc816b299947e
+#            DOWNLOAD_COMMAND ""
+#            UPDATE_COMMAND ""
+#            PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
+#            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/abPOA/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/abPOA/lib
+#            BUILD_IN_SOURCE True
+#            INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/abPOA/
+#            INSTALL_COMMAND make install
+#            )
+else()
+    # Download or update library as an external project
+    ExternalProject_Add(project_kalign
+            GIT_REPOSITORY https://github.com/TimoLassmann/kalign.git
+            GIT_TAG 58ca06a51b53d76d3fb96ef335fbc7110c36cd46
+            PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
+            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/kalign/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/kalign/lib
+            BUILD_IN_SOURCE True
+            INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/kalign/
+            INSTALL_COMMAND make install
+            )
+
+endif()
+
+# Define INSTALL_DIR as the install directory for external library
+ExternalProject_Get_Property(project_kalign INSTALL_DIR)
+
+# Create new library for external project (so it can be linked with main library)
+add_library(kalign SHARED IMPORTED)
+set_property(TARGET kalign
+        PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/libkalign.so)
+
+# Define library as dependent on the downloaded project
+add_dependencies(kalign
+        project_kalign
+        )
+
+# Define main library as dependent on the downloaded project (transitively)
+add_dependencies(GetBlunted kalign)
+
+# Add runtime path for main library so it can access external library
+#set_property(TARGET GetBlunted PROPERTY INSTALL_RPATH "$ORIGIN" "${INSTALL_DIR}/bin/abPOA")
+
+include_directories(external/kalign/include/)
+
+message(STATUS "INSTALL_DIR: ${INSTALL_DIR}")
+
+
+##############################################
+# ------------------------------------------ #
+# -------- LINKING EXTERNAL LIBRARY -------- #
 # ------------------ bdsg ------------------ #
 # ------------------------------------------ #
 ##############################################
@@ -449,13 +510,15 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
 # we can't do static builds in macOS
-if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    set(GETBLUNTED_STATIC_LIB_FLAG "")
-else()
-    SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-    set(GETBLUNTED_STATIC_LIB_FLAG "-static")
-endif()
+#if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+#    set(GETBLUNTED_STATIC_LIB_FLAG "")
+#else()
+#    SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+#    set(GETBLUNTED_STATIC_LIB_FLAG "-static")
+#endif()
 
+# kalign breaks static build
+set(GETBLUNTED_STATIC_LIB_FLAG "")
 
 find_package(ZLIB REQUIRED)
 
@@ -472,6 +535,7 @@ set(TESTS
         test_handlegraph
         test_handle_to_gfa
         test_IncrementalIdMap
+        test_kalign
         test_map_range_methods
         test_overlaps
         test_spoa
@@ -491,6 +555,7 @@ foreach(FILENAME_PREFIX ${TESTS})
             libsdsl
             abPOA
             ZLIB::ZLIB
+            kalign
             ${GETBLUNTED_STATIC_LIB_FLAG})
 
 #    if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
@@ -519,6 +584,7 @@ foreach(FILENAME_PREFIX ${EXECUTABLES})
             libsdsl
             abPOA
             ZLIB::ZLIB
+            kalign
             ${GETBLUNTED_STATIC_LIB_FLAG})
 
 #    if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
