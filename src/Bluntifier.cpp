@@ -161,6 +161,7 @@ void Bluntifier::compute_biclique_cover(size_t i){
     }
 
     adjacency_component.decompose_into_bipartite_blocks([&](const BipartiteGraph& bipartite_graph){
+        
         vector <bipartition> biclique_cover = BicliqueCover(bipartite_graph).get();
         vector <vector <edge_t> > deduplicated_biclique_cover;
 

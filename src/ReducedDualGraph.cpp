@@ -21,7 +21,7 @@ using std::stable_sort;
 ReducedDualGraph::ReducedDualGraph(const BipartiteGraph& graph) : graph(&graph) {
     
 #ifdef debug_dual_graph
-    cerr << "constructing dual graph" << endl;
+    cerr << "constructing dual graph for bipartite graph with left size " << graph.left_size() << ", right size " << graph.right_size() << endl;
 #endif
     
     // make a local, mutable copy of the bipartite graph and init

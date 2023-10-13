@@ -440,6 +440,7 @@ void AdjacencyComponent::decompose_into_bipartite_blocks(const function<void(con
     
     bipartition partition = bipartite_partition();
     if (partition.first.size() + partition.second.size() == component.size()) {
+
         // the whole component is bipartite, so there is only need for the one bipartite block
         lambda(BipartiteGraph(*graph, partition));
     }
@@ -447,11 +448,11 @@ void AdjacencyComponent::decompose_into_bipartite_blocks(const function<void(con
         // TODO: magic constants
         if (component.size() < 8) {
             // the case is small enough to solve with brute force
-            partition = exhaustive_maximum_bipartite_partition();
+            partition = move(exhaustive_maximum_bipartite_partition());
         }
         else {
             // start off with an approximate bipartition
-            partition = maximum_bipartite_partition_apx_1_2();
+            partition = move(maximum_bipartite_partition_apx_1_2());
             
             // first iteration bound heuristically derived from Kaul & West (2008)
             size_t max_opt_iters = min<size_t>(ceil(0.5 * pow(component.size(), 1.5)),
