@@ -59,6 +59,8 @@ void gfa_to_handle_graph_in_memory(
     }
 
     // create edges
+    size_t num_self_overlap_warnings = 0;
+    size_t max_num_self_overlap_warnings = 10;
     for (const auto& links_record : gg.get_seq_to_edges()) {
         for (const auto& edge : links_record.second) {
             validate_gfa_edge(edge);
@@ -80,8 +82,7 @@ void gfa_to_handle_graph_in_memory(
             // note: we're counting on implementations de-duplicating edges
             handle_t a = graph.get_handle(source_id, not edge.source_orientation_forward);
             handle_t b = graph.get_handle(sink_id, not edge.sink_orientation_forward);
-            graph.create_edge(a, b);
-
+            
             // Update the overlap map
             Alignment alignment(edge.alignment);
 
@@ -97,6 +98,15 @@ void gfa_to_handle_graph_in_memory(
             if (lengths.second > graph.get_length(b)){
                 cerr << "WARNING: skipping overlap for which sum of cigar operations is > SINK node length: "
                      << edge.source_name << "->" << edge.sink_name << '\n' << '\n';
+                valid = false;
+            }
+            if (b == graph.flip(a)) {
+                if (num_self_overlap_warnings++ < max_num_self_overlap_warnings) {
+                    cerr << "WARNING: skipping overlap that reverses back onto the same sequence (in de Bruijn graphs, these can be avoided by choosing an odd-numbered overlap length): " << edge.source_name << '\n';
+                }
+                if (num_self_overlap_warnings == max_num_self_overlap_warnings) {
+                    cerr << "suppressing further warnings\n";
+                }
                 valid = false;
             }
 
@@ -142,6 +152,8 @@ void gfa_to_handle_graph_on_disk(
     });
 
     // add in all edges
+    size_t num_self_overlap_warnings = 0;
+    size_t max_num_self_overlap_warnings = 10;
     gg.for_each_edge_line_in_file(const_cast<char*>(filename.c_str()), [&](gfak::edge_elem e) {
         validate_gfa_edge(e);
 
@@ -176,6 +188,15 @@ void gfa_to_handle_graph_on_disk(
         if (lengths.second > graph.get_length(b)){
             cerr << "WARNING: skipping overlap for which sum of cigar operations is > SINK node length: "
                  << e.source_name << "->" << e.sink_name << '\n' << '\n';
+            valid = false;
+        }
+        if (b == graph.flip(a)) {
+            if (num_self_overlap_warnings++ < max_num_self_overlap_warnings) {
+                cerr << "WARNING: skipping overlap that reverses back onto the same sequence (in de Bruijn graphs, these can be avoided by choosing an odd-numbered overlap length): " << e.source_name << '\n';
+            }
+            if (num_self_overlap_warnings == max_num_self_overlap_warnings) {
+                cerr << "suppressing further warnings\n";
+            }
             valid = false;
         }
 
