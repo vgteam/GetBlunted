@@ -281,17 +281,18 @@ include(ExternalProject)
 
 if(dev)
 #    # Download or update library as an external project
-#    ExternalProject_Add(project_abPOA
-#            GIT_REPOSITORY https://github.com/yangao07/abPOA.git
-#            GIT_TAG bfe4ac0a4945ed3eadf68282776fc816b299947e
-#            DOWNLOAD_COMMAND ""
-#            UPDATE_COMMAND ""
-#            PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
-#            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/abPOA/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/abPOA/lib
-#            BUILD_IN_SOURCE True
-#            INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/abPOA/
-#            INSTALL_COMMAND make install
-#            )
+# Download or update library as an external project
+    ExternalProject_Add(project_kalign
+            GIT_REPOSITORY https://github.com/TimoLassmann/kalign.git
+            GIT_TAG 58ca06a51b53d76d3fb96ef335fbc7110c36cd46
+            DOWNLOAD_COMMAND ""
+            UPDATE_COMMAND ""
+            PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
+            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/kalign/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/kalign/lib
+            BUILD_IN_SOURCE True
+            INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/kalign/
+            INSTALL_COMMAND make install
+            )
 else()
     # Download or update library as an external project
     ExternalProject_Add(project_kalign
@@ -303,7 +304,6 @@ else()
             INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/kalign/
             INSTALL_COMMAND make install
             )
-
 endif()
 
 # Define INSTALL_DIR as the install directory for external library
@@ -344,7 +344,7 @@ if(dev)
     # Download or update library as an external project
     ExternalProject_Add(project_bdsg
             GIT_REPOSITORY https://github.com/vgteam/libbdsg-easy.git
-            GIT_TAG b989949811918b18de48a5e57d7f45473d8901f1
+            GIT_TAG abe12120bbbbc0127c69de7cc01e925001a0c922
             PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
             CONFIGURE_COMMAND ""
             DOWNLOAD_COMMAND ""
@@ -357,7 +357,7 @@ else()
     # Download or update library as an external project
     ExternalProject_Add(project_bdsg
             GIT_REPOSITORY https://github.com/vgteam/libbdsg-easy.git
-            GIT_TAG b989949811918b18de48a5e57d7f45473d8901f1
+            GIT_TAG abe12120bbbbc0127c69de7cc01e925001a0c922
             PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
             CONFIGURE_COMMAND ""
             BUILD_IN_SOURCE True
@@ -421,10 +421,11 @@ if(dev)
     # Download or update library as an external project
     ExternalProject_Add(project_spoa
             GIT_REPOSITORY https://github.com/rvaser/spoa.git
+            GIT_TAG 1ab9ab076171e5e4f5fcd4d2a2369f26c7f8f48f
             DOWNLOAD_COMMAND ""
             UPDATE_COMMAND ""
             PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
-            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/spoa/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/spoa/lib
+            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/spoa/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/spoa/lib -DCMAKE_BUILD_TYPE=Release
             BUILD_IN_SOURCE True
             INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/spoa/
             INSTALL_COMMAND make install
@@ -434,8 +435,9 @@ else()
     # Download or update library as an external project
     ExternalProject_Add(project_spoa
             GIT_REPOSITORY https://github.com/rvaser/spoa.git
+            GIT_TAG 1ab9ab076171e5e4f5fcd4d2a2369f26c7f8f48f
             PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/
-            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/spoa/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/spoa/lib
+            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/external/spoa/ -DCMAKE_INSTALL_LIBDIR=${CMAKE_SOURCE_DIR}/external/spoa/lib -DCMAKE_BUILD_TYPE=Release
             BUILD_IN_SOURCE True
             INSTALL_DIR ${CMAKE_SOURCE_DIR}/external/spoa/
             INSTALL_COMMAND make install
