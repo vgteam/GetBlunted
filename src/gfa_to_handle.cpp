@@ -102,7 +102,7 @@ void gfa_to_handle_graph_in_memory(
             }
             if (b == graph.flip(a)) {
                 if (num_self_overlap_warnings++ < max_num_self_overlap_warnings) {
-                    cerr << "WARNING: skipping overlap that reverses back onto the same sequence (in de Bruijn graphs, these can be avoided by choosing an odd-numbered overlap length): " << e.source_name << '\n';
+                    cerr << "WARNING: skipping overlap that reverses back onto the same sequence (in de Bruijn graphs, these can be avoided by choosing an odd-numbered overlap length): " << edge.source_name << '\n';
                 }
                 if (num_self_overlap_warnings == max_num_self_overlap_warnings) {
                     cerr << "suppressing further warnings\n";
