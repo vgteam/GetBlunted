@@ -91,7 +91,7 @@ public:
     bool is_bipartite() const;
     
     // returns empty sets if the adjacency component is not actually bipartite
-    bipartition bipartite_partition() const;
+    vector<bipartition> bipartite_partition() const;
     
     // return the maximum bipartite partition computed in O(Delta * 2^(n-1)) time
     bipartition exhaustive_maximum_bipartite_partition() const;

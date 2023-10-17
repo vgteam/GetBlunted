@@ -154,12 +154,12 @@ void Bluntifier::deduplicate_and_canonicalize_biclique_cover(
 void Bluntifier::compute_biclique_cover(size_t i){
     // TODO: if threading becomes necessary switch to fetch_add atomic
     auto& adjacency_component = adjacency_components[i];
-
+    
     // Skip trivial adjacency components (dead ends)
     if (adjacency_component.size() == 1) {
         return;
     }
-
+    
     adjacency_component.decompose_into_bipartite_blocks([&](const BipartiteGraph& bipartite_graph){
         
         vector <bipartition> biclique_cover = BicliqueCover(bipartite_graph).get();

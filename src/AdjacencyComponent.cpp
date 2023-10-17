@@ -104,20 +104,31 @@ void for_each_adjacency_component(const HandleGraph& graph,
 }
 
 bool AdjacencyComponent::is_bipartite() const {
-    auto partition = bipartite_partition();
-    return partition.first.size() + partition.second.size() == component.size();
+    return !bipartite_partition().empty();
 }
 
-bipartition AdjacencyComponent::bipartite_partition() const {
+vector<bipartition> AdjacencyComponent::bipartite_partition() const {
     
-    bipartition return_val;
+    vector<bipartition> return_val;
+    unordered_set<handle_t> sides_seen;
     
-    if (!component.empty()) {
+    if (component.empty()) {
+        // a placeholder for this edge case
+        return_val.emplace_back();
+    }
+    
+    for (handle_t start_side : *this) {
         
-        handle_t start_side = *component.begin();
+        if (sides_seen.count(start_side)) {
+            continue;
+        }
+        
+        return_val.emplace_back();
+        auto& curr_bipartition = return_val.back();
         
         vector<pair<handle_t, bool>> stack(1, make_pair(start_side, false));
-        return_val.first.insert(start_side);
+        curr_bipartition.first.insert(start_side);
+        sides_seen.insert(start_side);
         
         while (!stack.empty()) {
             bool going_left;
@@ -129,8 +140,8 @@ bipartition AdjacencyComponent::bipartite_partition() const {
             cerr << "traversal at " << graph->get_id(side_here) << " " << graph->get_is_reverse(side_here) << ", going left? " << going_left << endl;
 #endif
             
-            auto& partition_across = going_left ? return_val.first : return_val.second;
-            auto& partition_here = going_left ? return_val.second : return_val.first;
+            auto& partition_across = going_left ? curr_bipartition.first : curr_bipartition.second;
+            auto& partition_here = going_left ? curr_bipartition.second : curr_bipartition.first;
             
             bool still_bipartite = for_each_adjacent_side(side_here,
                                                           [&](handle_t adjacent_side) {
@@ -150,6 +161,7 @@ bipartition AdjacencyComponent::bipartite_partition() const {
                     // with the opposite parity
                     partition_across.insert(adjacent_side);
                     stack.emplace_back(adjacent_side, !going_left);
+                    sides_seen.insert(adjacent_side);
                 }
                 
                 return true;
@@ -157,12 +169,15 @@ bipartition AdjacencyComponent::bipartite_partition() const {
             
             if (!still_bipartite) {
                 // prepare to return a sentinel and stop searching
-                return_val.first.clear();
-                return_val.second.clear();
+                return_val.clear();
                 break;
             }
         }
         
+        if (return_val.empty()) {
+            // it must have been cleared because a node with the wrong parity was found
+            break;
+        }
     }
     
     return return_val;
@@ -438,14 +453,20 @@ bipartition AdjacencyComponent::exhaustive_maximum_bipartite_partition() const {
 
 void AdjacencyComponent::decompose_into_bipartite_blocks(const function<void(const BipartiteGraph&)>& lambda) const {
     
-    bipartition partition = bipartite_partition();
-    if (partition.first.size() + partition.second.size() == component.size()) {
-
-        // the whole component is bipartite, so there is only need for the one bipartite block
-        lambda(BipartiteGraph(*graph, partition));
+    auto partitions = bipartite_partition();
+    if (!partitions.empty()) {
+        // the whole component is bipartite, execute once per connected component
+        for (const auto& partition : partitions) {
+            if (!partition.first.empty() && !partition.second.empty()) {
+                lambda(BipartiteGraph(*graph, partition));
+            }
+        }
     }
     else {
+        // the component is not bipartite, try to find maximum bipartite subgraph
+        
         // TODO: magic constants
+        bipartition partition;
         if (component.size() < 8) {
             // the case is small enough to solve with brute force
             partition = move(exhaustive_maximum_bipartite_partition());
@@ -487,31 +508,21 @@ void AdjacencyComponent::decompose_into_bipartite_blocks(const function<void(con
             });
         }
         
-        // remove any sides from the partition that don't have any edges
-        // that cross the partition
-        vector<handle_t> to_remove;
-        to_remove.reserve(component.size() - partition_sides.size());
-        for (auto it = begin(), e = end(); it != e; ++it) {
-            if (!partition_sides.count(*it)) {
-                to_remove.push_back(*it);
+        // make an adjacency component for the bipartite edge set
+        AdjacencyComponent partition_comp(partition_graph,
+                                          partition_sides.begin(), partition_sides.end());
+        for (const auto& partition : partition_comp.bipartite_partition()) {
+            // execute on each connected component of the bipartition
+            if (!partition.first.empty() && !partition.second.empty()) {
+                lambda(BipartiteGraph(partition_graph, partition));
             }
         }
-        for (auto side : to_remove) {
-            if (partition.first.count(side)) {
-                partition.first.erase(side);
-            }
-            else {
-                partition.second.erase(side);
-            }
-        }
-        // execute on the part of the component that we bipartitioned
-        lambda(BipartiteGraph(partition_graph, partition));
         
         // repeat the whole procedure again on the part of the component that we didn't
         // manage to bipartition
-        AdjacencyComponent remainder_component(remainder_graph,
-                                               remainder_sides.begin(), remainder_sides.end());
-        remainder_component.decompose_into_bipartite_blocks(lambda);
+        AdjacencyComponent remainder_comp(remainder_graph,
+                                          remainder_sides.begin(), remainder_sides.end());
+        remainder_comp.decompose_into_bipartite_blocks(lambda);
     }
 }
 
