@@ -12,7 +12,7 @@ The way that we resolve overlaps is designed to provide two guarantees. First, a
 
 ## Usage
 
-```./get_blunted [-p provenance_table.txt] input.gfa > bluntified.gfa```
+```./get_blunted [-p provenance_table.txt] -i input.gfa > bluntified.gfa```
 
 For a typical phased human assembly GFA (5.1GB) about 8GB of RAM are used, and run time is 1m 30s.
 
